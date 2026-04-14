@@ -296,6 +296,16 @@ class GameUI {
 
         this.phaseHintEl.textContent = text;
         this.phaseHintEl.style.color = color;
+
+        // Phase-based background tint
+        const bgMap = {
+            Replenish: ['rgba(8,14,32,0.72)',  'rgba(60,90,160,0.2)'],
+            Action:    ['rgba(18,13,6,0.82)',   'rgba(180,140,20,0.35)'],
+            Task:      ['rgba(6,14,28,0.82)',   'rgba(50,130,220,0.35)'],
+        };
+        const [bg, bc] = bgMap[this.state?.phase] || bgMap.Replenish;
+        this.phaseHintEl.style.background   = bg;
+        this.phaseHintEl.style.borderColor  = bc;
     }
 
     _renderBoard() {
@@ -390,15 +400,18 @@ class GameUI {
     _patternSVG(pattern) {
         const size = 48, cell = 14, gap = 2;
         let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`;
-        svg += `<rect width="${size}" height="${size}" fill="transparent"/>`;
+        svg += `<rect width="${size}" height="${size}" rx="5" fill="#07101e" stroke="rgba(40,60,120,0.5)" stroke-width="1"/>`;
         for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
             const x = 4 + c * (cell + gap), y = 4 + r * (cell + gap);
             const cell_data = pattern.find(p => p.row === r && p.col === c);
             if (cell_data) {
-                const fill = cell_data.type === CellType.W ? '#e0e0ff' : '#888';
-                svg += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="3" fill="${fill}" stroke="#666" stroke-width="1"/>`;
+                if (cell_data.type === CellType.W) {
+                    svg += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="3" fill="#c0d0ff" stroke="rgba(160,190,255,0.5)" stroke-width="0.5"/>`;
+                } else {
+                    svg += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="3" fill="#3a4a72" stroke="rgba(80,110,170,0.6)" stroke-width="0.5"/>`;
+                }
             } else {
-                svg += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="3" fill="none" stroke="#333" stroke-width="1"/>`;
+                svg += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="3" fill="rgba(255,255,255,0.025)" stroke="rgba(255,255,255,0.07)" stroke-width="0.5"/>`;
             }
         }
         svg += '</svg>';
