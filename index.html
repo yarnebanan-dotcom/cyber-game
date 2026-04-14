@@ -7,7 +7,7 @@
 <style>
 /* ── Reset & Base ────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: system-ui, sans-serif; overflow: hidden; }
+html, body { height: 100%; background: #090b16; color: #e0e8ff; font-family: system-ui, sans-serif; overflow: hidden; }
 
 /* ── Layout ──────────────────────────────────────────────── */
 #app {
@@ -45,7 +45,8 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
     font-size: 12px;
     line-height: 1.4;
 }
-.player-panel.active-player { border-color: #4488ff; }
+#p1-panel.active-player { border-color: #4488ff; box-shadow: 0 0 14px #4488ff28; }
+#p2-panel.active-player { border-color: #ff5544; box-shadow: 0 0 14px #ff554428; }
 #p1-panel .player-label { color: #6699ff; font-weight: bold; font-size: 11px; }
 #p2-panel .player-label { color: #ff6655; font-weight: bold; font-size: 11px; }
 .player-score { font-size: 20px; font-weight: bold; }
@@ -58,9 +59,9 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
     margin-top: 4px;
     overflow: hidden;
 }
-.score-bar { height: 100%; border-radius: 2px; width: 0%; transition: width 0.4s; }
-#p1-panel .score-bar { background: #4488ff; }
-#p2-panel .score-bar { background: #ff5544; }
+.score-bar { height: 100%; border-radius: 2px; width: 0%; transition: width 0.55s cubic-bezier(0.34, 1.2, 0.64, 1); }
+#p1-panel .score-bar { background: #4488ff; box-shadow: 0 0 8px #4488ff99; }
+#p2-panel .score-bar { background: #ff5544; box-shadow: 0 0 8px #ff554499; }
 
 .hud-center {
     display: flex;
@@ -83,7 +84,7 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
     text-align: center;
     min-height: 30px;
     line-height: 1.4;
-    transition: color 0.2s;
+    transition: color 0.3s ease, opacity 0.2s ease;
 }
 
 /* ── Opponent Revealed ───────────────────────────────────── */
@@ -105,6 +106,33 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
 }
 .revealed-wrap { flex-shrink: 0; }
 .revealed-wrap.collapsed { display: none; }
+
+/* ── Keyframe Animations ─────────────────────────────────── */
+@keyframes node-p1-pulse {
+    0%, 100% { box-shadow: 0 0 10px #4488ffaa, 0 0 3px #2255cc; }
+    50%       { box-shadow: 0 0 24px #4488ffee, 0 0 8px #5599ff; }
+}
+@keyframes node-p2-pulse {
+    0%, 100% { box-shadow: 0 0 10px #ff5544aa, 0 0 3px #cc3322; }
+    50%       { box-shadow: 0 0 24px #ff5544ee, 0 0 8px #ff6655; }
+}
+@keyframes card-float {
+    0%, 100% { transform: translateY(0); }
+    50%       { transform: translateY(-4px); }
+}
+@keyframes panel-slide-in {
+    from { transform: translateY(20px); opacity: 0; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+@keyframes glitch-text {
+    0%   { transform: translateX(0);   text-shadow: none; }
+    15%  { transform: translateX(-4px); text-shadow: 3px 0 #4488ff; }
+    30%  { transform: translateX( 4px); text-shadow: -3px 0 #ff5544; }
+    45%  { transform: translateX(-2px); text-shadow: 2px 0 #4488ff, -2px 0 #ff5544; }
+    60%  { transform: translateX( 1px); text-shadow: none; }
+    75%  { transform: translateX(-1px); }
+    100% { transform: translateX(0);   text-shadow: none; }
+}
 
 /* ── Board ───────────────────────────────────────────────── */
 #board-wrap {
@@ -138,17 +166,24 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
 .node.p1 {
     background: radial-gradient(circle at 35% 35%, #6699ff, #2255cc);
     border: 2px solid #4488ff;
-    box-shadow: 0 0 8px #2255cc88;
+    box-shadow: 0 0 12px #4488ffaa, 0 0 4px #2255cc;
+    animation: node-p1-pulse 3s ease-in-out infinite;
 }
 .node.p2 {
     background: radial-gradient(circle at 35% 35%, #ff7766, #cc3322);
     border: 2px solid #ff5544;
-    box-shadow: 0 0 8px #cc332288;
+    box-shadow: 0 0 12px #ff5544aa, 0 0 4px #cc3322;
+    animation: node-p2-pulse 3s ease-in-out infinite;
 }
+/* Pulse stagger so chips don't all blink in sync */
+.node:nth-child(4n+2) { animation-delay: 0.35s; }
+.node:nth-child(4n+3) { animation-delay: 0.70s; }
+.node:nth-child(4n+4) { animation-delay: 1.05s; }
 .node.highlighted {
-    box-shadow: 0 0 0 3px #ffcc44, 0 0 12px #ffcc4466;
-    transform: scale(1.08);
+    box-shadow: 0 0 0 3px #ffcc44, 0 0 18px #ffcc4477;
+    transform: scale(1.1);
     z-index: 1;
+    animation: none;
 }
 .node.selected-node {
     opacity: 0.5;
@@ -178,6 +213,9 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
 .btn-skip    { background: #3a2255; }
 
 /* ── Placement Panel ─────────────────────────────────────── */
+#placement-panel:not(.hidden) {
+    animation: panel-slide-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
 #placement-panel {
     display: flex;
     align-items: center;
@@ -293,7 +331,8 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
 }
 .card.playable {
     border-color: #22bb44;
-    box-shadow: 0 0 8px #22bb4430;
+    box-shadow: 0 0 14px #22bb4455, 0 0 0 1px #22bb4422;
+    animation: card-float 2.5s ease-in-out infinite;
 }
 .card.unplayable {
     opacity: 0.38;
@@ -302,7 +341,8 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
 .card.selected {
     border-color: #ffcc44;
     transform: translateY(-8px);
-    box-shadow: 0 4px 16px #ffcc4444;
+    box-shadow: 0 4px 22px #ffcc4466;
+    animation: none;
 }
 .card:active { transform: scale(0.96); }
 .card-cost {
@@ -372,6 +412,7 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
     color: #ccdeff;
     margin-top: 12px;
 }
+#handoff-next.glitch { animation: glitch-text 0.65s steps(1); }
 #btn-handoff-ok {
     padding: 18px 48px;
     background: #2255aa;

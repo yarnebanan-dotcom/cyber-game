@@ -25,7 +25,11 @@ class GameUI {
         // Last turn summary for handoff screen
         this._lastTurnSummary = null;
 
+        // Score animation tracking
+        this._prevScores = [0, 0];
+
         this._bindElements();
+        this._initAudio();
     }
 
     _bindElements() {
@@ -91,6 +95,65 @@ class GameUI {
         document.getElementById('card-detail-close').onclick = () => this.cardDetail.classList.add('hidden');
     }
 
+    // ── Audio & Haptics ────────────────────────────────────────
+
+    _initAudio() {
+        try {
+            this._audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        } catch(e) { this._audioCtx = null; }
+    }
+
+    _playSound(type) {
+        if (!this._audioCtx) return;
+        const ctx = this._audioCtx;
+        if (ctx.state === 'suspended') ctx.resume();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        const t = ctx.currentTime;
+        if (type === 'chip') {
+            // Short click — falling tone
+            osc.frequency.setValueAtTime(700, t);
+            osc.frequency.exponentialRampToValueAtTime(200, t + 0.07);
+            gain.gain.setValueAtTime(0.12, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.07);
+            osc.start(t); osc.stop(t + 0.07);
+        } else if (type === 'play') {
+            // Card play — rising tone
+            osc.frequency.setValueAtTime(440, t);
+            osc.frequency.exponentialRampToValueAtTime(1320, t + 0.13);
+            gain.gain.setValueAtTime(0.16, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+            osc.start(t); osc.stop(t + 0.15);
+        } else if (type === 'turn') {
+            // End turn — two-note descend
+            osc.frequency.setValueAtTime(660, t);
+            osc.frequency.setValueAtTime(440, t + 0.09);
+            gain.gain.setValueAtTime(0.13, t);
+            gain.gain.setValueAtTime(0.09, t + 0.09);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
+            osc.start(t); osc.stop(t + 0.24);
+        }
+    }
+
+    _haptic(pattern) {
+        if (navigator.vibrate) navigator.vibrate(pattern);
+    }
+
+    // ── Score counter ──────────────────────────────────────────
+
+    _animateCounter(el, from, to, win) {
+        const dur = 480, start = performance.now();
+        const tick = now => {
+            const p = Math.min((now - start) / dur, 1);
+            const ease = 1 - Math.pow(1 - p, 3);
+            el.textContent = `${Math.round(from + (to - from) * ease)} / ${win}`;
+            if (p < 1) requestAnimationFrame(tick);
+        };
+        requestAnimationFrame(tick);
+    }
+
     _startGame() {
         this.state = new GameState(4, 15);
         const self = this;
@@ -110,6 +173,7 @@ class GameUI {
         this.tm.onGameOver = w => this._onGameOver(w);
 
         // Reset UI state
+        this._prevScores = [0, 0];
         this.pendingCard = null;
         this.currentPlacements = [];
         this.nodePickDone = null;
@@ -130,13 +194,24 @@ class GameUI {
         const st = this.state;
         const p1 = st.players[0], p2 = st.players[1];
 
-        // Scores
-        this.p1ScoreEl.textContent = `${p1.score} / ${st.winScore}`;
-        this.p2ScoreEl.textContent = `${p2.score} / ${st.winScore}`;
+        // Scores (animated counter on increase)
+        const win = st.winScore;
+        if (p1.score > this._prevScores[0]) {
+            this._animateCounter(this.p1ScoreEl, this._prevScores[0], p1.score, win);
+        } else {
+            this.p1ScoreEl.textContent = `${p1.score} / ${win}`;
+        }
+        if (p2.score > this._prevScores[1]) {
+            this._animateCounter(this.p2ScoreEl, this._prevScores[1], p2.score, win);
+        } else {
+            this.p2ScoreEl.textContent = `${p2.score} / ${win}`;
+        }
+        this._prevScores[0] = p1.score;
+        this._prevScores[1] = p2.score;
 
         // Progress bars
-        this.p1BarEl.style.width = Math.min(100, (p1.score / st.winScore) * 100) + '%';
-        this.p2BarEl.style.width = Math.min(100, (p2.score / st.winScore) * 100) + '%';
+        this.p1BarEl.style.width = Math.min(100, (p1.score / win) * 100) + '%';
+        this.p2BarEl.style.width = Math.min(100, (p2.score / win) * 100) + '%';
 
         // Secondary stats
         this.p1SupplyEl.textContent = `Запас: ${p1.supply}`;
@@ -422,6 +497,8 @@ class GameUI {
 
         const result = this.tm.placeChip(r, c);
         if (result === 'ok') {
+            this._haptic(14);
+            this._playSound('chip');
             this._renderBoard();
             if (this.state.phase === Phase.Action) this._highlightEmptyNodes();
             this._updatePhaseHint();
@@ -559,6 +636,8 @@ class GameUI {
         };
         const ok = this.tm.endTurn();
         if (ok) {
+            this._haptic([12, 8, 32]);
+            this._playSound('turn');
             this._lastTurnSummary = summary;
             this.pendingCard = null;
             this.placementPanel.classList.add('hidden');
@@ -614,6 +693,7 @@ class GameUI {
         const card = this.pendingCard;
         this.pendingCard = null;
         this.tm.playCard(card, placement, result => {
+            if (!result) { this._haptic(26); this._playSound('play'); }
             this._render();
             if (result === 'limitReached') this._showMessage('Лимит задач (2) исчерпан');
         });
@@ -675,6 +755,12 @@ class GameUI {
             `Передайте устройство<br>Игроку ${nextPlayer}`;
 
         this.handoffScreen.classList.remove('hidden');
+
+        // Glitch entrance on "Передайте устройство" text
+        const nextEl = document.getElementById('handoff-next');
+        nextEl.classList.remove('glitch');
+        requestAnimationFrame(() => nextEl.classList.add('glitch'));
+        setTimeout(() => nextEl.classList.remove('glitch'), 750);
     }
 
     _onHandoffOk() {
