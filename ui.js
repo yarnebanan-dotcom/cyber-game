@@ -41,7 +41,7 @@ class GameUI {
         // Buttons
         document.getElementById('btn-end-action').onclick = () => this._onEndAction();
         document.getElementById('btn-utilize').onclick = () => this._onUtilize();
-        document.getElementById('btn-skip').onclick = () => this._onSkip();
+        document.getElementById('btn-skip').onclick = () => this._onEndTurn();
 
         // Placement panel
         this.placementPanel = document.getElementById('placement-panel');
@@ -126,11 +126,21 @@ class GameUI {
         document.getElementById('p1-panel').classList.toggle('active-player', st.currentPI === 0);
         document.getElementById('p2-panel').classList.toggle('active-player', st.currentPI === 1);
 
-        // Chips left indicator
+        // Action/task phase info
         const inAction = st.phase === Phase.Action;
-        const chipsLeft = st.chipsAllowed - st.chipsPlaced;
-        this.chipsLeftEl.textContent = inAction ? `Фишек для расстановки: ${chipsLeft}` : '';
-        this.chipsLeftEl.style.display = inAction ? '' : 'none';
+        const inTask = st.phase === Phase.Task;
+        if (inAction) {
+            const chipsLeft = st.chipsAllowed - st.chipsPlaced;
+            this.chipsLeftEl.textContent = chipsLeft > 0
+                ? `Поставить фишек: ${chipsLeft} (или нажать на свою фишку чтобы убрать)`
+                : '';
+            this.chipsLeftEl.style.display = chipsLeft > 0 ? '' : 'none';
+        } else if (inTask) {
+            this.chipsLeftEl.textContent = `Задач: ${st.tasksThisTurn}/2 · Утилизаций: ${st.utilizesThisTurn}/2`;
+            this.chipsLeftEl.style.display = '';
+        } else {
+            this.chipsLeftEl.style.display = 'none';
+        }
 
         // Buttons visibility
         document.getElementById('btn-end-action').style.display = inAction ? '' : 'none';
@@ -326,6 +336,22 @@ class GameUI {
         }
 
         if (this.state.phase !== Phase.Action) return;
+
+        const st = this.state;
+        const selfOcc = st.board.occOf(st.currentPI);
+
+        // Нажатие на свою фишку без уже размещённых — убрать её
+        if (st.board.nodes[r][c] === selfOcc) {
+            if (st.chipsPlaced === 0) {
+                const result = this.tm.returnPiece(r, c);
+                if (result === 'ok') {
+                    this._renderBoard();
+                    this._clearHighlights();
+                }
+            }
+            return;
+        }
+
         const result = this.tm.placeChip(r, c);
         if (result === 'ok') {
             this._renderBoard();
@@ -366,17 +392,24 @@ class GameUI {
             this._showMessage('Сначала выберите карту');
             return;
         }
+        const st = this.state;
+        if (st.utilizesThisTurn >= 2) {
+            this._showMessage('Лимит утилизаций (2) исчерпан');
+            return;
+        }
         this.tm.utilizeCard(this.pendingCard, result => {
             this.pendingCard = null;
             this._render();
-            if (result === 'ok') this._showHandoff();
+            if (result === 'limitReached') this._showMessage('Лимит утилизаций (2) исчерпан');
         });
     }
 
-    _onSkip() {
-        const ok = this.tm.skipTask();
+    _onEndTurn() {
+        const ok = this.tm.endTurn();
         if (ok) {
             this.pendingCard = null;
+            this.placementPanel.classList.add('hidden');
+            this._clearHighlights();
             this._render();
             this._showHandoff();
         }
@@ -413,7 +446,7 @@ class GameUI {
         this.pendingCard = null;
         this.tm.playCard(card, placement, result => {
             this._render();
-            if (result === 'ok') this._showHandoff();
+            if (result === 'limitReached') this._showMessage('Лимит задач (2) исчерпан');
         });
     }
 

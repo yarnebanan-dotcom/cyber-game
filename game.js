@@ -28,9 +28,9 @@ class PlayerState {
         this.idx = idx;
         this.hand = [];
         this.revealed = [];
-        this.supply = 4;
+        this.supply = 3;
         this.score = 0;
-        this.totalChips = 16;
+        this.totalChips = 8;
         this.chipsOnBoard = 0;
     }
     get reserve() { return this.totalChips - this.chipsOnBoard; }
@@ -65,6 +65,9 @@ class GameState {
         this.winScore = winScore;
         this.chipsPlaced = 0;
         this.chipsAllowed = 2;
+        this.tasksThisTurn = 0;
+        this.utilizesThisTurn = 0;
+        this.mainActionDone = false;
         const cards = CardDatabase.create();
         this.deck = new Deck(cards, this.discard);
     }
@@ -253,31 +256,60 @@ const Reset = () => new ResetFieldEffect();
 // ═══════════════════════════════════════════════════════════
 
 class PatternMatcher {
+    // Rotate 90° clockwise in 3×3 grid: (r,c) → (c, 2-r)
+    static _rotate90(cells) {
+        return cells.map(({ row, col, type }) => ({ row: col, col: 2 - row, type }));
+    }
+
+    // All unique rotations (0/90/180/270°) of the pattern
+    static _getRotations(pattern) {
+        const rotations = [];
+        const seen = new Set();
+        let cur = pattern;
+        for (let i = 0; i < 4; i++) {
+            const key = [...cur].sort((a, b) => a.row * 10 + a.col - (b.row * 10 + b.col))
+                .map(c => `${c.row}${c.col}${c.type}`).join('|');
+            if (!seen.has(key)) { seen.add(key); rotations.push(cur); }
+            cur = PatternMatcher._rotate90(cur);
+        }
+        return rotations;
+    }
+
     static findMatches(pattern, board, ap) {
         if (!pattern || pattern.length === 0) return [];
         const results = [];
-        let minR = Infinity, maxR = -Infinity, minC = Infinity, maxC = -Infinity;
-        for (const cell of pattern) {
-            minR = Math.min(minR, cell.row); maxR = Math.max(maxR, cell.row);
-            minC = Math.min(minC, cell.col); maxC = Math.max(maxC, cell.col);
-        }
-        const drMin = -minR, drMax = board.size - 1 - maxR;
-        const dcMin = -minC, dcMax = board.size - 1 - maxC;
-        for (let dr = drMin; dr <= drMax; dr++)
-            for (let dc = dcMin; dc <= dcMax; dc++) {
-                const p = PatternMatcher._tryPlace(pattern, board, ap, dr, dc);
-                if (p) results.push(p);
+        const seenPos = new Set();
+
+        for (const rot of PatternMatcher._getRotations(pattern)) {
+            let minR = Infinity, maxR = -Infinity, minC = Infinity, maxC = -Infinity;
+            for (const cell of rot) {
+                minR = Math.min(minR, cell.row); maxR = Math.max(maxR, cell.row);
+                minC = Math.min(minC, cell.col); maxC = Math.max(maxC, cell.col);
             }
+            const drMin = -minR, drMax = board.size - 1 - maxR;
+            const dcMin = -minC, dcMax = board.size - 1 - maxC;
+            for (let dr = drMin; dr <= drMax; dr++)
+                for (let dc = dcMin; dc <= dcMax; dc++) {
+                    const p = PatternMatcher._tryPlace(rot, board, ap, dr, dc);
+                    if (p) {
+                        // Deduplicate by set of chip positions
+                        const key = [...p.chipPositions].sort().map(([r, c]) => `${r},${c}`).join('|');
+                        if (!seenPos.has(key)) { seenPos.add(key); results.push(p); }
+                    }
+                }
+        }
         return results;
     }
+
     static _tryPlace(pattern, board, ap, dr, dc) {
+        const selfOcc = board.occOf(ap);
         const oppOcc = board.oppOf(ap);
         const positions = [];
         for (const cell of pattern) {
             const r = cell.row + dr, c = cell.col + dc;
             const occ = board.nodes[r][c];
-            if (cell.type === CellType.W) { if (occ === Occ.Empty) return null; }
-            else { if (occ !== oppOcc) return null; }
+            if (cell.type === CellType.W) { if (occ !== selfOcc) return null; }  // W = своя фишка
+            else                          { if (occ !== oppOcc)  return null; }  // G = фишка противника
             positions.push([r, c]);
         }
         return { chipPositions: positions };
@@ -320,27 +352,46 @@ class TurnManager {
         st.cp.chipsOnBoard++;
         st.chipsPlaced++;
         this._notify();
-        if (st.chipsPlaced >= st.chipsAllowed) this._toTask();
+        if (st.chipsPlaced >= st.chipsAllowed) {
+            st.mainActionDone = true;
+            this._toTask();
+        }
+        return 'ok';
+    }
+
+    // Вернуть свою фишку с доски (вместо размещения 2-х)
+    returnPiece(r, c) {
+        const st = this.state;
+        if (st.phase !== Phase.Action) return 'invalidPhase';
+        if (st.chipsPlaced > 0) return 'invalidAction';  // уже начал ставить фишки
+        if (st.board.nodes[r][c] !== st.board.occOf(st.currentPI)) return 'invalidAction';
+        st.board.nodes[r][c] = Occ.Empty;
+        st.cp.chipsOnBoard--;
+        st.mainActionDone = true;
+        this._notify();
+        this._toTask();
         return 'ok';
     }
 
     endAction() {
         if (this.state.phase !== Phase.Action) return false;
+        this.state.mainActionDone = true;
         this._toTask();
         return true;
     }
 
-    skipTask() {
+    endTurn() {
         if (this.state.phase !== Phase.Task) return false;
         this._endTurn();
         return true;
     }
 
-    // Розыгрыш карты
+    // Розыгрыш карты (не завершает ход — игрок может сыграть до 2 карт + 2 утилизации)
     playCard(card, placement, onDone) {
         const st = this.state;
         if (this.isGameOver) { onDone?.('gameOver'); return; }
         if (st.phase !== Phase.Task) { onDone?.('invalidPhase'); return; }
+        if (st.tasksThisTurn >= 2) { onDone?.('limitReached'); return; }
 
         const pl = st.cp, opp = st.opp;
         const owned = pl.hand.includes(card) || pl.revealed.includes(card) || opp.revealed.includes(card);
@@ -361,18 +412,19 @@ class TurnManager {
         card.playEffect.execute(st, st.currentPI, this.input, () => {
             this._removeCardFromOwner(card);
             st.discard.push(card);
+            st.tasksThisTurn++;
             this._notify();
             if (this._checkWin()) { onDone?.('gameOver'); return; }
-            this._endTurn();
             onDone?.('ok');
         });
     }
 
-    // Утилизация
+    // Утилизация (не завершает ход)
     utilizeCard(card, onDone) {
         const st = this.state;
         if (this.isGameOver) { onDone?.('gameOver'); return; }
         if (st.phase !== Phase.Task) { onDone?.('invalidPhase'); return; }
+        if (st.utilizesThisTurn >= 2) { onDone?.('limitReached'); return; }
 
         const pl = st.cp;
         if (!pl.hand.includes(card) && !pl.revealed.includes(card)) { onDone?.('invalidAction'); return; }
@@ -380,10 +432,68 @@ class TurnManager {
         card.utilizeEffect.execute(st, st.currentPI, this.input, () => {
             this._removeCardFromOwner(card);
             st.discard.push(card);
+            st.utilizesThisTurn++;
             this._notify();
             if (this._checkWin()) { onDone?.('gameOver'); return; }
-            this._endTurn();
             onDone?.('ok');
+        });
+    }
+
+    // Синтез — два паттерна одновременно, хотя бы одна общая фишка
+    synthesis(cardA, cardB, matchA, matchB, orderAFirst, onDone) {
+        const st = this.state;
+        if (this.isGameOver) { onDone?.('gameOver'); return; }
+        if (st.phase !== Phase.Task) { onDone?.('invalidPhase'); return; }
+        if (st.tasksThisTurn >= 2) { onDone?.('limitReached'); return; }
+        if (cardA === cardB) { onDone?.('invalidAction'); return; }
+
+        const pl = st.cp, opp = st.opp;
+        const ownedA = pl.hand.includes(cardA) || pl.revealed.includes(cardA) || opp.revealed.includes(cardA);
+        const ownedB = pl.hand.includes(cardB) || pl.revealed.includes(cardB) || opp.revealed.includes(cardB);
+        if (!ownedA || !ownedB) { onDone?.('invalidAction'); return; }
+
+        const validsA = PatternMatcher.findMatches(cardA.pattern, st.board, st.currentPI);
+        const validsB = PatternMatcher.findMatches(cardB.pattern, st.board, st.currentPI);
+        if (!this._isPlacementValid(matchA, validsA)) { onDone?.('invalidAction'); return; }
+        if (!this._isPlacementValid(matchB, validsB)) { onDone?.('invalidAction'); return; }
+
+        // Проверяем хотя бы одну общую позицию
+        const posSetA = new Set(matchA.chipPositions.map(([r, c]) => `${r},${c}`));
+        const hasShared = matchB.chipPositions.some(([r, c]) => posSetA.has(`${r},${c}`));
+        if (!hasShared) { onDone?.('invalidAction'); return; }
+
+        // Очки за обе карты
+        pl.score += cardA.cost + cardB.cost;
+
+        const [first, second] = orderAFirst ? [cardA, cardB] : [cardB, cardA];
+
+        // Эффекты синтеза: playEffect + synthesisEffect каждой карты
+        const fxFirst  = new CardEffect([...first.playEffect.effects, ...first.synthesisEffect.effects]);
+        const fxSecond = new CardEffect([...second.playEffect.effects, ...second.synthesisEffect.effects]);
+
+        const finalize = () => {
+            // Снимаем объединение фишек в конце
+            const seen = new Set();
+            for (const [r, c] of [...matchA.chipPositions, ...matchB.chipPositions]) {
+                const key = `${r},${c}`;
+                if (seen.has(key)) continue;
+                seen.add(key);
+                const occ = st.board.nodes[r][c];
+                if (occ === Occ.P1) st.players[0].chipsOnBoard--;
+                else if (occ === Occ.P2) st.players[1].chipsOnBoard--;
+                st.board.nodes[r][c] = Occ.Empty;
+            }
+            this._removeCardFromOwner(cardA);
+            this._removeCardFromOwner(cardB);
+            st.discard.push(cardA, cardB);
+            st.tasksThisTurn++;
+            this._notify();
+            if (this._checkWin()) { onDone?.('gameOver'); return; }
+            onDone?.('ok');
+        };
+
+        fxFirst.execute(st, st.currentPI, this.input, () => {
+            fxSecond.execute(st, st.currentPI, this.input, finalize);
         });
     }
 
@@ -397,6 +507,9 @@ class TurnManager {
         st.phase = Phase.Action;
         st.chipsPlaced = 0;
         st.chipsAllowed = 2;
+        st.tasksThisTurn = 0;
+        st.utilizesThisTurn = 0;
+        st.mainActionDone = false;
         this.onPhaseChanged?.(Phase.Action);
         this._notify();
     }
