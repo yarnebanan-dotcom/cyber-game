@@ -172,16 +172,69 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
 }
 #placement-count { color: #8899bb; font-size: 13px; min-width: 40px; text-align: center; }
 #btn-confirm {
-    flex: 1;
-    padding: 10px;
+    padding: 8px 10px;
     background: #228833;
     border: none;
     border-radius: 8px;
     color: #fff;
-    font-size: 14px;
+    font-size: 13px;
     font-weight: bold;
     cursor: pointer;
 }
+#btn-synth {
+    padding: 6px 10px;
+    background: #4422aa;
+    border: none;
+    border-radius: 8px;
+    color: #cc99ff;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+}
+#btn-synth-cancel {
+    padding: 5px 10px;
+    background: #441122;
+    border: none;
+    border-radius: 8px;
+    color: #ff8899;
+    font-size: 11px;
+    cursor: pointer;
+}
+
+/* Synth order panel */
+#synth-order-panel {
+    background: #0d1428;
+    border: 1px solid #4422aa;
+    border-radius: 10px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    flex-shrink: 0;
+}
+#synth-order-panel.hidden { display: none; }
+.synth-order-title {
+    font-size: 11px;
+    color: #aa88ff;
+    text-align: center;
+    font-weight: bold;
+}
+.synth-order-btn {
+    padding: 8px 12px;
+    background: #1a1040;
+    border: 1px solid #4422aa;
+    border-radius: 8px;
+    color: #cc99ff;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+.synth-order-btn:active { background: #2a1860; }
+.synth-order-name { color: #e0d4ff; font-weight: bold; }
+.synth-order-arrow { color: #7755cc; }
 
 /* ── Own Revealed ────────────────────────────────────────── */
 /* ── Hand ────────────────────────────────────────────────── */
@@ -451,8 +504,19 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
     <div id="placement-panel" class="hidden">
         <button class="btn-nav" id="btn-prev">‹</button>
         <span id="placement-count">1 / 1</span>
-        <button id="btn-confirm">Разыграть!</button>
+        <div style="display:flex;flex-direction:column;gap:4px;flex:1">
+            <button id="btn-confirm">Разыграть!</button>
+            <button id="btn-synth">⊕ Синтез</button>
+            <button id="btn-synth-cancel" style="display:none">✕ Отмена синтеза</button>
+        </div>
         <button class="btn-nav" id="btn-next">›</button>
+    </div>
+
+    <!-- Synth order panel -->
+    <div id="synth-order-panel" class="hidden">
+        <div class="synth-order-title">Порядок эффектов синтеза:</div>
+        <button class="synth-order-btn" id="btn-order-a"></button>
+        <button class="synth-order-btn" id="btn-order-b"></button>
     </div>
 
     <!-- Action buttons -->
