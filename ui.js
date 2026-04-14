@@ -263,11 +263,25 @@ class GameUI {
 
     _fxText(effect) {
         return effect.effects.map(fx => {
-            const t = fx.constructor.name.replace('Effect', '');
-            const n = fx.n || fx.count || '';
-            const tgt = fx.target === Target.Self ? '' : fx.target === Target.Opp ? '(пр)' : '';
-            return `${t}${n}${tgt}`;
-        }).join(' + ');
+            const self = fx.target === Target.Self || fx.target === undefined;
+            const tgt = self ? 'себе' : 'противнику';
+            const opp = !self;
+            const n = fx.n;
+            const inf = n === Infinity;
+            switch (fx.constructor.name) {
+                case 'DrawCardsEffect':    return `взять ${n}`;
+                case 'DigCardsEffect':     return `раскопать ${n}`;
+                case 'PlaceChipsEffect':   return `поставить ${n} фишк${n===1?'у':n<5?'и':'ек'}`;
+                case 'RevealCardsEffect':  return inf ? `раскрыть все (${tgt})` : `раскрыть ${n} (${tgt})`;
+                case 'DiscardCardsEffect': return inf ? `сбросить все (${tgt})` : `сбросить ${n} (${tgt})`;
+                case 'StealCardsEffect':   return `украсть ${n}`;
+                case 'ModifySupplyEffect': return `${fx.delta > 0 ? '+' : ''}${fx.delta} запас (${tgt})`;
+                case 'SetSupplyEffect':    return `запас = ${fx.val} (${tgt})`;
+                case 'CopyOpponentSupplyEffect': return 'запас = запас противника';
+                case 'ResetFieldEffect':   return 'сбросить стол';
+                default: return fx.constructor.name;
+            }
+        }).join(', ');
     }
 
     // ── Board building ─────────────────────────────────────────
@@ -472,7 +486,15 @@ class GameUI {
         cards.forEach(card => {
             const item = document.createElement('div');
             item.className = 'pick-item';
-            item.innerHTML = `<strong>${card.name}</strong> [${card.cost}]`;
+            const fxLines = [];
+            if (card.playEffect.hasEffects) fxLines.push(`▶ ${this._fxText(card.playEffect)}`);
+            if (card.utilizeEffect.hasEffects) fxLines.push(`✕ ${this._fxText(card.utilizeEffect)}`);
+            item.innerHTML =
+                `<div class="pick-item-pattern">${this._patternSVG(card.pattern)}</div>` +
+                `<div class="pick-item-info">` +
+                  `<div class="pick-item-header"><strong>${card.name}</strong><span class="pick-cost">[${card.cost}]</span></div>` +
+                  (fxLines.length ? `<div class="pick-item-fx">${fxLines.join('<br>')}</div>` : '') +
+                `</div>`;
             item.addEventListener('click', () => {
                 if (this._cardPickSelected.includes(card)) {
                     this._cardPickSelected = this._cardPickSelected.filter(c => c !== card);
