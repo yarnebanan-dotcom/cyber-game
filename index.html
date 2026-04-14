@@ -48,7 +48,20 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
 .player-panel.active-player { border-color: #4488ff; }
 #p1-panel .player-label { color: #6699ff; font-weight: bold; font-size: 11px; }
 #p2-panel .player-label { color: #ff6655; font-weight: bold; font-size: 11px; }
-.player-score { font-size: 16px; font-weight: bold; }
+.player-score { font-size: 20px; font-weight: bold; }
+
+/* Score progress bar */
+.score-bar-wrap {
+    height: 3px;
+    background: #1a2240;
+    border-radius: 2px;
+    margin-top: 4px;
+    overflow: hidden;
+}
+.score-bar { height: 100%; border-radius: 2px; width: 0%; transition: width 0.4s; }
+#p1-panel .score-bar { background: #4488ff; }
+#p2-panel .score-bar { background: #ff5544; }
+
 .hud-center {
     display: flex;
     justify-content: space-between;
@@ -58,7 +71,20 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
     padding: 0 2px;
 }
 #phase-label { font-weight: bold; color: #aac4ff; }
-#chips-left { color: #ffcc66; font-size: 11px; }
+
+/* ── Phase hint bar ───────────────────────────────────────── */
+#phase-hint {
+    flex-shrink: 0;
+    padding: 6px 10px;
+    background: #0d1428;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #aac4ff;
+    text-align: center;
+    min-height: 30px;
+    line-height: 1.4;
+    transition: color 0.2s;
+}
 
 /* ── Opponent Revealed ───────────────────────────────────── */
 .revealed-zone {
@@ -77,6 +103,8 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
     margin-bottom: 1px;
     padding-left: 2px;
 }
+.revealed-wrap { flex-shrink: 0; }
+.revealed-wrap.collapsed { display: none; }
 
 /* ── Board ───────────────────────────────────────────────── */
 #board-wrap {
@@ -170,7 +198,7 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
     cursor: pointer;
     flex-shrink: 0;
 }
-#placement-count { color: #8899bb; font-size: 13px; min-width: 40px; text-align: center; }
+#placement-count { color: #aac4ff; font-size: 12px; min-width: 72px; text-align: center; }
 #btn-confirm {
     padding: 8px 10px;
     background: #228833;
@@ -236,7 +264,6 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
 .synth-order-name { color: #e0d4ff; font-weight: bold; }
 .synth-order-arrow { color: #7755cc; }
 
-/* ── Own Revealed ────────────────────────────────────────── */
 /* ── Hand ────────────────────────────────────────────────── */
 #hand-wrap {
     flex-shrink: 0;
@@ -254,18 +281,24 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
 /* ── Card ────────────────────────────────────────────────── */
 .card {
     flex-shrink: 0;
-    width: 100px;
+    width: 110px;
     background: #131c3a;
     border: 2px solid #2a3660;
     border-radius: 10px;
     padding: 5px;
     cursor: pointer;
-    transition: transform 0.1s, border-color 0.15s;
+    transition: transform 0.1s, border-color 0.15s, box-shadow 0.15s;
     position: relative;
     user-select: none;
 }
-.card.playable { border-color: #3355aa; }
-.card.unplayable { opacity: 0.55; }
+.card.playable {
+    border-color: #22bb44;
+    box-shadow: 0 0 8px #22bb4430;
+}
+.card.unplayable {
+    opacity: 0.38;
+    filter: grayscale(0.4);
+}
 .card.selected {
     border-color: #ffcc44;
     transform: translateY(-8px);
@@ -280,19 +313,19 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
     font-size: 11px;
     font-weight: bold;
     display: flex; align-items: center; justify-content: center;
-    color: #000;
+    color: #fff;
 }
 .card-name {
-    font-size: 9px;
+    font-size: 13px;
     font-weight: bold;
     margin-bottom: 3px;
     color: #ccd4ff;
     line-height: 1.2;
-    min-height: 22px;
+    min-height: 28px;
     padding-right: 22px;
 }
 .card-pattern { display: flex; justify-content: center; margin: 2px 0; }
-.card-fx { font-size: 8px; color: #7788aa; line-height: 1.3; }
+.card-fx { font-size: 11px; color: #7788aa; line-height: 1.4; }
 .fx-play  { color: #88cc88; }
 .fx-util  { color: #cc9944; }
 .fx-synth { color: #aa88ff; }
@@ -317,7 +350,27 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
 #handoff-screen {
     background: rgba(0, 0, 0, 0.92);
 }
-#handoff-text { font-size: 28px; font-weight: bold; color: #ccdeff; max-width: 300px; }
+#handoff-content {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    align-items: center;
+}
+#handoff-player {
+    font-size: 14px;
+    font-weight: bold;
+}
+#handoff-summary {
+    font-size: 13px;
+    color: #8899bb;
+    line-height: 1.6;
+}
+#handoff-next {
+    font-size: 26px;
+    font-weight: bold;
+    color: #ccdeff;
+    margin-top: 12px;
+}
 #btn-handoff-ok {
     padding: 18px 48px;
     background: #2255aa;
@@ -456,8 +509,9 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
             <div class="player-panel" id="p1-panel">
                 <div class="player-label">ИГРОК 1</div>
                 <div class="player-score" id="p1-score">0 / 15</div>
-                <div id="p1-supply">Запас: 4</div>
-                <div id="p1-chips">Фишки: 0</div>
+                <div class="score-bar-wrap"><div class="score-bar" id="p1-bar"></div></div>
+                <div id="p1-supply">Запас: 3</div>
+                <div id="p1-chips">Фишки: 0/8</div>
             </div>
             <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex-shrink:0">
                 <div id="deck-count" style="font-size:11px;color:#556">Колода: 53</div>
@@ -468,18 +522,19 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
             <div class="player-panel" id="p2-panel">
                 <div class="player-label" style="text-align:right">ИГРОК 2</div>
                 <div class="player-score" id="p2-score" style="text-align:right">0 / 15</div>
-                <div id="p2-supply" style="text-align:right">Запас: 4</div>
-                <div id="p2-chips" style="text-align:right">Фишки: 0</div>
+                <div class="score-bar-wrap"><div class="score-bar" id="p2-bar"></div></div>
+                <div id="p2-supply" style="text-align:right">Запас: 3</div>
+                <div id="p2-chips" style="text-align:right">Фишки: 0/8</div>
             </div>
-        </div>
-        <div class="hud-center">
-            <div id="chips-left" style="display:none"></div>
         </div>
     </div>
 
+    <!-- Phase hint bar -->
+    <div id="phase-hint"></div>
+
     <!-- Opponent's revealed cards -->
-    <div>
-        <div class="zone-label">Раскрытые карты Игрока 2</div>
+    <div id="opp-revealed-wrap" class="revealed-wrap">
+        <div class="zone-label" id="opp-revealed-label">Раскрытые карты Игрока 2</div>
         <div class="revealed-zone" id="opp-revealed"></div>
     </div>
 
@@ -489,21 +544,21 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
     </div>
 
     <!-- Own revealed cards -->
-    <div>
-        <div class="zone-label">Мои раскрытые карты</div>
+    <div id="own-revealed-wrap" class="revealed-wrap">
+        <div class="zone-label" id="own-revealed-label">Мои раскрытые карты</div>
         <div class="revealed-zone" id="own-revealed"></div>
     </div>
 
     <!-- Hand -->
     <div id="hand-wrap">
-        <div class="zone-label">Рука текущего игрока</div>
+        <div class="zone-label" id="hand-label">Рука Игрока 1</div>
         <div id="hand-cards"></div>
     </div>
 
     <!-- Placement panel -->
     <div id="placement-panel" class="hidden">
         <button class="btn-nav" id="btn-prev">‹</button>
-        <span id="placement-count">1 / 1</span>
+        <span id="placement-count">Позиция 1 из 1</span>
         <div style="display:flex;flex-direction:column;gap:4px;flex:1">
             <button id="btn-confirm">Разыграть!</button>
             <button id="btn-synth">⊕ Синтез</button>
@@ -521,16 +576,20 @@ html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: sys
 
     <!-- Action buttons -->
     <div id="action-bar">
-        <button class="btn btn-action" id="btn-end-action" style="display:none">Конец действий</button>
-        <button class="btn btn-utilize" id="btn-utilize" style="display:none">Утилизировать</button>
-        <button class="btn btn-skip" id="btn-skip" style="display:none">Завершить ход</button>
+        <button class="btn btn-action" id="btn-end-action" style="display:none">✓ Конец действий</button>
+        <button class="btn btn-utilize" id="btn-utilize" style="display:none">⊗ Утилизировать</button>
+        <button class="btn btn-skip" id="btn-skip" style="display:none">⏭ Завершить ход</button>
     </div>
 
 </div><!-- /app -->
 
 <!-- Handoff screen -->
 <div class="overlay hidden" id="handoff-screen">
-    <div id="handoff-text">Передайте устройство Игроку 2</div>
+    <div id="handoff-content">
+        <div id="handoff-player"></div>
+        <div id="handoff-summary"></div>
+        <div id="handoff-next"></div>
+    </div>
     <button id="btn-handoff-ok">Готов! ✓</button>
 </div>
 
