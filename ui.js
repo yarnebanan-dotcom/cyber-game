@@ -22,6 +22,9 @@ class GameUI {
         this.nodePickResult = [];
         this.nodePickDone = null;
 
+        // Last turn summary for handoff screen
+        this._lastTurnSummary = null;
+
         this._bindElements();
     }
 
@@ -33,14 +36,19 @@ class GameUI {
         this.p2SupplyEl = document.getElementById('p2-supply');
         this.p1ChipsEl = document.getElementById('p1-chips');
         this.p2ChipsEl = document.getElementById('p2-chips');
+        this.p1BarEl = document.getElementById('p1-bar');
+        this.p2BarEl = document.getElementById('p2-bar');
         this.deckCountEl = document.getElementById('deck-count');
         this.discardCountEl = document.getElementById('discard-count');
         this.phaseEl = document.getElementById('phase-label');
         this.turnEl = document.getElementById('turn-label');
+        this.phaseHintEl = document.getElementById('phase-hint');
         this.handEl = document.getElementById('hand-cards');
+        this.handLabelEl = document.getElementById('hand-label');
         this.ownRevealedEl = document.getElementById('own-revealed');
         this.oppRevealedEl = document.getElementById('opp-revealed');
-        this.chipsLeftEl = document.getElementById('chips-left');
+        this.ownRevealedWrap = document.getElementById('own-revealed-wrap');
+        this.oppRevealedWrap = document.getElementById('opp-revealed-wrap');
 
         // Buttons
         document.getElementById('btn-end-action').onclick = () => this._onEndAction();
@@ -63,7 +71,6 @@ class GameUI {
 
         // Handoff screen
         this.handoffScreen = document.getElementById('handoff-screen');
-        this.handoffText = document.getElementById('handoff-text');
         document.getElementById('btn-handoff-ok').onclick = () => this._onHandoffOk();
 
         // Game over screen
@@ -107,6 +114,7 @@ class GameUI {
         this.currentPlacements = [];
         this.nodePickDone = null;
         this.synth = null;
+        this._lastTurnSummary = null;
         this.handoffScreen.classList.add('hidden');
         this.gameOverScreen.classList.add('hidden');
         this.placementPanel.classList.add('hidden');
@@ -122,12 +130,19 @@ class GameUI {
         const st = this.state;
         const p1 = st.players[0], p2 = st.players[1];
 
+        // Scores
         this.p1ScoreEl.textContent = `${p1.score} / ${st.winScore}`;
         this.p2ScoreEl.textContent = `${p2.score} / ${st.winScore}`;
+
+        // Progress bars
+        this.p1BarEl.style.width = Math.min(100, (p1.score / st.winScore) * 100) + '%';
+        this.p2BarEl.style.width = Math.min(100, (p2.score / st.winScore) * 100) + '%';
+
+        // Secondary stats
         this.p1SupplyEl.textContent = `Запас: ${p1.supply}`;
         this.p2SupplyEl.textContent = `Запас: ${p2.supply}`;
-        this.p1ChipsEl.textContent = `Фишки: ${p1.chipsOnBoard}`;
-        this.p2ChipsEl.textContent = `Фишки: ${p2.chipsOnBoard}`;
+        this.p1ChipsEl.textContent = `Фишки: ${p1.chipsOnBoard}/8`;
+        this.p2ChipsEl.textContent = `Фишки: ${p2.chipsOnBoard}/8`;
         this.deckCountEl.textContent = `Колода: ${st.deck.count}`;
         this.discardCountEl.textContent = `Сброс: ${st.discard.length}`;
 
@@ -139,23 +154,17 @@ class GameUI {
         document.getElementById('p1-panel').classList.toggle('active-player', st.currentPI === 0);
         document.getElementById('p2-panel').classList.toggle('active-player', st.currentPI === 1);
 
-        // Action/task phase info
-        const inAction = st.phase === Phase.Action;
-        const inTask = st.phase === Phase.Task;
-        if (inAction) {
-            const chipsLeft = st.chipsAllowed - st.chipsPlaced;
-            this.chipsLeftEl.textContent = chipsLeft > 0
-                ? `Поставить фишек: ${chipsLeft} (или нажать на свою фишку чтобы убрать)`
-                : '';
-            this.chipsLeftEl.style.display = chipsLeft > 0 ? '' : 'none';
-        } else if (inTask) {
-            this.chipsLeftEl.textContent = `Задач: ${st.tasksThisTurn}/2 · Утилизаций: ${st.utilizesThisTurn}/2`;
-            this.chipsLeftEl.style.display = '';
-        } else {
-            this.chipsLeftEl.style.display = 'none';
-        }
+        // Hand label with player color
+        const playerColor = st.currentPI === 0 ? '#6699ff' : '#ff6655';
+        this.handLabelEl.textContent = `Рука Игрока ${st.currentPI + 1}`;
+        this.handLabelEl.style.color = playerColor;
+
+        // Phase hint
+        this._updatePhaseHint();
 
         // Buttons visibility
+        const inAction = st.phase === Phase.Action;
+        const inTask = st.phase === Phase.Task;
         const inSynth = !!this.synth;
         document.getElementById('btn-end-action').style.display = inAction ? '' : 'none';
         document.getElementById('btn-utilize').style.display = (inTask && !inSynth) ? '' : 'none';
@@ -163,12 +172,55 @@ class GameUI {
 
         // Dynamic revealed labels
         const oppIdx = 1 - st.currentPI;
-        document.querySelector('#opp-revealed').previousElementSibling.textContent =
+        document.getElementById('opp-revealed-label').textContent =
             `Раскрытые карты Игрока ${oppIdx + 1}`;
+        document.getElementById('own-revealed-label').textContent =
+            `Мои раскрытые (Игрок ${st.currentPI + 1})`;
 
         this._renderBoard();
         this._renderHand();
         this._renderRevealed();
+    }
+
+    _updatePhaseHint() {
+        const st = this.state;
+        let text = '';
+        let color = '#aac4ff';
+
+        if (this.nodePickDone) {
+            const n = this.nodePickRemaining;
+            text = `Выбери ${n} узел${n === 1 ? '' : n < 5 ? 'а' : 'ов'} на доске`;
+            color = '#ffcc44';
+        } else if (this.synth) {
+            color = '#cc99ff';
+            if (this.synth.step === 'selectB') {
+                text = `⊕ Синтез 2/4 · выбери вторую карту для "${this.synth.cardA.name}"`;
+            } else if (this.synth.step === 'placeB') {
+                text = `⊕ Синтез 3/4 · выбери позицию для "${this.synth.cardB.name}"`;
+            } else if (this.synth.step === 'chooseOrder') {
+                text = `⊕ Синтез 4/4 · выбери порядок эффектов`;
+            }
+        } else if (st.phase === Phase.Replenish) {
+            text = 'Добираем карты до запаса...';
+            color = '#556677';
+        } else if (st.phase === Phase.Action) {
+            const chipsLeft = st.chipsAllowed - st.chipsPlaced;
+            if (chipsLeft > 0) {
+                const w = chipsLeft === 1 ? 'фишку' : chipsLeft < 5 ? 'фишки' : 'фишек';
+                text = `Поставь ${chipsLeft} ${w} на поле`;
+                color = '#ffcc44';
+            } else {
+                text = '✓ Фишки поставлены · нажми «✓ Конец действий»';
+                color = '#66dd88';
+            }
+        } else if (st.phase === Phase.Task) {
+            const t = st.tasksThisTurn, u = st.utilizesThisTurn;
+            text = `Задач: ${t}/2 · Утилизаций: ${u}/2 · выбери карту`;
+            color = '#88ccff';
+        }
+
+        this.phaseHintEl.textContent = text;
+        this.phaseHintEl.style.color = color;
     }
 
     _renderBoard() {
@@ -217,6 +269,10 @@ class GameUI {
         });
         this._renderCardRow(this.ownRevealedEl, st.cp.revealed, playable, true);
         this._renderCardRow(this.oppRevealedEl, st.opp.revealed, playable, false);
+
+        // Collapse empty revealed zones
+        this.ownRevealedWrap.classList.toggle('collapsed', st.cp.revealed.length === 0);
+        this.oppRevealedWrap.classList.toggle('collapsed', st.opp.revealed.length === 0);
     }
 
     _renderCardRow(container, cards, playable, interactive) {
@@ -232,7 +288,11 @@ class GameUI {
         el.className = 'card' + (isPlayable ? ' playable' : ' unplayable');
         if (card === this.pendingCard) el.classList.add('selected');
 
-        const costColor = card.cost < 0 ? '#f66' : card.cost >= 3 ? '#fc6' : '#adf';
+        // Cost badge color: green(-1) → gray(0) → blue(1-2) → orange(3-4)
+        const costColor = card.cost < 0 ? '#44cc77'
+                        : card.cost === 0 ? '#556677'
+                        : card.cost <= 2  ? '#4488ff'
+                        : '#ff8833';
         el.innerHTML = `
             <div class="card-cost" style="background:${costColor}">${card.cost}</div>
             <div class="card-name">${card.name}</div>
@@ -240,12 +300,7 @@ class GameUI {
             <div class="card-fx">${this._describeEffects(card)}</div>
         `;
 
-        if (interactive) {
-            el.addEventListener('click', () => this._onCardTap(card, isPlayable));
-        } else {
-            // Opponent's revealed — show detail on tap, but can also be played
-            el.addEventListener('click', () => this._onCardTap(card, isPlayable));
-        }
+        el.addEventListener('click', () => this._onCardTap(card, isPlayable));
 
         // Long press for card detail
         let pressTimer;
@@ -260,9 +315,7 @@ class GameUI {
     _patternSVG(pattern) {
         const size = 48, cell = 14, gap = 2;
         let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`;
-        // Background
         svg += `<rect width="${size}" height="${size}" fill="transparent"/>`;
-        // Grid dots
         for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
             const x = 4 + c * (cell + gap), y = 4 + r * (cell + gap);
             const cell_data = pattern.find(p => p.row === r && p.col === c);
@@ -289,7 +342,6 @@ class GameUI {
         return effect.effects.map(fx => {
             const self = fx.target === Target.Self || fx.target === undefined;
             const tgt = self ? 'себе' : 'противнику';
-            const opp = !self;
             const n = fx.n;
             const inf = n === Infinity;
             switch (fx.constructor.name) {
@@ -334,6 +386,7 @@ class GameUI {
         } else {
             this._clearHighlights();
         }
+        this._updatePhaseHint();
     }
 
     _highlightEmptyNodes() {
@@ -361,6 +414,7 @@ class GameUI {
                 if (result === 'ok') {
                     this._renderBoard();
                     this._clearHighlights();
+                    this._updatePhaseHint();
                 }
             }
             return;
@@ -370,6 +424,7 @@ class GameUI {
         if (result === 'ok') {
             this._renderBoard();
             if (this.state.phase === Phase.Action) this._highlightEmptyNodes();
+            this._updatePhaseHint();
         }
     }
 
@@ -379,7 +434,6 @@ class GameUI {
         // ── Синтез: выбор второй карты ──────────────────────────
         if (this.synth?.step === 'selectB') {
             if (card === this.synth.cardA) {
-                // Tap на первую карту — отмена синтеза
                 this._cancelSynth();
                 return;
             }
@@ -453,12 +507,10 @@ class GameUI {
 
     // ── Синтез ─────────────────────────────────────────────────
 
-    // "⊕ Синтез" нажата в панели размещения (шаг A)
     _onSynthNext() {
         const matchA = this.currentPlacements[this.placementIndex];
         this.synth = { step: 'selectB', cardA: this.pendingCard, matchA };
         this.placementPanel.classList.add('hidden');
-        // Подсвечиваем фишки первой карты как ориентир
         this._highlightNodes(matchA.chipPositions);
         this.pendingCard = null;
         this._render();
@@ -481,6 +533,7 @@ class GameUI {
         document.getElementById('btn-order-b').innerHTML =
             `<span class="synth-order-name">${cardB.name}</span><span class="synth-order-arrow">→</span><span class="synth-order-name">${cardA.name}</span>`;
         this.synthOrderPanel.classList.remove('hidden');
+        this._updatePhaseHint();
     }
 
     _onSynthOrderChoose(aFirst) {
@@ -496,8 +549,17 @@ class GameUI {
     }
 
     _onEndTurn() {
+        const st = this.state;
+        // Сохраняем итог хода до endTurn()
+        const summary = {
+            playerIdx: st.currentPI,
+            tasks: st.tasksThisTurn,
+            utilizes: st.utilizesThisTurn,
+            score: st.cp.score,
+        };
         const ok = this.tm.endTurn();
         if (ok) {
+            this._lastTurnSummary = summary;
             this.pendingCard = null;
             this.placementPanel.classList.add('hidden');
             this._clearHighlights();
@@ -509,12 +571,10 @@ class GameUI {
     // ── Placement panel ────────────────────────────────────────
 
     _showPlacementPanel() {
-        // Кнопка ⊕ Синтез: показываем только на шаге А (не B и не когда лимит задач исчерпан)
         const inSynthB = this.synth?.step === 'placeB';
         const tasksLeft = this.state.tasksThisTurn < 2;
         document.getElementById('btn-synth').style.display = (!inSynthB && tasksLeft) ? '' : 'none';
         document.getElementById('btn-confirm').textContent = inSynthB ? 'Подтвердить' : 'Разыграть!';
-        // Кнопка отмены синтеза: только когда в synth-режиме (placeB)
         document.getElementById('btn-synth-cancel').style.display = inSynthB ? '' : 'none';
         this.placementPanel.classList.remove('hidden');
         this._updatePlacementHighlight();
@@ -523,7 +583,8 @@ class GameUI {
     _updatePlacementHighlight() {
         const placement = this.currentPlacements[this.placementIndex];
         this._highlightNodes(placement.chipPositions);
-        this.placementCount.textContent = `${this.placementIndex + 1} / ${this.currentPlacements.length}`;
+        this.placementCount.textContent =
+            `Позиция ${this.placementIndex + 1} из ${this.currentPlacements.length}`;
     }
 
     _prevPlacement() {
@@ -539,7 +600,6 @@ class GameUI {
     _confirmPlacement() {
         const placement = this.currentPlacements[this.placementIndex];
 
-        // ── Шаг placeB синтеза ────────────────────────────────────
         if (this.synth?.step === 'placeB') {
             this.synth.matchB = placement;
             this.synth.step = 'chooseOrder';
@@ -549,7 +609,6 @@ class GameUI {
             return;
         }
 
-        // ── Обычный розыгрыш ─────────────────────────────────────
         this.placementPanel.classList.add('hidden');
         this._clearHighlights();
         const card = this.pendingCard;
@@ -568,7 +627,7 @@ class GameUI {
         this.nodePickResult = [];
         this.nodePickDone = done;
         this._highlightNodes(this.nodePickAllowed);
-        this._showMessage(`Выберите ${count} узел(а) на доске`);
+        this._updatePhaseHint();
     }
 
     _handleNodePick(r, c) {
@@ -587,17 +646,34 @@ class GameUI {
             const done = this.nodePickDone;
             const result = this.nodePickResult;
             this.nodePickDone = null;
+            this._updatePhaseHint();
             done(result);
         } else {
             this._highlightNodes(this.nodePickAllowed);
+            this._updatePhaseHint();
         }
     }
 
     // ── Handoff screen ─────────────────────────────────────────
 
     _showHandoff() {
+        const s = this._lastTurnSummary;
         const nextPlayer = this.state.currentPI + 1;
-        this.handoffText.textContent = `Передайте устройство Игроку ${nextPlayer}`;
+        const playerColor = s.playerIdx === 0 ? '#6699ff' : '#ff6655';
+
+        // Итог хода
+        const parts = [];
+        if (s.tasks > 0) parts.push(`сыграно карт: ${s.tasks}`);
+        if (s.utilizes > 0) parts.push(`утилизировано: ${s.utilizes}`);
+        if (parts.length === 0) parts.push('ход завершён без задач');
+
+        document.getElementById('handoff-player').innerHTML =
+            `<span style="color:${playerColor}">Игрок ${s.playerIdx + 1}</span> завершил ход`;
+        document.getElementById('handoff-summary').innerHTML =
+            `${parts.join(' · ')}<br>Счёт: <span style="color:${playerColor}">${s.score}</span> / ${this.state.winScore}`;
+        document.getElementById('handoff-next').innerHTML =
+            `Передайте устройство<br>Игроку ${nextPlayer}`;
+
         this.handoffScreen.classList.remove('hidden');
     }
 
