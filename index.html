@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>КИБЕР</title>
+<style>
+/* ── Reset & Base ────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; background: #080c18; color: #e0e8ff; font-family: system-ui, sans-serif; overflow: hidden; }
+
+/* ── Layout ──────────────────────────────────────────────── */
+#app {
+    display: flex;
+    flex-direction: column;
+    height: 100dvh;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0 4px;
+    gap: 4px;
+    overflow: hidden;
+}
+
+/* ── HUD ─────────────────────────────────────────────────── */
+#hud {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 6px 8px 4px;
+    background: #0d1428;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+.hud-top {
+    display: flex;
+    gap: 6px;
+}
+.player-panel {
+    flex: 1;
+    padding: 4px 6px;
+    border-radius: 6px;
+    background: #12183a;
+    border: 2px solid transparent;
+    transition: border-color 0.2s;
+    font-size: 12px;
+    line-height: 1.4;
+}
+.player-panel.active-player { border-color: #4488ff; }
+#p1-panel .player-label { color: #6699ff; font-weight: bold; font-size: 11px; }
+#p2-panel .player-label { color: #ff6655; font-weight: bold; font-size: 11px; }
+.player-score { font-size: 16px; font-weight: bold; }
+.hud-center {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 11px;
+    color: #8899bb;
+    padding: 0 2px;
+}
+#phase-label { font-weight: bold; color: #aac4ff; }
+#chips-left { color: #ffcc66; font-size: 11px; }
+
+/* ── Opponent Revealed ───────────────────────────────────── */
+.revealed-zone {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 2px 0;
+    min-height: 44px;
+    flex-shrink: 0;
+    scrollbar-width: none;
+}
+.revealed-zone::-webkit-scrollbar { display: none; }
+.zone-label {
+    font-size: 10px;
+    color: #556;
+    margin-bottom: 1px;
+    padding-left: 2px;
+}
+
+/* ── Board ───────────────────────────────────────────────── */
+#board-wrap {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 0;
+}
+#board {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding: 12px;
+    background: #0d1428;
+    border-radius: 12px;
+    width: min(100%, calc(100dvh * 0.38));
+    aspect-ratio: 1;
+}
+.node {
+    border-radius: 50%;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s;
+    aspect-ratio: 1;
+    position: relative;
+}
+.node.empty {
+    background: #1a2240;
+    border: 2px solid #2a3660;
+}
+.node.p1 {
+    background: radial-gradient(circle at 35% 35%, #6699ff, #2255cc);
+    border: 2px solid #4488ff;
+    box-shadow: 0 0 8px #2255cc88;
+}
+.node.p2 {
+    background: radial-gradient(circle at 35% 35%, #ff7766, #cc3322);
+    border: 2px solid #ff5544;
+    box-shadow: 0 0 8px #cc332288;
+}
+.node.highlighted {
+    box-shadow: 0 0 0 3px #ffcc44, 0 0 12px #ffcc4466;
+    transform: scale(1.08);
+    z-index: 1;
+}
+.node.selected-node {
+    opacity: 0.5;
+}
+.node:active { transform: scale(0.93); }
+
+/* ── Action Buttons ──────────────────────────────────────── */
+#action-bar {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+.btn {
+    flex: 1;
+    padding: 10px 6px;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    color: #fff;
+}
+.btn:active { transform: scale(0.96); }
+.btn-action { background: #2255aa; }
+.btn-utilize { background: #885511; }
+.btn-skip    { background: #3a2255; }
+
+/* ── Placement Panel ─────────────────────────────────────── */
+#placement-panel {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: #0d1428;
+    padding: 8px;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+#placement-panel.hidden { display: none; }
+.btn-nav {
+    width: 40px; height: 40px;
+    border-radius: 8px;
+    background: #223;
+    border: 1px solid #446;
+    color: #aac;
+    font-size: 18px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+#placement-count { color: #8899bb; font-size: 13px; min-width: 40px; text-align: center; }
+#btn-confirm {
+    flex: 1;
+    padding: 10px;
+    background: #228833;
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* ── Own Revealed ────────────────────────────────────────── */
+/* ── Hand ────────────────────────────────────────────────── */
+#hand-wrap {
+    flex-shrink: 0;
+    max-height: 160px;
+}
+#hand-cards, .revealed-zone {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    padding: 4px 2px;
+    scrollbar-width: none;
+}
+#hand-cards::-webkit-scrollbar { display: none; }
+
+/* ── Card ────────────────────────────────────────────────── */
+.card {
+    flex-shrink: 0;
+    width: 100px;
+    background: #131c3a;
+    border: 2px solid #2a3660;
+    border-radius: 10px;
+    padding: 5px;
+    cursor: pointer;
+    transition: transform 0.1s, border-color 0.15s;
+    position: relative;
+    user-select: none;
+}
+.card.playable { border-color: #3355aa; }
+.card.unplayable { opacity: 0.55; }
+.card.selected {
+    border-color: #ffcc44;
+    transform: translateY(-8px);
+    box-shadow: 0 4px 16px #ffcc4444;
+}
+.card:active { transform: scale(0.96); }
+.card-cost {
+    position: absolute;
+    top: 4px; right: 4px;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    font-size: 11px;
+    font-weight: bold;
+    display: flex; align-items: center; justify-content: center;
+    color: #000;
+}
+.card-name {
+    font-size: 9px;
+    font-weight: bold;
+    margin-bottom: 3px;
+    color: #ccd4ff;
+    line-height: 1.2;
+    min-height: 22px;
+    padding-right: 22px;
+}
+.card-pattern { display: flex; justify-content: center; margin: 2px 0; }
+.card-fx { font-size: 8px; color: #7788aa; line-height: 1.3; }
+.fx-play  { color: #88cc88; }
+.fx-util  { color: #cc9944; }
+.fx-synth { color: #aa88ff; }
+.fx-none  { color: #445; }
+
+/* ── Fullscreen Overlays ─────────────────────────────────── */
+.overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    padding: 24px;
+    gap: 20px;
+    text-align: center;
+}
+.overlay.hidden { display: none; }
+
+/* Handoff */
+#handoff-screen {
+    background: rgba(0, 0, 0, 0.92);
+}
+#handoff-text { font-size: 28px; font-weight: bold; color: #ccdeff; max-width: 300px; }
+#btn-handoff-ok {
+    padding: 18px 48px;
+    background: #2255aa;
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* Game Over */
+#gameover-screen { background: rgba(0, 0, 8, 0.94); }
+#gameover-text { font-size: 24px; font-weight: bold; color: #ffdd88; }
+#btn-play-again {
+    padding: 18px 48px;
+    background: #336622;
+    border: none;
+    border-radius: 12px;
+    color: #fff;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+}
+
+/* Card Pick Modal */
+#card-pick-modal {
+    background: rgba(4, 8, 24, 0.97);
+}
+#card-pick-modal.hidden { display: none; }
+.modal-box {
+    background: #0d1428;
+    border-radius: 16px;
+    padding: 16px;
+    width: 100%;
+    max-width: 400px;
+    max-height: 70dvh;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+#card-pick-title { font-size: 16px; font-weight: bold; color: #aac4ff; }
+#card-pick-list {
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    flex: 1;
+}
+.pick-item {
+    padding: 12px 16px;
+    background: #131c3a;
+    border: 2px solid #2a3660;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: border-color 0.1s;
+}
+.pick-item.selected { border-color: #4488ff; background: #1a2a5a; }
+#card-pick-count { color: #8899bb; font-size: 13px; }
+#card-pick-confirm {
+    padding: 12px;
+    background: #2255aa;
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+}
+#card-pick-confirm:disabled { background: #223; color: #556; cursor: default; }
+
+/* Card Detail */
+#card-detail {
+    background: rgba(4, 8, 24, 0.97);
+}
+#card-detail.hidden { display: none; }
+.detail-box {
+    background: #0d1428;
+    border-radius: 16px;
+    padding: 20px;
+    width: 100%;
+    max-width: 320px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+#detail-name { font-size: 20px; font-weight: bold; color: #ccdeff; }
+#detail-cost { color: #8899bb; }
+#detail-pattern { display: flex; justify-content: center; }
+#detail-pattern svg { width: 96px; height: 96px; }
+#detail-effects { font-size: 14px; line-height: 1.8; color: #aac; }
+#card-detail-close {
+    padding: 12px;
+    background: #333;
+    border: none;
+    border-radius: 8px;
+    color: #fff;
+    font-size: 15px;
+    cursor: pointer;
+}
+
+/* Toast */
+#toast {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #223;
+    color: #aac;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: 13px;
+    z-index: 200;
+    pointer-events: none;
+}
+#toast.hidden { display: none; }
+</style>
+</head>
+<body>
+<div id="app">
+
+    <!-- HUD -->
+    <div id="hud">
+        <div class="hud-top">
+            <div class="player-panel" id="p1-panel">
+                <div class="player-label">ИГРОК 1</div>
+                <div class="player-score" id="p1-score">0 / 15</div>
+                <div id="p1-supply">Запас: 4</div>
+                <div id="p1-chips">Фишки: 0</div>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;flex-shrink:0">
+                <div id="deck-count" style="font-size:11px;color:#556">Колода: 53</div>
+                <div id="discard-count" style="font-size:11px;color:#556">Сброс: 0</div>
+                <div id="phase-label" style="font-size:12px">Восполнение</div>
+                <div id="turn-label" style="font-size:11px;color:#8899bb">Ход Игрока 1</div>
+            </div>
+            <div class="player-panel" id="p2-panel">
+                <div class="player-label" style="text-align:right">ИГРОК 2</div>
+                <div class="player-score" id="p2-score" style="text-align:right">0 / 15</div>
+                <div id="p2-supply" style="text-align:right">Запас: 4</div>
+                <div id="p2-chips" style="text-align:right">Фишки: 0</div>
+            </div>
+        </div>
+        <div class="hud-center">
+            <div id="chips-left" style="display:none"></div>
+        </div>
+    </div>
+
+    <!-- Opponent's revealed cards -->
+    <div>
+        <div class="zone-label">Раскрытые карты Игрока 2</div>
+        <div class="revealed-zone" id="opp-revealed"></div>
+    </div>
+
+    <!-- Board -->
+    <div id="board-wrap">
+        <div id="board"></div>
+    </div>
+
+    <!-- Own revealed cards -->
+    <div>
+        <div class="zone-label">Мои раскрытые карты</div>
+        <div class="revealed-zone" id="own-revealed"></div>
+    </div>
+
+    <!-- Hand -->
+    <div id="hand-wrap">
+        <div class="zone-label">Рука текущего игрока</div>
+        <div id="hand-cards"></div>
+    </div>
+
+    <!-- Placement panel -->
+    <div id="placement-panel" class="hidden">
+        <button class="btn-nav" id="btn-prev">‹</button>
+        <span id="placement-count">1 / 1</span>
+        <button id="btn-confirm">Разыграть!</button>
+        <button class="btn-nav" id="btn-next">›</button>
+    </div>
+
+    <!-- Action buttons -->
+    <div id="action-bar">
+        <button class="btn btn-action" id="btn-end-action" style="display:none">Конец действий</button>
+        <button class="btn btn-utilize" id="btn-utilize" style="display:none">Утилизировать</button>
+        <button class="btn btn-skip" id="btn-skip" style="display:none">Пропустить ход</button>
+    </div>
+
+</div><!-- /app -->
+
+<!-- Handoff screen -->
+<div class="overlay hidden" id="handoff-screen">
+    <div id="handoff-text">Передайте устройство Игроку 2</div>
+    <button id="btn-handoff-ok">Готов! ✓</button>
+</div>
+
+<!-- Game over screen -->
+<div class="overlay hidden" id="gameover-screen">
+    <div id="gameover-text">Победитель: Игрок 1!</div>
+    <button id="btn-play-again">Играть снова</button>
+</div>
+
+<!-- Card pick modal -->
+<div class="overlay hidden" id="card-pick-modal">
+    <div class="modal-box">
+        <div id="card-pick-title">Выберите карты</div>
+        <div id="card-pick-list"></div>
+        <div id="card-pick-count">Выбрано: 0 / 1</div>
+        <button id="card-pick-confirm" disabled>Подтвердить</button>
+    </div>
+</div>
+
+<!-- Card detail overlay -->
+<div class="overlay hidden" id="card-detail">
+    <div class="detail-box">
+        <div id="detail-name">БАЙТ</div>
+        <div id="detail-cost">Стоимость: 0</div>
+        <div id="detail-pattern"></div>
+        <div id="detail-effects"></div>
+        <button id="card-detail-close">Закрыть</button>
+    </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden"></div>
+
+<script src="game.js"></script>
+<script src="ui.js"></script>
+</body>
+</html>
