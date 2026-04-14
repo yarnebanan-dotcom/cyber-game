@@ -400,16 +400,17 @@ class TurnManager {
         const validPlacements = PatternMatcher.findMatches(card.pattern, st.board, st.currentPI);
         if (!this._isPlacementValid(placement, validPlacements)) { onDone?.('invalidAction'); return; }
 
-        // Снимаем фишки
-        for (const [r, c] of placement.chipPositions) {
-            const occ = st.board.nodes[r][c];
-            if (occ === Occ.P1) st.players[0].chipsOnBoard--;
-            else if (occ === Occ.P2) st.players[1].chipsOnBoard--;
-            st.board.nodes[r][c] = Occ.Empty;
-        }
+        // Правила: +очки → эффект → фишки снимаются → карта в сброс
         pl.score += card.cost;
 
         card.playEffect.execute(st, st.currentPI, this.input, () => {
+            // Снимаем фишки после выполнения эффекта
+            for (const [r, c] of placement.chipPositions) {
+                const occ = st.board.nodes[r][c];
+                if (occ === Occ.P1) st.players[0].chipsOnBoard--;
+                else if (occ === Occ.P2) st.players[1].chipsOnBoard--;
+                st.board.nodes[r][c] = Occ.Empty;
+            }
             this._removeCardFromOwner(card);
             st.discard.push(card);
             st.tasksThisTurn++;
