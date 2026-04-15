@@ -55,8 +55,10 @@ html, body {
 }
 #p1-panel.active-player { border-color: rgba(68,136,255,0.65); box-shadow: 0 0 20px rgba(68,136,255,0.22), inset 0 1px 0 rgba(100,160,255,0.14); }
 #p2-panel.active-player { border-color: rgba(255,85,68,0.65);  box-shadow: 0 0 20px rgba(255,85,68,0.22),  inset 0 1px 0 rgba(255,140,120,0.14); }
+#p3-panel.active-player { border-color: rgba(44,220,120,0.65); box-shadow: 0 0 20px rgba(44,220,120,0.22), inset 0 1px 0 rgba(80,240,160,0.14); }
 #p1-panel .player-label { color: #6699ff; font-weight: 700; font-size: 10px; letter-spacing: 0.08em; }
 #p2-panel .player-label { color: #ff6655; font-weight: 700; font-size: 10px; letter-spacing: 0.08em; }
+#p3-panel .player-label { color: #44dd88; font-weight: 700; font-size: 10px; letter-spacing: 0.08em; }
 .player-score { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; font-variant-numeric: tabular-nums; }
 
 /* Score progress bar */
@@ -64,6 +66,7 @@ html, body {
 .score-bar { height: 100%; border-radius: 2px; width: 0%; transition: width 0.6s cubic-bezier(0.34, 1.2, 0.64, 1); }
 #p1-panel .score-bar { background: linear-gradient(90deg, #1e4fcc, #4488ff); box-shadow: 0 0 8px #4488ffaa; }
 #p2-panel .score-bar { background: linear-gradient(90deg, #bb2211, #ff5544); box-shadow: 0 0 8px #ff5544aa; }
+#p3-panel .score-bar { background: linear-gradient(90deg, #118844, #44dd88); box-shadow: 0 0 8px #44dd88aa; }
 
 .hud-center {
     display: flex;
@@ -186,6 +189,16 @@ html, body {
     border: 1px solid rgba(255,130,110,0.75);
     box-shadow: 0 0 12px #ff5544aa, 0 0 4px #cc3322, inset 0 1px 0 rgba(255,255,255,0.25);
     animation: node-p2-pulse 3s ease-in-out infinite;
+}
+.node.p3 {
+    background: radial-gradient(circle at 35% 30%, #88ffcc, #118844);
+    border: 1px solid rgba(80,240,160,0.75);
+    box-shadow: 0 0 12px #44dd88aa, 0 0 4px #118844, inset 0 1px 0 rgba(255,255,255,0.25);
+    animation: node-p3-pulse 3s ease-in-out infinite;
+}
+@keyframes node-p3-pulse {
+    0%, 100% { box-shadow: 0 0 10px #44dd88aa, 0 0 3px #118844, inset 0 1px 0 rgba(255,255,255,0.2); }
+    50%       { box-shadow: 0 0 26px #44dd88ee, 0 0 8px #55ee99, inset 0 1px 0 rgba(255,255,255,0.3); }
 }
 .node:nth-child(4n+2) { animation-delay: 0.35s; }
 .node:nth-child(4n+3) { animation-delay: 0.70s; }
@@ -442,6 +455,46 @@ html, body {
     border-radius: 10px; color: #7788bb; font-size: 14px; cursor: pointer; font-family: inherit;
 }
 
+/* ── 3-player HUD row ────────────────────────────────────── */
+#hud-p3-row { display: none; gap: 6px; margin-top: 4px; }
+#app.mode-3p #hud-p3-row { display: flex; }
+#app.mode-3p #hud .hud-top .player-panel { font-size: 11px; }
+#app.mode-3p #hud .player-score { font-size: 18px; }
+#app.mode-3p #p3-panel { flex: 1; }
+
+/* ── Menu screen ─────────────────────────────────────────── */
+#menu-screen { background: radial-gradient(ellipse at 50% 20%, #0c1a3a 0%, #030508 70%); z-index: 150; }
+#menu-screen.hidden { display: none; }
+.menu-title {
+    font-size: 48px; font-weight: 900; letter-spacing: 0.12em;
+    color: #25C8F3; text-shadow: 0 0 40px rgba(37,200,243,0.6), 0 0 80px rgba(37,200,243,0.25);
+    line-height: 1;
+}
+.menu-subtitle { font-size: 11px; color: #2a4060; letter-spacing: 0.2em; margin-top: 4px; }
+.menu-modes { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 320px; margin-top: 16px; }
+.btn-mode {
+    padding: 18px 24px;
+    border: 1px solid rgba(37,200,243,0.25);
+    border-radius: 14px;
+    background: linear-gradient(155deg, rgba(8,20,52,0.95), rgba(4,10,28,0.98));
+    color: #d4eeff;
+    font-size: 16px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+    text-align: left;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06);
+    display: flex; flex-direction: column; gap: 4px;
+}
+.btn-mode:active { transform: scale(0.97); }
+.btn-mode-2p { border-color: rgba(68,136,255,0.35); }
+.btn-mode-2p:hover, .btn-mode-2p:focus { border-color: rgba(68,136,255,0.7); box-shadow: 0 4px 28px rgba(68,136,255,0.22), inset 0 1px 0 rgba(255,255,255,0.08); }
+.btn-mode-3p { border-color: rgba(44,220,120,0.35); }
+.btn-mode-3p:hover, .btn-mode-3p:focus { border-color: rgba(44,220,120,0.7); box-shadow: 0 4px 28px rgba(44,220,120,0.22), inset 0 1px 0 rgba(255,255,255,0.08); }
+.btn-mode-label { display: flex; align-items: center; gap: 10px; }
+.btn-mode-icon { font-size: 22px; }
+.btn-mode-title { font-size: 17px; }
+.btn-mode-desc { font-size: 11px; color: #3a5070; padding-left: 32px; }
+
 /* Toast */
 #toast {
     position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
@@ -480,6 +533,16 @@ html, body {
                 <div class="score-bar-wrap"><div class="score-bar" id="p2-bar"></div></div>
                 <div id="p2-supply" style="text-align:right">Запас: 3</div>
                 <div id="p2-chips" style="text-align:right">Фишки: 0/8</div>
+            </div>
+        </div>
+        <!-- P3 row (only shown in 3-player mode) -->
+        <div id="hud-p3-row">
+            <div class="player-panel" id="p3-panel">
+                <div class="player-label">ИГРОК 3</div>
+                <div class="player-score" id="p3-score">0 / 15</div>
+                <div class="score-bar-wrap"><div class="score-bar" id="p3-bar"></div></div>
+                <div id="p3-supply">Запас: 3</div>
+                <div id="p3-chips">Фишки: 0/8</div>
             </div>
         </div>
     </div>
@@ -572,6 +635,28 @@ html, body {
         <div id="detail-pattern"></div>
         <div id="detail-effects"></div>
         <button id="card-detail-close">Закрыть</button>
+    </div>
+</div>
+
+<!-- Menu screen -->
+<div class="overlay" id="menu-screen">
+    <div class="menu-title">КИБЕР</div>
+    <div class="menu-subtitle">DIGITAL CARD GAME</div>
+    <div class="menu-modes">
+        <button class="btn-mode btn-mode-2p" id="btn-mode-2p">
+            <div class="btn-mode-label">
+                <span class="btn-mode-icon">⚔</span>
+                <span class="btn-mode-title">2 игрока</span>
+            </div>
+            <div class="btn-mode-desc">Поле 4×4 · 53 карты · 15 очков</div>
+        </button>
+        <button class="btn-mode btn-mode-3p" id="btn-mode-3p">
+            <div class="btn-mode-label">
+                <span class="btn-mode-icon">⚡</span>
+                <span class="btn-mode-title">3 игрока</span>
+            </div>
+            <div class="btn-mode-desc">Поле 5×5 · 54 карты · 20 очков</div>
+        </button>
     </div>
 </div>
 

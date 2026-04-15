@@ -26,7 +26,8 @@ class GameUI {
         this._lastTurnSummary = null;
 
         // Score animation tracking
-        this._prevScores = [0, 0];
+        this._prevScores = [0, 0, 0];
+        this._playerCount = 2;
 
         this._bindElements();
         this._initAudio();
@@ -80,7 +81,12 @@ class GameUI {
         // Game over screen
         this.gameOverScreen = document.getElementById('gameover-screen');
         this.gameOverText = document.getElementById('gameover-text');
-        document.getElementById('btn-play-again').onclick = () => this._startGame();
+        document.getElementById('btn-play-again').onclick = () => this._showMenu();
+
+        // Menu screen
+        this.menuScreen = document.getElementById('menu-screen');
+        document.getElementById('btn-mode-2p').onclick = () => this._startGame(2);
+        document.getElementById('btn-mode-3p').onclick = () => this._startGame(3);
 
         // Card pick modal
         this.cardPickModal = document.getElementById('card-pick-modal');
@@ -154,8 +160,21 @@ class GameUI {
         requestAnimationFrame(tick);
     }
 
-    _startGame() {
-        this.state = new GameState(4, 15);
+    _showMenu() {
+        this.menuScreen.classList.remove('hidden');
+        this.gameOverScreen.classList.add('hidden');
+        this.handoffScreen.classList.add('hidden');
+    }
+
+    _startGame(playerCount = 2) {
+        this._playerCount = playerCount;
+        const boardSize = playerCount === 3 ? 5 : 4;
+        const winScore  = playerCount === 3 ? 20 : 15;
+
+        // 3-player mode class on #app
+        document.getElementById('app').classList.toggle('mode-3p', playerCount === 3);
+
+        this.state = new GameState(boardSize, winScore, playerCount);
         const self = this;
         this.input = {
             chooseCards(pi, cards, count, done) {
@@ -173,51 +192,51 @@ class GameUI {
         this.tm.onGameOver = w => this._onGameOver(w);
 
         // Reset UI state
-        this._prevScores = [0, 0];
+        this._prevScores = [0, 0, 0];
         this.pendingCard = null;
         this.currentPlacements = [];
         this.nodePickDone = null;
         this.synth = null;
         this._lastTurnSummary = null;
+        this.menuScreen.classList.add('hidden');
         this.handoffScreen.classList.add('hidden');
         this.gameOverScreen.classList.add('hidden');
         this.placementPanel.classList.add('hidden');
         this.cardPickModal.classList.add('hidden');
         this.synthOrderPanel.classList.add('hidden');
 
+        this._buildBoard(boardSize);
         this.tm.replenish();
     }
 
     // ── Rendering ─────────────────────────────────────────────
 
+    _playerColor(pi) {
+        return ['#6699ff', '#ff6655', '#44dd88'][pi] ?? '#aaccff';
+    }
+
     _render() {
         const st = this.state;
-        const p1 = st.players[0], p2 = st.players[1];
-
-        // Scores (animated counter on increase)
         const win = st.winScore;
-        if (p1.score > this._prevScores[0]) {
-            this._animateCounter(this.p1ScoreEl, this._prevScores[0], p1.score, win);
-        } else {
-            this.p1ScoreEl.textContent = `${p1.score} / ${win}`;
-        }
-        if (p2.score > this._prevScores[1]) {
-            this._animateCounter(this.p2ScoreEl, this._prevScores[1], p2.score, win);
-        } else {
-            this.p2ScoreEl.textContent = `${p2.score} / ${win}`;
-        }
-        this._prevScores[0] = p1.score;
-        this._prevScores[1] = p2.score;
 
-        // Progress bars
-        this.p1BarEl.style.width = Math.min(100, (p1.score / win) * 100) + '%';
-        this.p2BarEl.style.width = Math.min(100, (p2.score / win) * 100) + '%';
+        // Scores & bars for all players
+        const scoreEls = [this.p1ScoreEl, this.p2ScoreEl, document.getElementById('p3-score')];
+        const barEls   = [this.p1BarEl, this.p2BarEl, document.getElementById('p3-bar')];
+        const supplyEls = [this.p1SupplyEl, this.p2SupplyEl, document.getElementById('p3-supply')];
+        const chipsEls  = [this.p1ChipsEl, this.p2ChipsEl, document.getElementById('p3-chips')];
+        for (let i = 0; i < st.players.length; i++) {
+            const p = st.players[i];
+            if (p.score > this._prevScores[i]) {
+                this._animateCounter(scoreEls[i], this._prevScores[i], p.score, win);
+            } else {
+                scoreEls[i].textContent = `${p.score} / ${win}`;
+            }
+            this._prevScores[i] = p.score;
+            barEls[i].style.width = Math.min(100, (p.score / win) * 100) + '%';
+            supplyEls[i].textContent = `Запас: ${p.supply}`;
+            chipsEls[i].textContent = `Фишки: ${p.chipsOnBoard}/8`;
+        }
 
-        // Secondary stats
-        this.p1SupplyEl.textContent = `Запас: ${p1.supply}`;
-        this.p2SupplyEl.textContent = `Запас: ${p2.supply}`;
-        this.p1ChipsEl.textContent = `Фишки: ${p1.chipsOnBoard}/8`;
-        this.p2ChipsEl.textContent = `Фишки: ${p2.chipsOnBoard}/8`;
         this.deckCountEl.textContent = `Колода: ${st.deck.count}`;
         this.discardCountEl.textContent = `Сброс: ${st.discard.length}`;
 
@@ -226,11 +245,13 @@ class GameUI {
         this.turnEl.textContent = `Ход Игрока ${st.currentPI + 1}`;
 
         // Active player highlight
-        document.getElementById('p1-panel').classList.toggle('active-player', st.currentPI === 0);
-        document.getElementById('p2-panel').classList.toggle('active-player', st.currentPI === 1);
+        for (let i = 0; i < 3; i++) {
+            const panel = document.getElementById(`p${i+1}-panel`);
+            if (panel) panel.classList.toggle('active-player', st.currentPI === i);
+        }
 
         // Hand label with player color
-        const playerColor = st.currentPI === 0 ? '#6699ff' : '#ff6655';
+        const playerColor = this._playerColor(st.currentPI);
         this.handLabelEl.textContent = `Рука Игрока ${st.currentPI + 1}`;
         this.handLabelEl.style.color = playerColor;
 
@@ -246,9 +267,9 @@ class GameUI {
         document.getElementById('btn-skip').style.display = (inTask && !inSynth) ? '' : 'none';
 
         // Dynamic revealed labels
-        const oppIdx = 1 - st.currentPI;
+        const oppNums = st.players.map((_, i) => i + 1).filter(n => n !== st.currentPI + 1);
         document.getElementById('opp-revealed-label').textContent =
-            `Раскрытые карты Игрока ${oppIdx + 1}`;
+            `Раскрытые Игрок${oppNums.length > 1 ? 'и' : ''} ${oppNums.join(' & ')}`;
         document.getElementById('own-revealed-label').textContent =
             `Мои раскрытые (Игрок ${st.currentPI + 1})`;
 
@@ -316,14 +337,12 @@ class GameUI {
 
     _renderBoard() {
         const st = this.state;
+        const occClass = ['empty', 'p1', 'p2', 'p3'];
         const cells = this.boardEl.querySelectorAll('.node');
         cells.forEach(cell => {
             const r = parseInt(cell.dataset.r), c = parseInt(cell.dataset.c);
             const occ = st.board.nodes[r][c];
-            cell.className = 'node';
-            if (occ === Occ.P1) cell.classList.add('p1');
-            else if (occ === Occ.P2) cell.classList.add('p2');
-            else cell.classList.add('empty');
+            cell.className = 'node ' + (occClass[occ] ?? 'empty');
         });
     }
 
@@ -343,9 +362,10 @@ class GameUI {
         const st = this.state;
         const pl = st.cp;
 
-        // Compute playable cards
+        // Compute playable cards (own hand + all revealed)
         const playable = new Set();
-        [...pl.hand, ...pl.revealed, ...st.opp.revealed].forEach(c => {
+        const allRevealed = st.players.flatMap(p => p.revealed);
+        [...pl.hand, ...allRevealed].forEach(c => {
             if (this.tm.getValidPlacements(c).length > 0) playable.add(c);
         });
 
@@ -354,16 +374,20 @@ class GameUI {
 
     _renderRevealed() {
         const st = this.state;
+        const allRevealed = st.players.flatMap(p => p.revealed);
         const playable = new Set();
-        [...st.cp.hand, ...st.cp.revealed, ...st.opp.revealed].forEach(c => {
+        [...st.cp.hand, ...allRevealed].forEach(c => {
             if (this.tm.getValidPlacements(c).length > 0) playable.add(c);
         });
         this._renderCardRow(this.ownRevealedEl, st.cp.revealed, playable, true);
-        this._renderCardRow(this.oppRevealedEl, st.opp.revealed, playable, false);
+
+        // Opponent(s) revealed: all opponents combined
+        const oppRevealed = st.players.filter((_, i) => i !== st.currentPI).flatMap(p => p.revealed);
+        this._renderCardRow(this.oppRevealedEl, oppRevealed, playable, false);
 
         // Collapse empty revealed zones
         this.ownRevealedWrap.classList.toggle('collapsed', st.cp.revealed.length === 0);
-        this.oppRevealedWrap.classList.toggle('collapsed', st.opp.revealed.length === 0);
+        this.oppRevealedWrap.classList.toggle('collapsed', oppRevealed.length === 0);
     }
 
     _renderCardRow(container, cards, playable, interactive) {
@@ -456,10 +480,17 @@ class GameUI {
 
     // ── Board building ─────────────────────────────────────────
 
-    _buildBoard() {
+    _buildBoard(size = 4) {
         this.boardEl.innerHTML = '';
-        const size = 4;
         this.boardEl.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+        // For 5×5, slightly reduce board visual size
+        if (size === 5) {
+            this.boardEl.style.gap = '6px';
+            this.boardEl.style.padding = '10px';
+        } else {
+            this.boardEl.style.gap = '';
+            this.boardEl.style.padding = '';
+        }
         for (let r = 0; r < size; r++) {
             for (let c = 0; c < size; c++) {
                 const cell = document.createElement('div');
@@ -757,8 +788,9 @@ class GameUI {
 
     _showHandoff() {
         const s = this._lastTurnSummary;
-        const nextPlayer = this.state.currentPI + 1;
-        const playerColor = s.playerIdx === 0 ? '#6699ff' : '#ff6655';
+        const nextPI = this.state.currentPI;  // already advanced by _endTurn
+        const playerColor = this._playerColor(s.playerIdx);
+        const nextColor = this._playerColor(nextPI);
 
         // Итог хода
         const parts = [];
@@ -771,7 +803,7 @@ class GameUI {
         document.getElementById('handoff-summary').innerHTML =
             `${parts.join(' · ')}<br>Счёт: <span style="color:${playerColor}">${s.score}</span> / ${this.state.winScore}`;
         document.getElementById('handoff-next').innerHTML =
-            `Передайте устройство<br>Игроку ${nextPlayer}`;
+            `Передайте устройство<br><span style="color:${nextColor}">Игроку ${nextPI + 1}</span>`;
 
         this.handoffScreen.classList.remove('hidden');
 
@@ -791,9 +823,13 @@ class GameUI {
 
     _onGameOver(winner) {
         const st = this.state;
+        const winColor = this._playerColor(winner);
+        const scores = st.players.map((p, i) =>
+            `<span style="color:${this._playerColor(i)}">${p.score}</span>`
+        ).join(' — ');
         this.gameOverText.innerHTML =
-            `🏆 Победитель: Игрок ${winner + 1}!<br>` +
-            `Счёт: ${st.players[0].score} — ${st.players[1].score}`;
+            `🏆 <span style="color:${winColor}">Игрок ${winner + 1}</span> победил!<br>` +
+            `<span style="font-size:18px">${scores}</span>`;
         this.gameOverScreen.classList.remove('hidden');
     }
 
@@ -874,6 +910,5 @@ class GameUI {
 // ── Bootstrap ──────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
     const ui = new GameUI();
-    ui._buildBoard();
-    ui._startGame();
+    // Show menu on first load; _startGame() called by menu buttons
 });

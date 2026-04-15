@@ -3,7 +3,7 @@
 // ═══════════════════════════════════════════════════════════
 
 // ── Enums ────────────────────────────────────────────────────
-const Occ = { Empty: 0, P1: 1, P2: 2 };
+const Occ = { Empty: 0, P1: 1, P2: 2, P3: 3 };
 const Phase = { Replenish: 'Replenish', Action: 'Action', Task: 'Task' };
 const CellType = { W: 'W', G: 'G' };
 const Target = { Self: 'Self', Opp: 'Opp' };
@@ -43,8 +43,8 @@ class BoardState {
         this.nodes = Array.from({ length: size }, () => new Array(size).fill(Occ.Empty));
     }
     isEmpty(r, c) { return this.nodes[r][c] === Occ.Empty; }
-    occOf(pi) { return pi === 0 ? Occ.P1 : Occ.P2; }
-    oppOf(pi) { return pi === 0 ? Occ.P2 : Occ.P1; }
+    occOf(pi) { return pi + 1; }                               // P1=1, P2=2, P3=3
+    isOpp(pi, occ) { return occ !== Occ.Empty && occ !== this.occOf(pi); }
     emptyNodes() {
         const r = [];
         for (let row = 0; row < this.size; row++)
@@ -56,9 +56,10 @@ class BoardState {
 
 // ── GameState ─────────────────────────────────────────────────
 class GameState {
-    constructor(boardSize = 4, winScore = 15) {
+    constructor(boardSize = 4, winScore = 15, playerCount = 2) {
         this.board = new BoardState(boardSize);
-        this.players = [new PlayerState(0), new PlayerState(1)];
+        this.playerCount = playerCount;
+        this.players = Array.from({ length: playerCount }, (_, i) => new PlayerState(i));
         this.discard = [];
         this.currentPI = 0;
         this.phase = Phase.Replenish;
@@ -68,11 +69,11 @@ class GameState {
         this.tasksThisTurn = 0;
         this.utilizesThisTurn = 0;
         this.mainActionDone = false;
-        const cards = CardDatabase.create();
+        const cards = playerCount === 3 ? CardDatabase.create3() : CardDatabase.create();
         this.deck = new Deck(cards, this.discard);
     }
     get cp() { return this.players[this.currentPI]; }
-    get opp() { return this.players[1 - this.currentPI]; }
+    get opp() { return this.players[(this.currentPI + 1) % this.playerCount]; }
 }
 
 // ── Deck ──────────────────────────────────────────────────────
@@ -141,7 +142,7 @@ class PlaceChipsEffect {
 class RevealCardsEffect {
     constructor(n, target) { this.n = n; this.target = target; }
     execute(st, ap, inp, done) {
-        const ti = this.target === Target.Self ? ap : 1 - ap;
+        const ti = this.target === Target.Self ? ap : (ap + 1) % st.players.length;
         const tp = st.players[ti];
         const toReveal = this.n === Infinity ? tp.hand.length : Math.min(this.n, tp.hand.length);
         if (toReveal <= 0) { done?.(); return; }
@@ -159,7 +160,7 @@ class RevealCardsEffect {
 class DiscardCardsEffect {
     constructor(n, target) { this.n = n; this.target = target; }
     execute(st, ap, inp, done) {
-        const ti = this.target === Target.Self ? ap : 1 - ap;
+        const ti = this.target === Target.Self ? ap : (ap + 1) % st.players.length;
         const tp = st.players[ti];
         const all = [...tp.hand, ...tp.revealed];
         const toDiscard = this.n === Infinity ? all.length : Math.min(this.n, all.length);
@@ -179,7 +180,7 @@ class DiscardCardsEffect {
 class StealCardsEffect {
     constructor(n) { this.n = n; }
     execute(st, ap, inp, done) {
-        const opp = st.players[1 - ap], actor = st.players[ap];
+        const opp = st.players[(ap + 1) % st.players.length], actor = st.players[ap];
         const toSteal = Math.min(this.n, opp.hand.length);
         for (let i = 0; i < toSteal; i++) {
             const idx = Math.floor(Math.random() * opp.hand.length);
@@ -192,7 +193,7 @@ class StealCardsEffect {
 class ModifySupplyEffect {
     constructor(delta, target) { this.delta = delta; this.target = target; }
     execute(st, ap, inp, done) {
-        const ti = this.target === Target.Self ? ap : 1 - ap;
+        const ti = this.target === Target.Self ? ap : (ap + 1) % st.players.length;
         st.players[ti].supply = clamp(st.players[ti].supply + this.delta, 2, 6);
         done?.();
     }
@@ -201,7 +202,7 @@ class ModifySupplyEffect {
 class SetSupplyEffect {
     constructor(val, target) { this.val = val; this.target = target; }
     execute(st, ap, inp, done) {
-        const ti = this.target === Target.Self ? ap : 1 - ap;
+        const ti = this.target === Target.Self ? ap : (ap + 1) % st.players.length;
         st.players[ti].supply = clamp(this.val, 2, 6);
         done?.();
     }
@@ -209,7 +210,7 @@ class SetSupplyEffect {
 
 class CopyOpponentSupplyEffect {
     execute(st, ap, inp, done) {
-        st.players[ap].supply = clamp(st.players[1 - ap].supply, 2, 6);
+        st.players[ap].supply = clamp(st.players[(ap + 1) % st.players.length].supply, 2, 6);
         done?.();
     }
 }
@@ -218,8 +219,8 @@ class ResetFieldEffect {
     execute(st, ap, inp, done) {
         for (let r = 0; r < st.board.size; r++)
             for (let c = 0; c < st.board.size; c++) {
-                if (st.board.nodes[r][c] === Occ.P1) st.players[0].chipsOnBoard--;
-                else if (st.board.nodes[r][c] === Occ.P2) st.players[1].chipsOnBoard--;
+                const occ = st.board.nodes[r][c];
+                if (occ !== Occ.Empty) st.players[occ - 1].chipsOnBoard--;
                 st.board.nodes[r][c] = Occ.Empty;
             }
         done?.();
@@ -303,13 +304,12 @@ class PatternMatcher {
 
     static _tryPlace(pattern, board, ap, dr, dc) {
         const selfOcc = board.occOf(ap);
-        const oppOcc = board.oppOf(ap);
         const positions = [];
         for (const cell of pattern) {
             const r = cell.row + dr, c = cell.col + dc;
             const occ = board.nodes[r][c];
-            if (cell.type === CellType.W) { if (occ !== selfOcc) return null; }  // W = своя фишка
-            else                          { if (occ !== oppOcc)  return null; }  // G = фишка противника
+            if (cell.type === CellType.W) { if (occ !== selfOcc) return null; }          // W = своя фишка
+            else                          { if (!board.isOpp(ap, occ)) return null; }    // G = любая чужая фишка
             positions.push([r, c]);
         }
         return { chipPositions: positions };
@@ -393,8 +393,8 @@ class TurnManager {
         if (st.phase !== Phase.Task) { onDone?.('invalidPhase'); return; }
         if (st.tasksThisTurn >= 2) { onDone?.('limitReached'); return; }
 
-        const pl = st.cp, opp = st.opp;
-        const owned = pl.hand.includes(card) || pl.revealed.includes(card) || opp.revealed.includes(card);
+        const pl = st.cp;
+        const owned = pl.hand.includes(card) || st.players.some(p => p.revealed.includes(card));
         if (!owned) { onDone?.('invalidAction'); return; }
 
         const validPlacements = PatternMatcher.findMatches(card.pattern, st.board, st.currentPI);
@@ -407,8 +407,7 @@ class TurnManager {
             // Снимаем фишки после выполнения эффекта
             for (const [r, c] of placement.chipPositions) {
                 const occ = st.board.nodes[r][c];
-                if (occ === Occ.P1) st.players[0].chipsOnBoard--;
-                else if (occ === Occ.P2) st.players[1].chipsOnBoard--;
+                if (occ !== Occ.Empty) st.players[occ - 1].chipsOnBoard--;
                 st.board.nodes[r][c] = Occ.Empty;
             }
             this._removeCardFromOwner(card);
@@ -448,9 +447,9 @@ class TurnManager {
         if (st.tasksThisTurn >= 2) { onDone?.('limitReached'); return; }
         if (cardA === cardB) { onDone?.('invalidAction'); return; }
 
-        const pl = st.cp, opp = st.opp;
-        const ownedA = pl.hand.includes(cardA) || pl.revealed.includes(cardA) || opp.revealed.includes(cardA);
-        const ownedB = pl.hand.includes(cardB) || pl.revealed.includes(cardB) || opp.revealed.includes(cardB);
+        const pl = st.cp;
+        const ownedA = pl.hand.includes(cardA) || st.players.some(p => p.revealed.includes(cardA));
+        const ownedB = pl.hand.includes(cardB) || st.players.some(p => p.revealed.includes(cardB));
         if (!ownedA || !ownedB) { onDone?.('invalidAction'); return; }
 
         const validsA = PatternMatcher.findMatches(cardA.pattern, st.board, st.currentPI);
@@ -480,8 +479,7 @@ class TurnManager {
                 if (seen.has(key)) continue;
                 seen.add(key);
                 const occ = st.board.nodes[r][c];
-                if (occ === Occ.P1) st.players[0].chipsOnBoard--;
-                else if (occ === Occ.P2) st.players[1].chipsOnBoard--;
+                if (occ !== Occ.Empty) st.players[occ - 1].chipsOnBoard--;
                 st.board.nodes[r][c] = Occ.Empty;
             }
             this._removeCardFromOwner(cardA);
@@ -521,14 +519,14 @@ class TurnManager {
     }
     _endTurn() {
         const st = this.state;
-        st.currentPI = 1 - st.currentPI;
+        st.currentPI = (st.currentPI + 1) % st.playerCount;
         st.phase = Phase.Replenish;
         this.onPhaseChanged?.(Phase.Replenish);
         this._notify();
     }
     _notify() { this.onStateChanged?.(this.state); }
     _checkWin() {
-        for (let i = 0; i < 2; i++) {
+        for (let i = 0; i < this.state.players.length; i++) {
             if (this.state.players[i].score >= this.state.winScore) {
                 this.isGameOver = true;
                 this.winner = i;
@@ -539,10 +537,11 @@ class TurnManager {
         return false;
     }
     _removeCardFromOwner(card) {
-        const pl = this.state.cp, opp = this.state.opp;
+        const pl = this.state.cp;
         let i = pl.hand.indexOf(card); if (i >= 0) { pl.hand.splice(i, 1); return; }
-        i = pl.revealed.indexOf(card); if (i >= 0) { pl.revealed.splice(i, 1); return; }
-        i = opp.revealed.indexOf(card); if (i >= 0) opp.revealed.splice(i, 1);
+        for (const p of this.state.players) {
+            i = p.revealed.indexOf(card); if (i >= 0) { p.revealed.splice(i, 1); return; }
+        }
     }
     _isPlacementValid(target, valids) {
         if (!target || !valids) return false;
@@ -612,6 +611,86 @@ class CardDatabase {
         // ── СТОИМОСТЬ 3 ──
         add(1, 'ПЕРЕГРУЗКА',         3, [W(0,0),W(0,2),W(2,0),W(2,2)], E(Draw(3)));
         add(1, 'РЕЗЕРВ',             3, [W(0,1),W(1,0),W(1,1),W(1,2),W(2,1)], E(Discard(1,Target.Opp)), E(Discard(2,Target.Self),Draw(2)));
+        add(1, 'РЕФАКТОРИНГ',        3, [W(0,0),W(0,2),W(1,1),W(2,0),W(2,2)], E(Steal(2),Place(3)), E(Reveal(1,Target.Self)));
+        add(1, 'СОКЕТ',              3, [W(0,1),W(0,2),W(1,0),W(1,1)], E(Draw(3)));
+        add(1, 'ФРАГМЕНТАЦИЯ',       3, [W(0,0),G(0,2),W(1,1),W(2,0)], E(Dig(1)));
+        add(1, 'ЧЕРВЬ СЕТИ',         3, [W(0,0),W(1,0),W(2,0),W(2,1)], E(DiscardAll(Target.Opp)), E(DiscardAll(Target.Self)));
+
+        // ── СТОИМОСТЬ 4 ──
+        add(1, 'ПАРАЛЛЕЛЬНЫЕ ПОТОКИ',4, [W(0,0),W(0,2),W(2,0),W(2,2)], E(Reveal(2,Target.Self),Draw(2)));
+        add(1, 'КЭШИРОВАНИЕ',        4, [W(0,0),W(0,2),W(1,0),W(1,1),W(1,2)], E(Draw(3),Discard(1,Target.Opp)));
+        add(1, 'РЕПЛИКАЦИЯ',         4, [W(0,0),W(0,2),W(2,0),W(2,2)], E(Draw(3),RevealAll(Target.Self)));
+        add(1, 'ДЕФРАГМЕНТАЦИЯ',     4, [W(0,0),W(0,2),W(2,0),W(2,2)], E(DiscardAll(Target.Self),Draw(4)));
+        add(1, 'ЭНТРОПИЯ',           4, [W(0,2),G(1,0),G(1,2),W(2,0)], E(Supply(-1,Target.Self)));
+        add(1, 'ТУННЕЛИРОВАНИЕ',     4, [W(0,0),W(0,1),W(1,0),W(2,0)], null, null, E(Supply(+1,Target.Self)));
+
+        // ── СТОИМОСТЬ -1 ──
+        add(1, 'ПЕРЕНАПРАВЛЕНИЕ',   -1, [G(0,0),G(0,2),W(2,0),W(2,2)], null, E(Place(1)));
+        add(1, 'КЛЮЧ БЕЗОПАСНОСТИ', -1, [W(0,1),G(2,1)], E(Reveal(1,Target.Opp)), null, E(Reset()));
+        add(1, 'ПРЕРЫВАНИЕ',        -1, [G(1,0),G(1,1),G(1,2)], null, null, E(Supply(-1,Target.Opp)));
+
+        return cards;
+    }
+
+    // ── 3-PLAYER DECK (54 карты: те же 53 + УСИЛЕНИЕ ЯДРА; часть паттернов изменена) ──
+    static create3() {
+        const cards = [];
+        let id = 1001;
+        const add = (copies, name, cost, pattern, play, utilize, synthesis) => {
+            for (let i = 0; i < copies; i++) cards.push({
+                id: id++, name, cost, pattern: pattern || [],
+                playEffect: play || CardEffect.None,
+                utilizeEffect: utilize || CardEffect.None,
+                synthesisEffect: synthesis || CardEffect.None,
+            });
+        };
+
+        // ── СТОИМОСТЬ 0 ──
+        add(2, 'БАЙТ',               0, [W(1,1)], E(Dig(1)));
+        add(2, 'БИТЫЙ ПИКСЕЛЬ',      0, [G(1,1)]);
+        add(2, 'МИГРАЦИЯ',           0, [W(1,1)], E(Place(1)));
+        add(1, 'ОБРАТНАЯ СВЯЗЬ',     0, [G(0,2),W(2,0)], E(Draw(1)));
+        add(1, 'УЯЗВИМОСТЬ',         0, [W(1,0),G(1,2),G(2,1)], E(Steal(1)));
+        add(1, 'ИНКАПСУЛЯЦИЯ',       0, [G(0,1),G(1,0),G(1,1),G(1,2)], E(Dig(1)));
+        add(1, 'ШИФРОВАНИЕ',         0, [W(0,1),G(1,0),G(1,2),W(2,1)], E(Supply(+1,Target.Self)));
+        add(1, 'БУФЕРИЗАЦИЯ',        0, [W(0,1),G(1,0),G(1,2),W(2,1)], null, null, E(Place(1)));
+        add(1, 'БЭКДОР',             0, [G(0,1),W(2,0),W(2,2)], E(Supply(-1,Target.Opp)));
+        add(1, 'ПЕРЕХВАТ ПОТОКА',    0, [W(1,0),G(0,2)], E(Reveal(1,Target.Opp)), E(Reveal(1,Target.Self)));
+        add(1, 'ТЕРНАРНЫЙ ОПЕРАТОР', 0, [W(0,1),W(1,0),W(1,2),W(2,1)], E(Discard(3,Target.Opp)), E(Discard(2,Target.Self)));
+
+        // ── СТОИМОСТЬ 1 ──
+        add(2, 'БИТ',                1, [W(1,1)], null, E(Place(1)));
+        add(1, 'ДУБЛИРОВАНИЕ',       1, [W(1,0),W(1,2)], E(Place(1)));
+        add(1, 'БРУТФОРС',           1, [G(0,2),W(2,0),W(2,1),W(2,2)], E(Reveal(1,Target.Opp),Draw(2)));
+        add(1, 'НАПРАВЛЕННЫЙ ПОТОК', 1, [W(2,0),W(1,1),W(0,2)], E(Reveal(3,Target.Opp)), E(Reveal(1,Target.Self)));
+        add(1, 'БИНАРНЫЙ ОПЕРАТОР',  1, [W(0,2),W(1,0),W(1,2),W(2,1)], E(Supply(+1,Target.Self)));
+        add(1, 'СОРТИРОВКА',         1, [W(0,0),W(1,1),W(2,1),W(2,2)], E(Dig(2),Supply(+1,Target.Self)));
+        add(1, 'ОБНОВЛЕНИЕ',         1, [W(0,2),W(1,1),W(2,0)], E(SetSup(4,Target.Self)));
+        add(1, 'СИНХРОНИЗАЦИЯ',      1, [G(0,1),W(1,0),W(1,2),G(2,1)], E(CopySup()));
+        add(1, 'ИНЪЕКЦИЯ КОДА',      1, [W(0,0),W(1,1),G(2,2)], E(Reveal(1,Target.Opp),Steal(1)));
+        add(1, 'ПРОКСИ',             1, [W(0,0),G(0,1),G(1,1),W(1,2)], E(Place(1),Reveal(1,Target.Self),Discard(1,Target.Opp)));
+        // Паттерн изменён: ML:W MC:W MR:G (вместо 2p: ML:W MC:W MR:W BR:W)
+        add(1, 'ЗАМЫКАНИЕ',          1, [W(1,0),W(1,1),G(1,2)], E(Supply(-1,Target.Opp)));
+        add(1, 'РЕКУРСИЯ',           1, [G(1,0),G(1,1),G(1,2),W(2,0),W(2,2)], E(Steal(1)));
+
+        // ── СТОИМОСТЬ 2 ──
+        add(2, 'ЗАЦИКЛИВАНИЕ',       2, [W(1,1)], E(Discard(1,Target.Self)));
+        add(1, 'БИНАРНЫЕ ПОТОКИ',    2, [W(0,1),W(1,2)]);
+        add(1, 'ПЕРЕЗАГРУЗКА',       2, [W(0,1),W(2,0),W(2,2)], E(Reset(),Place(1)));
+        add(1, 'СИНЕРГИЯ',           2, [G(0,0),W(0,2),W(2,0),G(2,2)], E(Supply(+1,Target.Opp),Supply(+1,Target.Self)));
+        add(1, 'ЛОЖНЫЕ ДАННЫЕ',      2, [W(0,0),W(2,0),G(1,2)], E(Reveal(2,Target.Self),Draw(2)));
+        add(1, 'БРАНДМАУЭР',         2, [W(0,1),W(1,1),W(2,2)], E(Place(2)));
+        add(1, 'ИТЕРАЦИЯ',           2, [W(0,1),W(1,0),W(1,2),W(2,1)], E(Place(4)));
+        // Паттерн изменён: TL:G TR:G BL:W BR:W (вместо 2p: TL:G TR:W BL:W BR:G)
+        add(1, 'АСИНХРОННОСТЬ',      2, [G(0,0),G(0,2),W(2,0),W(2,2)], E(Reveal(2,Target.Opp),Reveal(2,Target.Self)));
+        add(1, 'ФОРК',               2, [W(0,0),W(0,2),W(2,0),W(2,2)], E(Place(2),Draw(2)));
+        add(1, 'ИНТЕРФЕЙС',          2, [W(0,2),W(1,0),W(1,1),W(1,2),W(2,1)], E(Reveal(2,Target.Self),Place(4),Discard(1,Target.Opp)));
+
+        // ── СТОИМОСТЬ 3 ──
+        add(1, 'ПЕРЕГРУЗКА',         3, [W(0,0),W(0,2),W(2,0),W(2,2)], E(Draw(3)));
+        // Паттерн изменён: 4 клетки без центра (вместо 2p: 5 клеток с центром)
+        add(1, 'РЕЗЕРВ',             3, [W(0,1),W(1,0),W(1,2),W(2,1)], E(Discard(1,Target.Opp)), E(Discard(2,Target.Self),Draw(2)));
+        add(1, 'УСИЛЕНИЕ ЯДРА',      3, [W(0,1),W(1,0),W(1,1),W(1,2),W(2,1)], E(Supply(+2,Target.Self)));  // НОВАЯ
         add(1, 'РЕФАКТОРИНГ',        3, [W(0,0),W(0,2),W(1,1),W(2,0),W(2,2)], E(Steal(2),Place(3)), E(Reveal(1,Target.Self)));
         add(1, 'СОКЕТ',              3, [W(0,1),W(0,2),W(1,0),W(1,1)], E(Draw(3)));
         add(1, 'ФРАГМЕНТАЦИЯ',       3, [W(0,0),G(0,2),W(1,1),W(2,0)], E(Dig(1)));
