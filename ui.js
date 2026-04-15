@@ -241,8 +241,20 @@ class GameUI {
         this.discardCountEl.textContent = `Сброс: ${st.discard.length}`;
 
         const phaseNames = { Replenish: 'Восполнение', Action: 'Действия', Task: 'Задача' };
-        this.phaseEl.textContent = phaseNames[st.phase] || st.phase;
-        this.turnEl.textContent = `Ход Игрока ${st.currentPI + 1}`;
+        const phaseName = phaseNames[st.phase] || st.phase;
+        const turnName = `Ход Игрока ${st.currentPI + 1}`;
+        this.phaseEl.textContent = phaseName;
+        this.turnEl.textContent = turnName;
+
+        // 3-player compact info strip
+        const p3phase = document.getElementById('phase-label-3p');
+        const p3turn  = document.getElementById('turn-label-3p');
+        const p3deck  = document.getElementById('deck-count-3p');
+        const p3disc  = document.getElementById('discard-count-3p');
+        if (p3phase) p3phase.textContent = phaseName;
+        if (p3turn)  p3turn.textContent  = turnName;
+        if (p3deck)  p3deck.textContent  = `Колода: ${st.deck.count}`;
+        if (p3disc)  p3disc.textContent  = `Сброс: ${st.discard.length}`;
 
         // Active player highlight
         for (let i = 0; i < 3; i++) {
