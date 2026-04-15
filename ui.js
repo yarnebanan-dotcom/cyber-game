@@ -98,7 +98,10 @@ class GameUI {
 
         // Card detail overlay
         this.cardDetail = document.getElementById('card-detail');
+        this._detailRotation = 0;
         document.getElementById('card-detail-close').onclick = () => this.cardDetail.classList.add('hidden');
+        document.getElementById('btn-rotate-ccw').onclick = () => this._rotateDetail(-90);
+        document.getElementById('btn-rotate-cw').onclick  = () => this._rotateDetail(+90);
     }
 
     // ── Audio & Haptics ────────────────────────────────────────
@@ -896,7 +899,14 @@ class GameUI {
 
     // ── Card detail ────────────────────────────────────────────
 
+    _rotateDetail(delta) {
+        this._detailRotation = (this._detailRotation + delta + 360) % 360;
+        const svg = document.querySelector('#detail-pattern svg');
+        if (svg) svg.style.transform = `rotate(${this._detailRotation}deg)`;
+    }
+
     _showCardDetail(card) {
+        this._detailRotation = 0;
         document.getElementById('detail-name').textContent = card.name;
         document.getElementById('detail-cost').textContent = `Стоимость: ${card.cost}`;
         document.getElementById('detail-pattern').innerHTML = this._patternSVG(card.pattern);
