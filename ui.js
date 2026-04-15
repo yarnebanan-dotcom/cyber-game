@@ -542,6 +542,14 @@ class GameUI {
             return;
         }
 
+        // Task phase: tap node to place selected card pattern
+        if (this.state.phase === Phase.Task) {
+            if (this.pendingCard || this.synth?.step === 'placeA' || this.synth?.step === 'placeB') {
+                this._tryPlayOnNode(r, c);
+            }
+            return;
+        }
+
         if (this.state.phase !== Phase.Action) return;
 
         const st = this.state;
@@ -590,8 +598,8 @@ class GameUI {
             this.currentPlacements = sharedPlacements;
             this.placementIndex = 0;
             this._render();
-            this._showPlacementPanel();
-            this._showMessage(`Выберите позицию для ${card.name}`);
+            this._showCardSelectedPanel();
+            this._showMessage(`Тапни позицию для ${card.name} на доске`);
             return;
         }
 
@@ -614,7 +622,7 @@ class GameUI {
             if (placements.length > 0) {
                 this.currentPlacements = placements;
                 this.placementIndex = 0;
-                this._showPlacementPanel();
+                this._showCardSelectedPanel();
             }
         }
     }
@@ -650,13 +658,12 @@ class GameUI {
     // ── Синтез ─────────────────────────────────────────────────
 
     _onSynthNext() {
-        const matchA = this.currentPlacements[this.placementIndex];
-        this.synth = { step: 'selectB', cardA: this.pendingCard, matchA };
-        this.placementPanel.classList.add('hidden');
-        this._highlightNodes(matchA.chipPositions);
+        this.synth = { step: 'placeA', cardA: this.pendingCard, placementsA: this.currentPlacements };
         this.pendingCard = null;
+        this.placementPanel.classList.add('hidden');
+        this._clearHighlights();
         this._render();
-        this._showMessage(`Первая карта: ${this.synth.cardA.name}. Выберите вторую карту`);
+        this._showMessage(`Тапни позицию ${this.synth.cardA.name} на доске`);
     }
 
     _cancelSynth() {
@@ -714,21 +721,64 @@ class GameUI {
 
     // ── Placement panel ────────────────────────────────────────
 
-    _showPlacementPanel() {
+    // Показывает панель без ‹›/счётчика/подтверждения — только Синтез и Отмена
+    _showCardSelectedPanel() {
         const inSynthB = this.synth?.step === 'placeB';
-        const tasksLeft = this.state.tasksThisTurn < 2;
-        document.getElementById('btn-synth').style.display = (!inSynthB && tasksLeft) ? '' : 'none';
-        document.getElementById('btn-confirm').textContent = inSynthB ? 'Подтвердить' : 'Разыграть!';
-        document.getElementById('btn-synth-cancel').style.display = inSynthB ? '' : 'none';
+        ['btn-prev', 'btn-next', 'placement-count', 'btn-confirm'].forEach(id => {
+            document.getElementById(id).style.display = 'none';
+        });
+        document.getElementById('btn-synth').style.display =
+            (!inSynthB && this.state.tasksThisTurn < 2) ? '' : 'none';
+        const cancelBtn = document.getElementById('btn-synth-cancel');
+        cancelBtn.textContent = inSynthB ? '✕ Отмена синтеза' : '✕';
+        cancelBtn.style.display = '';
         this.placementPanel.classList.remove('hidden');
-        this._updatePlacementHighlight();
     }
 
-    _updatePlacementHighlight() {
-        const placement = this.currentPlacements[this.placementIndex];
-        this._highlightNodes(placement.chipPositions);
-        this.placementCount.textContent =
-            `Позиция ${this.placementIndex + 1} из ${this.currentPlacements.length}`;
+    // Попытка разыграть pendingCard или подтвердить позицию синтеза по тапу на узел
+    _tryPlayOnNode(r, c) {
+        // Синтез: выбор позиции первой карты
+        if (this.synth?.step === 'placeA') {
+            const match = this.synth.placementsA.find(
+                p => p.chipPositions.some(([pr, pc]) => pr === r && pc === c)
+            );
+            if (!match) { this._showMessage('Паттерн не совпадает'); return; }
+            this.synth.matchA = match;
+            this.synth.step = 'selectB';
+            this._render();
+            this._showMessage(`Выберите вторую карту для синтеза`);
+            return;
+        }
+
+        // Синтез: выбор позиции второй карты
+        if (this.synth?.step === 'placeB') {
+            const match = this.currentPlacements.find(
+                p => p.chipPositions.some(([pr, pc]) => pr === r && pc === c)
+            );
+            if (!match) { this._showMessage('Паттерн не совпадает'); return; }
+            this.synth.matchB = match;
+            this.synth.step = 'chooseOrder';
+            this.placementPanel.classList.add('hidden');
+            this._clearHighlights();
+            this._showSynthOrderPanel();
+            return;
+        }
+
+        // Обычный розыгрыш
+        if (!this.pendingCard || !this.currentPlacements?.length) return;
+        const match = this.currentPlacements.find(
+            p => p.chipPositions.some(([pr, pc]) => pr === r && pc === c)
+        );
+        if (!match) { this._showMessage('Паттерн не совпадает'); return; }
+        this.placementPanel.classList.add('hidden');
+        this._clearHighlights();
+        const card = this.pendingCard;
+        this.pendingCard = null;
+        this.tm.playCard(card, match, result => {
+            if (!result) { this._haptic(26); this._playSound('play'); }
+            this._render();
+            if (result === 'limitReached') this._showMessage('Лимит задач (2) исчерпан');
+        });
     }
 
     _prevPlacement() {
