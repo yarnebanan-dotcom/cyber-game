@@ -297,15 +297,21 @@ class GameUI {
         this.phaseHintEl.textContent = text;
         this.phaseHintEl.style.color = color;
 
-        // Phase-based background tint
-        const bgMap = {
-            Replenish: ['rgba(8,14,32,0.72)',  'rgba(60,90,160,0.2)'],
-            Action:    ['rgba(18,13,6,0.82)',   'rgba(180,140,20,0.35)'],
-            Task:      ['rgba(6,14,28,0.82)',   'rgba(50,130,220,0.35)'],
-        };
-        const [bg, bc] = bgMap[this.state?.phase] || bgMap.Replenish;
-        this.phaseHintEl.style.background   = bg;
-        this.phaseHintEl.style.borderColor  = bc;
+        // Тонировать SVG-бар через hue-rotate
+        let hue = '0deg', sat = '1', bri = '1';
+        if (this.synth) {
+            hue = '78deg';                      // фиолетовый
+        } else if (st.phase === Phase.Replenish) {
+            hue = '0deg'; sat = '0.15'; bri = '0.55'; // приглушённый
+        } else if (st.phase === Phase.Action) {
+            const chipsLeft = st.chipsAllowed - st.chipsPlaced;
+            hue = chipsLeft > 0 ? '-147deg' : '-57deg'; // жёлтый / зелёный
+        } else if (st.phase === Phase.Task) {
+            hue = '18deg';                      // синий
+        }
+        this.phaseHintEl.style.setProperty('--hint-hue', hue);
+        this.phaseHintEl.style.setProperty('--hint-sat', sat);
+        this.phaseHintEl.style.setProperty('--hint-bri', bri);
     }
 
     _renderBoard() {
