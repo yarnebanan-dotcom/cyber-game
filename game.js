@@ -351,6 +351,7 @@ class TurnManager {
         st.board.nodes[r][c] = st.board.occOf(st.currentPI);
         st.cp.chipsOnBoard++;
         st.chipsPlaced++;
+        st.placedThisTurn.push([r, c]);
         this._notify();
         if (st.chipsPlaced >= st.chipsAllowed) {
             st.mainActionDone = true;
@@ -501,11 +502,24 @@ class TurnManager {
     }
 
     // ── Internals ──
+    undoLastChip() {
+        const st = this.state;
+        if (st.phase !== Phase.Action) return 'invalidPhase';
+        if (!st.placedThisTurn?.length) return 'invalidAction';
+        const [r, c] = st.placedThisTurn.pop();
+        st.board.nodes[r][c] = Occ.Empty;
+        st.cp.chipsOnBoard--;
+        st.chipsPlaced--;
+        this._notify();
+        return 'ok';
+    }
+
     _toAction() {
         const st = this.state;
         st.phase = Phase.Action;
         st.chipsPlaced = 0;
         st.chipsAllowed = 2;
+        st.placedThisTurn = [];
         st.tasksThisTurn = 0;
         st.utilizesThisTurn = 0;
         st.mainActionDone = false;

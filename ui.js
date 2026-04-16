@@ -84,6 +84,20 @@ class GameUI {
         this.gameOverText = document.getElementById('gameover-text');
         document.getElementById('btn-play-again').onclick = () => this._showMenu();
 
+        // Rules screen
+        document.getElementById('btn-show-rules').onclick = () => document.getElementById('rules-screen').classList.remove('hidden');
+        document.getElementById('btn-rules-close').onclick = () => document.getElementById('rules-screen').classList.add('hidden');
+
+        // In-game menu
+        document.getElementById('btn-ingame-menu').onclick = () => this._showIngameMenu();
+        document.getElementById('btn-to-menu').onclick = () => { this._hideIngameMenu(); this._showMenu(); };
+        document.getElementById('btn-restart').onclick = () => { this._hideIngameMenu(); this._startGame(this._playerCount); };
+        document.getElementById('btn-close-ingame-menu').onclick = () => this._hideIngameMenu();
+        document.getElementById('ingame-menu').addEventListener('click', e => { if (e.target.id === 'ingame-menu') this._hideIngameMenu(); });
+
+        // Undo chip
+        document.getElementById('btn-undo-chip').onclick = () => this._onUndoChip();
+
         // Menu screen
         this.menuScreen = document.getElementById('menu-screen');
         document.getElementById('btn-mode-2p').onclick = () => this._startGame(2);
@@ -198,6 +212,7 @@ class GameUI {
         // Reset UI state
         this._prevScores = [0, 0, 0];
         this.pendingCard = null;
+        this.pendingNodes = [];
         this.currentPlacements = [];
         this.nodePickDone = null;
         this.synth = null;
@@ -278,6 +293,7 @@ class GameUI {
         const inAction = st.phase === Phase.Action;
         const inTask = st.phase === Phase.Task;
         const inSynth = !!this.synth;
+        document.getElementById('btn-undo-chip').style.display = (inAction && st.chipsPlaced > 0) ? '' : 'none';
         document.getElementById('btn-end-action').style.display = inAction ? '' : 'none';
         document.getElementById('btn-utilize').style.display = (inTask && !inSynth) ? '' : 'none';
         document.getElementById('btn-skip').style.display = (inTask && !inSynth) ? '' : 'none';
@@ -998,6 +1014,24 @@ class GameUI {
             card.synthesisEffect.hasEffects ? `<b>Синтез:</b> ${this._fxText(card.synthesisEffect)}` : '',
         ].filter(Boolean).join('<br>') || '—';
         this.cardDetail.classList.remove('hidden');
+    }
+
+    // ── In-game menu ───────────────────────────────────────────
+
+    _showIngameMenu() { document.getElementById('ingame-menu').classList.remove('hidden'); }
+    _hideIngameMenu() { document.getElementById('ingame-menu').classList.add('hidden'); }
+
+    // ── Undo chip ──────────────────────────────────────────────
+
+    _onUndoChip() {
+        const result = this.tm.undoLastChip();
+        if (result === 'ok') {
+            this._haptic(14);
+            this._renderBoard();
+            this._highlightEmptyNodes();
+            this._updatePhaseHint();
+            this._render();
+        }
     }
 
     // ── Utils ──────────────────────────────────────────────────
