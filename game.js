@@ -353,10 +353,6 @@ class TurnManager {
         st.chipsPlaced++;
         st.placedThisTurn.push([r, c]);
         this._notify();
-        if (st.chipsPlaced >= st.chipsAllowed) {
-            st.mainActionDone = true;
-            this._toTask();
-        }
         return 'ok';
     }
 
@@ -502,11 +498,12 @@ class TurnManager {
     }
 
     // ── Internals ──
-    undoLastChip() {
+    undoChip(r, c) {
         const st = this.state;
         if (st.phase !== Phase.Action) return 'invalidPhase';
-        if (!st.placedThisTurn?.length) return 'invalidAction';
-        const [r, c] = st.placedThisTurn.pop();
+        const idx = st.placedThisTurn?.findIndex(([pr, pc]) => pr === r && pc === c);
+        if (idx < 0) return 'invalidAction';
+        st.placedThisTurn.splice(idx, 1);
         st.board.nodes[r][c] = Occ.Empty;
         st.cp.chipsOnBoard--;
         st.chipsPlaced--;

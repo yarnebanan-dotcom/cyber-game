@@ -95,9 +95,6 @@ class GameUI {
         document.getElementById('btn-close-ingame-menu').onclick = () => this._hideIngameMenu();
         document.getElementById('ingame-menu').addEventListener('click', e => { if (e.target.id === 'ingame-menu') this._hideIngameMenu(); });
 
-        // Undo chip
-        document.getElementById('btn-undo-chip').onclick = () => this._onUndoChip();
-
         // Menu screen
         this.menuScreen = document.getElementById('menu-screen');
         document.getElementById('btn-mode-2p').onclick = () => this._startGame(2);
@@ -293,7 +290,6 @@ class GameUI {
         const inAction = st.phase === Phase.Action;
         const inTask = st.phase === Phase.Task;
         const inSynth = !!this.synth;
-        document.getElementById('btn-undo-chip').style.display = (inAction && st.chipsPlaced > 0) ? '' : 'none';
         document.getElementById('btn-end-action').style.display = inAction ? '' : 'none';
         document.getElementById('btn-utilize').style.display = (inTask && !inSynth) ? '' : 'none';
         document.getElementById('btn-skip').style.display = (inTask && !inSynth) ? '' : 'none';
@@ -572,9 +568,21 @@ class GameUI {
         const st = this.state;
         const selfOcc = st.board.occOf(st.currentPI);
 
-        // Нажатие на свою фишку без уже размещённых — убрать её
+        // Нажатие на свою фишку
         if (st.board.nodes[r][c] === selfOcc) {
-            if (st.chipsPlaced === 0) {
+            const placedThisTurn = st.placedThisTurn || [];
+            if (placedThisTurn.some(([pr, pc]) => pr === r && pc === c)) {
+                // Фишка поставлена в этот ход — отменить
+                const result = this.tm.undoChip(r, c);
+                if (result === 'ok') {
+                    this._haptic(14);
+                    this._renderBoard();
+                    this._highlightEmptyNodes();
+                    this._updatePhaseHint();
+                    this._render();
+                }
+            } else if (st.chipsPlaced === 0) {
+                // Фишка с прошлого хода — убрать как альтернативное действие
                 const result = this.tm.returnPiece(r, c);
                 if (result === 'ok') {
                     this._renderBoard();
@@ -1020,19 +1028,6 @@ class GameUI {
 
     _showIngameMenu() { document.getElementById('ingame-menu').classList.remove('hidden'); }
     _hideIngameMenu() { document.getElementById('ingame-menu').classList.add('hidden'); }
-
-    // ── Undo chip ──────────────────────────────────────────────
-
-    _onUndoChip() {
-        const result = this.tm.undoLastChip();
-        if (result === 'ok') {
-            this._haptic(14);
-            this._renderBoard();
-            this._highlightEmptyNodes();
-            this._updatePhaseHint();
-            this._render();
-        }
-    }
 
     // ── Utils ──────────────────────────────────────────────────
 
