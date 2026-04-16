@@ -26,6 +26,9 @@ class GameUI {
         // Last turn summary for handoff screen
         this._lastTurnSummary = null;
 
+        // Card pattern rotations (card.id → degrees)
+        this._cardRotations = new Map();
+
         // Score animation tracking
         this._prevScores = [0, 0, 0];
         this._playerCount = 2;
@@ -208,6 +211,7 @@ class GameUI {
 
         // Reset UI state
         this._prevScores = [0, 0, 0];
+        this._cardRotations = new Map();
         this.pendingCard = null;
         this.pendingNodes = [];
         this.currentPlacements = [];
@@ -443,7 +447,28 @@ class GameUI {
             <div class="card-fx">${this._describeEffects(card)}</div>
         `;
 
-        el.addEventListener('click', () => this._onCardTap(card, isPlayable));
+        // Apply stored rotation
+        const storedRot = this._cardRotations.get(card.id) || 0;
+        if (storedRot) {
+            const svg = el.querySelector('.card-pattern svg');
+            if (svg) svg.style.transform = `rotate(${storedRot}deg)`;
+        }
+
+        // Single tap → select card; double tap → rotate pattern
+        let lastTap = 0;
+        el.addEventListener('click', () => {
+            const now = Date.now();
+            if (now - lastTap < 300) {
+                lastTap = 0;
+                const next = ((this._cardRotations.get(card.id) || 0) + 90) % 360;
+                this._cardRotations.set(card.id, next);
+                const svg = el.querySelector('.card-pattern svg');
+                if (svg) svg.style.transform = `rotate(${next}deg)`;
+                return;
+            }
+            lastTap = now;
+            this._onCardTap(card, isPlayable);
+        });
 
         // Long press for card detail
         let pressTimer;
