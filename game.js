@@ -69,7 +69,7 @@ class GameState {
         this.tasksThisTurn = 0;
         this.utilizesThisTurn = 0;
         this.mainActionDone = false;
-        const cards = playerCount === 3 ? CardDatabase.create3() : CardDatabase.create();
+        const cards = CardDatabase.create3();
         this.deck = new Deck(cards, this.discard);
     }
     get cp() { return this.players[this.currentPI]; }
