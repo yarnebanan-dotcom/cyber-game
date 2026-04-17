@@ -1159,30 +1159,35 @@ class GameUI {
         // Что должен сделать целевой игрок
         const cnt = count;
         const cardWord = cnt === 1 ? 'карту' : cnt < 5 ? 'карты' : 'карт';
-        let actionLabel, instruction;
+        const one = cnt === 1;
+        let actionLabel, instruction, consequence;
         if (kind === 'reveal') {
             actionLabel = `раскрыть ${cnt} ${cardWord}`;
-            instruction = targetIsActor
-                ? `Выбери ${cnt} ${cardWord} из руки чтобы раскрыть`
-                : `Выбери ${cnt} ${cardWord} из своей руки чтобы раскрыть`;
+            instruction = `Выбери ${cnt} ${cardWord} из своей руки чтобы раскрыть`;
+            consequence = one
+                ? `⚠ Эта карта будет видна противнику · любой игрок сможет её разыграть в свой ход`
+                : `⚠ Эти карты будут видны противнику · любой игрок сможет их разыграть в свой ход`;
         } else if (kind === 'discard') {
             actionLabel = `сбросить ${cnt} ${cardWord}`;
-            instruction = targetIsActor
-                ? `Выбери ${cnt} ${cardWord} чтобы сбросить`
-                : `Выбери ${cnt} ${cardWord} из своей руки чтобы сбросить`;
+            instruction = `Выбери ${cnt} ${cardWord} из своей руки чтобы сбросить`;
+            consequence = one
+                ? `⚠ Эта карта уйдёт в сброс и пропадёт из твоей руки`
+                : `⚠ Эти карты уйдут в сброс и пропадут из твоей руки`;
         } else if (kind === 'dig') {
             actionLabel = `выбрать ${cnt} из ${cnt + 2}`;
-            instruction = `Выбери ${cnt} ${cardWord} чтобы оставить себе · остальные уйдут в сброс`;
+            instruction = `Выбери ${cnt} ${cardWord} чтобы оставить себе`;
+            consequence = `✓ Выбранные карты попадут в руку · остальные уйдут в сброс`;
         } else {
             actionLabel = `выбрать ${cnt}`;
             instruction = `Выбери ${cnt} ${cardWord}`;
+            consequence = '';
         }
 
         return {
             actorPI, targetPI, targetIsActor,
             cardName: card?.name ?? '',
             cardCost: card?.cost,
-            modeLabel, actionLabel, instruction, kind, count,
+            modeLabel, actionLabel, instruction, consequence, kind, count,
         };
     }
 
@@ -1240,16 +1245,21 @@ class GameUI {
         this._cardPickRequired = count;
         this._cardPickSelected = [];
 
-        // Заголовок: контекст источника + конкретная инструкция
+        // Заголовок: контекст источника + конкретная инструкция + последствие
         if (ctx) {
             const targetColor = this._playerColor(pi);
             const actorColor = this._playerColor(ctx.actorPI);
             const sourceLine = ctx.cardName
                 ? `<span style="color:${actorColor}">Игрок ${ctx.actorPI + 1}</span> ${ctx.modeLabel} <span style="color:#c8dcff">«${ctx.cardName}»</span>`
                 : `<span style="color:${actorColor}">Игрок ${ctx.actorPI + 1}</span>`;
+            const consequenceColor = ctx.kind === 'dig' ? '#88cc99' : '#e0a860';
+            const consequenceLine = ctx.consequence
+                ? `<div style="font-size:10.5px;color:${consequenceColor};font-weight:500;margin-top:6px;line-height:1.4;letter-spacing:0.01em">${ctx.consequence}</div>`
+                : '';
             this.cardPickTitle.innerHTML =
                 `<div style="font-size:11px;color:#7a8aaa;font-weight:600;margin-bottom:6px;letter-spacing:0.03em">${sourceLine}</div>` +
-                `<div style="font-size:15px;color:${targetColor};font-weight:700">${ctx.instruction}</div>`;
+                `<div style="font-size:15px;color:${targetColor};font-weight:700">${ctx.instruction}</div>` +
+                consequenceLine;
         } else {
             this.cardPickTitle.textContent = `Игрок ${pi + 1}: выберите ${count} карт${count === 1 ? 'у' : 'ы'}`;
         }
