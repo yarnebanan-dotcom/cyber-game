@@ -1406,7 +1406,8 @@ html, body {
 .menu-subtitle .diamond { color: var(--line); }
 .menu-modes { display: flex; gap: 6px; margin-bottom: 12px; }
 .btn-mode {
-    flex: 1; padding: 12px 8px;
+    position: relative;
+    flex: 1; padding: 12px 8px 12px 14px;
     background: var(--bg-1);
     border: 1px solid var(--line-dim);
     color: var(--text-dim);
@@ -1418,9 +1419,17 @@ html, body {
 }
 .btn-mode:hover, .btn-mode:focus { outline: none; background: var(--bg-2); }
 .btn-mode.active {
-    background: var(--bg-3);
+    background: linear-gradient(90deg, rgba(255,106,43,0.18), rgba(255,106,43,0.04) 60%, transparent);
     border-color: var(--accent);
     color: var(--accent);
+}
+.btn-mode.active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
 }
 .btn-mode-chips { display: flex; gap: 3px; }
 .menu-chip {
