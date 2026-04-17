@@ -830,6 +830,31 @@ class GameUI {
     }
 
     _onEndAction() {
+        const st = this.state;
+        const chipsLeft = st.chipsAllowed - st.chipsPlaced;
+        const btn = document.getElementById('btn-end-action');
+        if (chipsLeft > 0 && !this._endActionConfirm) {
+            // Первый тап — предупреждение. Второй тап в течение 3 сек подтверждает.
+            this._endActionConfirm = true;
+            const word = chipsLeft === 1 ? 'фишку' : chipsLeft < 5 ? 'фишки' : 'фишек';
+            btn.textContent = `⚠ Не поставил ${chipsLeft} ${word} · тапни ещё раз`;
+            btn.style.background = 'linear-gradient(135deg, #ff9944, #d46a1e)';
+            btn.style.color = '#111';
+            if (navigator.vibrate) navigator.vibrate(30);
+            clearTimeout(this._endActionTimer);
+            this._endActionTimer = setTimeout(() => {
+                this._endActionConfirm = false;
+                btn.textContent = '✓ Конец действий';
+                btn.style.background = '';
+                btn.style.color = '';
+            }, 3000);
+            return;
+        }
+        this._endActionConfirm = false;
+        clearTimeout(this._endActionTimer);
+        btn.textContent = '✓ Конец действий';
+        btn.style.background = '';
+        btn.style.color = '';
         this.tm.endAction();
     }
 
