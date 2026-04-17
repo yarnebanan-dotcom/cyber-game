@@ -85,7 +85,8 @@ class GameUI {
         // Game over screen
         this.gameOverScreen = document.getElementById('gameover-screen');
         this.gameOverText = document.getElementById('gameover-text');
-        document.getElementById('btn-play-again').onclick = () => this._showMenu();
+        document.getElementById('btn-play-again').onclick = () => this._startGame(this._playerCount);
+        document.getElementById('btn-gameover-menu').onclick = () => this._showMenu();
 
         // Rules screen
         document.getElementById('btn-show-rules').onclick = () => document.getElementById('rules-screen').classList.remove('hidden');
@@ -306,9 +307,29 @@ class GameUI {
         const inTask = st.phase === Phase.Task;
         const inSynth = !!this.synth;
         const inNodePick = !!this.nodePickDone;
-        document.getElementById('btn-end-action').style.display = inAction ? '' : 'none';
+        const endActionBtn = document.getElementById('btn-end-action');
+        const skipBtn = document.getElementById('btn-skip');
+        endActionBtn.style.display = inAction ? '' : 'none';
         document.getElementById('btn-utilize').style.display = (inTask && !inSynth && !inNodePick) ? '' : 'none';
-        document.getElementById('btn-skip').style.display = (inTask && !inSynth && !inNodePick) ? '' : 'none';
+        skipBtn.style.display = (inTask && !inSynth && !inNodePick) ? '' : 'none';
+
+        // Dynamic primary/secondary state for action buttons
+        if (inAction) {
+            const chipsLeft = st.chipsAllowed - st.chipsPlaced;
+            endActionBtn.classList.toggle('btn-primary', chipsLeft === 0);
+            endActionBtn.classList.toggle('btn-ghost', chipsLeft > 0);
+        }
+        if (inTask && !inSynth && !inNodePick) {
+            const allCards = [...st.cp.hand, ...st.players.flatMap(p => p.revealed)];
+            const hasPlayable = allCards.some(c => this.tm.getValidPlacements(c).length > 0);
+            const hasHand = st.cp.hand.length > 0 || st.cp.revealed.length > 0;
+            if (!hasHand)          skipBtn.textContent = '⏭ Завершить ход (нет карт)';
+            else if (!hasPlayable) skipBtn.textContent = '⏭ Завершить ход (нет розыгрышей)';
+            else                   skipBtn.textContent = '⏭ Завершить ход';
+            // Primary когда нет розыгрышей/карт, ghost когда есть что делать
+            skipBtn.classList.toggle('btn-primary', !hasPlayable);
+            skipBtn.classList.toggle('btn-ghost', hasPlayable);
+        }
 
         // Dynamic revealed labels
         const oppNums = st.players.map((_, i) => i + 1).filter(n => n !== st.currentPI + 1);
@@ -355,8 +376,25 @@ class GameUI {
             }
         } else if (st.phase === Phase.Task) {
             const t = st.tasksThisTurn, u = st.utilizesThisTurn;
-            text = `Задач: ${t}/2 · Утилизаций: ${u}/2 · выбери карту`;
-            color = '#88ccff';
+            if (this.pendingCard) {
+                const pl = this.pendingCard.pattern.length;
+                text = `Тапни ${pl} фишк${pl===1?'у':pl<5?'и':'ек'} паттерна · или ⊗ Утилизировать`;
+                color = '#ffcc44';
+            } else {
+                const allCards = [...st.cp.hand, ...st.players.flatMap(p => p.revealed)];
+                const hasPlayable = allCards.some(c => this.tm.getValidPlacements(c).length > 0);
+                const hasHand = st.cp.hand.length > 0 || st.cp.revealed.length > 0;
+                if (!hasHand) {
+                    text = `Карт нет · завершай ход`;
+                    color = '#8899aa';
+                } else if (!hasPlayable) {
+                    text = `Розыгрыш невозможен · ✦ утилизируй или завершай ход`;
+                    color = '#e0a860';
+                } else {
+                    text = `Выбери карту · ▶ разыграй или ✦ утилизируй (${t}/2 · ${u}/2)`;
+                    color = '#88ccff';
+                }
+            }
         }
 
         this.phaseHintEl.textContent = text;
@@ -447,16 +485,16 @@ class GameUI {
         el.className = 'card' + (isPlayable ? ' playable' : ' unplayable');
         if (card === this.pendingCard) el.classList.add('selected');
 
-        // Cost badge color: green(-1) → gray(0) → blue(1-2) → orange(3-4)
-        const costColor = card.cost < 0 ? '#44cc77'
-                        : card.cost === 0 ? '#556677'
+        // Cost badge color: red(-1 штраф) → gray(0) → blue(1-2) → orange(3-4)
+        const costColor = card.cost < 0 ? '#cc4455'
+                        : card.cost === 0 ? '#3a4452'
                         : card.cost <= 2  ? '#4488ff'
                         : '#ff8833';
         el.innerHTML = `
             <div class="card-cost" style="background:${costColor}">${card.cost}</div>
             <div class="card-name">${card.name}</div>
             <div class="card-pattern">${this._patternSVG(card.pattern, 44)}</div>
-            <div class="card-fx">${this._describeEffects(card)}</div>
+            <div class="card-fx">${this._describeEffectsCompact(card)}</div>
         `;
 
         // Apply stored rotation
@@ -511,8 +549,8 @@ class GameUI {
 
         const popup = document.createElement('div');
         popup.id = 'card-popup';
-        const costColor = card.cost < 0 ? '#44cc77'
-                        : card.cost === 0 ? '#556677'
+        const costColor = card.cost < 0 ? '#cc4455'
+                        : card.cost === 0 ? '#3a4452'
                         : card.cost <= 2  ? '#4488ff'
                         : '#ff8833';
         popup.innerHTML = `
@@ -571,6 +609,41 @@ class GameUI {
         if (card.utilizeEffect.hasEffects) parts.push(`<span class="fx-util">✦ ${this._fxText(card.utilizeEffect)}</span>`);
         if (card.synthesisEffect.hasEffects) parts.push(`<span class="fx-synth">⊕ ${this._fxText(card.synthesisEffect)}</span>`);
         return parts.join('<br>') || '<span class="fx-none">—</span>';
+    }
+
+    // Компактный формат для карт в руке: иконки + цифры
+    _describeEffectsCompact(card) {
+        const parts = [];
+        if (card.playEffect.hasEffects)      parts.push(`<span class="fx-play">▶${this._fxCompact(card.playEffect)}</span>`);
+        if (card.utilizeEffect.hasEffects)   parts.push(`<span class="fx-util">✦${this._fxCompact(card.utilizeEffect)}</span>`);
+        if (card.synthesisEffect.hasEffects) parts.push(`<span class="fx-synth">⊕${this._fxCompact(card.synthesisEffect)}</span>`);
+        return parts.join('') || '';
+    }
+
+    _fxCompact(effect) {
+        return effect.effects.map(fx => {
+            const self = fx.target === Target.Self || fx.target === undefined;
+            const n = fx.n;
+            const inf = n === Infinity;
+            const num = inf ? '∞' : n;
+            const oppMark = self ? '' : '!';  // ! = на противника
+            switch (fx.constructor.name) {
+                case 'DrawCardsEffect':    return ` +${n}c`;            // карты в руку
+                case 'DigCardsEffect':     return ` ⛏${n}`;             // раскопать
+                case 'PlaceChipsEffect':   return ` ●${n}`;             // фишки
+                case 'RevealCardsEffect':  return ` 👁${num}${oppMark}`;
+                case 'DiscardCardsEffect': return ` ✕${num}${oppMark}`;
+                case 'StealCardsEffect':   return ` ⇆${n}`;
+                case 'ModifySupplyEffect': {
+                    const t = fx.target === Target.Self ? '' : '!';
+                    return ` ⚡${fx.delta>0?'+':''}${fx.delta}${t}`;
+                }
+                case 'SetSupplyEffect':    return ` ⚡=${fx.val}${self?'':'!'}`;
+                case 'CopyOpponentSupplyEffect': return ` ⚡=⚡!`;
+                case 'ResetFieldEffect':   return ` ↻стол`;
+                default: return '';
+            }
+        }).join('');
     }
 
     _fxText(effect) {
