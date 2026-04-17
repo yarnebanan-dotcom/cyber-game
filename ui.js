@@ -422,7 +422,7 @@ class GameUI {
         if (phaseInfoEl) {
             const phaseName = st.phase === Phase.Replenish ? 'ВОСПОЛН'
                 : st.phase === Phase.Action ? `ДЕЙСТВ ${st.chipsPlaced}/${st.chipsAllowed}`
-                : st.phase === Phase.Task ? `ЗАДАЧА ${(st.tasksThisTurn || 0) + (st.utilizesThisTurn || 0)}/2`
+                : st.phase === Phase.Task ? `▶ ${st.tasksThisTurn || 0}/2 · ✦ ${st.utilizesThisTurn || 0}/2`
                 : 'КОНЕЦ';
             phaseInfoEl.textContent = phaseName;
         }
@@ -1735,7 +1735,7 @@ class GameUI {
             const st = this.state;
             const phaseName = st.phase === Phase.Replenish ? 'ВОСПОЛНЕНИЕ'
                 : st.phase === Phase.Action ? `ДЕЙСТВИЯ ${st.chipsPlaced}/${st.chipsAllowed}`
-                : st.phase === Phase.Task ? `ЗАДАЧА ${(st.tasksThisTurn || 0) + (st.utilizesThisTurn || 0)}/2`
+                : st.phase === Phase.Task ? `ЗАДАЧА ▶ ${st.tasksThisTurn || 0}/2 · ✦ ${st.utilizesThisTurn || 0}/2`
                 : 'КОНЕЦ ХОДА';
             const elapsedMs = Date.now() - (this._matchStartTime || Date.now());
             const mm = Math.floor(elapsedMs / 60000);
