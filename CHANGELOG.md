@@ -6,6 +6,59 @@
 
 ---
 
+## 2026-04-17 — HUD Kit: этап 3.1 — compact header + phase stepper + hint-bar
+
+- **`HEAD`** Feat: замена верхнего HUD на компактную шапку из `Дизайн/_/proto.jsx`
+  - **Compact header** (`.hud-compact`): `[T{NN}] [P-0N] [P2:X P3:Y] ──── [score]/max [≡]`
+    - `.hud-turn-tag` — orange filled box с номером хода `T01` (Orbitron mono, letter-spacing 0.2em)
+    - `.hud-player-tag` — mono accent-tag активного игрока, цвет по игроку (p1 синий, p2 красный, p3 зелёный)
+    - `.hud-opp-scores` — компактные чипы соперников `P2:X` цветом игрока (адаптация для 2p/3p hot-seat)
+    - `.hud-score` — Orbitron 16px orange, `/max` справа приглушённым моно
+    - `.hud-menu-btn` — HUD-кнопка `≡` с beveled clip-path
+  - **Phase stepper** (`.phase-stepper`): 4 ячейки `01·ВОСПОЛН / 02·ДЕЙСТВ / 03·ЗАДАЧА / 04·КОНЕЦ`
+    - `.current` — orange fill (`var(--accent)`) с тёмным текстом
+    - `.past` — приглушённый orange `rgba(255,106,43,0.15)` с accent текстом
+    - Future — transparent с `var(--line-dim)` рамкой
+    - Фаза `End` резервирована для этапа 3.2 (END summary panel)
+  - **Hint bar** (`#phase-hint`) — полная замена SVG-прогресс-бара на dashed accent border:
+    - `> {text}` mono 10px · опционально счётчик `N/M` в рамке справа
+    - Тонирование через CSS-классы: `.tone-replenish/action/task/synth/ok` (вместо hue-rotate)
+  - **Meta row** (`.hud-meta`): `КОЛОДА N  СБРОС M` моноширинно снизу HUD
+  - **Удалено**: `.player-panel` с бордюрами/glow/score-bar, `.hud-top`, `.hud-center`, `#hud-info-3p`, `.info-phase/info-turn`, `#app.mode-3p` панели — старый 3-panel layout заменён единым header'ом
+  - **`ui.js`**: обновлены `_bindElements` (новые ID `turn-tag/player-tag/opp-scores/cur-score/phase-stepper`), `_render` (populate compact header + stepper), `_updatePhaseHint` (новая разметка + tone-классы), `_animateCounter` получил флаг `noSuffix`; добавлен `this._turnNumber` + автоинкремент при смене `currentPI`
+  - Баланс/механика/фазы — нетронуты
+
+---
+
+## 2026-04-17 — HUD Kit: этап 2 — карты, доска, рука + «1 клик = поворот»
+
+- **`HEAD`** Feat: визуальная интеграция HUD Kit (строго по `Дизайн/_/chips-cards.jsx`) + фикс взаимодействия по UX_SPEC §2.7
+  - **Карта** (`.card`) — точная копия компоновки из кита `GameCard`:
+    - Размер 80×116 (w × w*1.45), flex-column, beveled clip-path
+    - Header-row: `.card-cost` (квадрат с clip-path, Orbitron) + `.card-corner` (`◇◇◇` мелким моно, или `↻N°` при повороте)
+    - `.card-pattern` — inline 3×3 CSS-grid 80% ширины, gap 1px; без SVG
+      - `.w` = `var(--accent)` (оранжевая), `.g` = `var(--line)` (cyan), `.empty` = прозрачная с dashed `--line-ghost`
+    - `.card-name` — внизу, Orbitron uppercase 9px, `border-top: 1px solid var(--line-ghost)` как разделитель
+    - `.card.selected`: `var(--accent)` рамка + orange glow + подъём -8px, cost инвертируется в оранжевый с тёмным текстом
+    - **Без fx-текста** — эффекты теперь только в поп-апе по long-press (кит компактную карту оставляет чистой)
+  - **Доска** (`#board`): чистый `var(--bg-1)` фон, HUD-beveled рамка `var(--line-dim)` без скруглений
+    - Вместо scan-grid теперь SVG-оверлей `#board-lines` с **dashed соединительными линиями** между центрами узлов (`stroke-dasharray="2 3"`, `vector-effect="non-scaling-stroke"`) — «схема платы» как в ките `ChipBoard`
+  - **Узлы** (`.node`): ромбы через `::before` + `clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%)`
+    - Пустой: 20% контурный ромб dashed `var(--line-ghost)`
+    - p1/p2/p3: цветной ромб 60% с glow + пульс
+    - Highlighted: dashed outline `var(--accent)` + оранжевая заливка
+  - **Метка руки**: `◦ РУКА · Игрок N ··· n/5  зажать = детали` моноширинно
+  - **Взаимодействие с картой** (UX_SPEC §2.7, было double-tap=поворот):
+    - 1 клик = поворот паттерна на 90° CW (ACTIONS и др. фазы)
+    - В фазе TASK клик = выбор карты (для розыгрыша/синтеза/утилизации)
+    - REFILL/END — клик игнорируется
+    - Long-press 350ms (было 400ms) → поп-ап; работает для мыши и тача
+    - Угловой индикатор `↻90°/180°/270°` сменяет декоративное `◇◇◇` при повороте
+  - Новая функция `_patternGridHTML(pattern)` в ui.js — рендер 3×3 grid HTML вместо SVG
+  - Баланс/механика/фазы — нетронуты, только CSS, разметка карты и обработчики кликов
+
+---
+
 ## 2026-04-17 — HUD Kit: этап 1 — токены + шрифты + кнопки
 
 - **`HEAD`** Feat: интеграция дизайн-системы «HUD Kit» (из `Дизайн/_/hud.css`) — этап 1 из 4

@@ -47,18 +47,15 @@ class GameUI {
 
     _bindElements() {
         this.boardEl = document.getElementById('board');
-        this.p1ScoreEl = document.getElementById('p1-score');
-        this.p2ScoreEl = document.getElementById('p2-score');
-        this.p1SupplyEl = document.getElementById('p1-supply');
-        this.p2SupplyEl = document.getElementById('p2-supply');
-        this.p1ChipsEl = document.getElementById('p1-chips');
-        this.p2ChipsEl = document.getElementById('p2-chips');
-        this.p1BarEl = document.getElementById('p1-bar');
-        this.p2BarEl = document.getElementById('p2-bar');
+        // KIT Phase 3 — compact HUD elements
+        this.turnTagEl = document.getElementById('turn-tag');
+        this.playerTagEl = document.getElementById('player-tag');
+        this.oppScoresEl = document.getElementById('opp-scores');
+        this.curScoreEl = document.getElementById('cur-score');
+        this.curScoreMaxEl = document.getElementById('cur-score-max');
+        this.phaseStepperEl = document.getElementById('phase-stepper');
         this.deckCountEl = document.getElementById('deck-count');
         this.discardCountEl = document.getElementById('discard-count');
-        this.phaseEl = document.getElementById('phase-label');
-        this.turnEl = document.getElementById('turn-label');
         this.phaseHintEl = document.getElementById('phase-hint');
         this.handEl = document.getElementById('hand-cards');
         this.handLabelEl = document.getElementById('hand-label');
@@ -202,12 +199,13 @@ class GameUI {
 
     // ── Score counter ──────────────────────────────────────────
 
-    _animateCounter(el, from, to, win) {
+    _animateCounter(el, from, to, win, noSuffix = false) {
         const dur = 480, start = performance.now();
         const tick = now => {
             const p = Math.min((now - start) / dur, 1);
             const ease = 1 - Math.pow(1 - p, 3);
-            el.textContent = `${Math.round(from + (to - from) * ease)} / ${win}`;
+            const val = Math.round(from + (to - from) * ease);
+            el.textContent = noSuffix ? String(val) : `${val} / ${win}`;
             if (p < 1) requestAnimationFrame(tick);
         };
         requestAnimationFrame(tick);
@@ -321,6 +319,8 @@ class GameUI {
 
     _resetUiState() {
         this._prevScores = [0, 0, 0];
+        this._turnNumber = 1;
+        this._lastRenderCurrentPI = undefined;
         this._cardRotations = new Map();
         this.pendingCard = null;
         this.pendingNodes = [];
@@ -349,55 +349,64 @@ class GameUI {
         const st = this.state;
         const win = st.winScore;
 
-        // Scores & bars for all players
-        const scoreEls = [this.p1ScoreEl, this.p2ScoreEl, document.getElementById('p3-score')];
-        const barEls   = [this.p1BarEl, this.p2BarEl, document.getElementById('p3-bar')];
-        const supplyEls = [this.p1SupplyEl, this.p2SupplyEl, document.getElementById('p3-supply')];
-        const chipsEls  = [this.p1ChipsEl, this.p2ChipsEl, document.getElementById('p3-chips')];
-        for (let i = 0; i < st.players.length; i++) {
-            const p = st.players[i];
-            if (p.score > this._prevScores[i]) {
-                this._animateCounter(scoreEls[i], this._prevScores[i], p.score, win);
-            } else {
-                scoreEls[i].textContent = `${p.score} / ${win}`;
+        // KIT Phase 3 — Turn counter (total turns taken across all players)
+        if (this._lastRenderCurrentPI !== st.currentPI) {
+            if (this._lastRenderCurrentPI !== undefined) this._turnNumber = (this._turnNumber || 1) + 1;
+            else this._turnNumber = this._turnNumber || 1;
+            this._lastRenderCurrentPI = st.currentPI;
+        }
+        if (!this._turnNumber) this._turnNumber = 1;
+
+        // Compact header — turn tag + player tag + opp scores + current score
+        if (this.turnTagEl) this.turnTagEl.textContent = 'T' + String(this._turnNumber).padStart(2, '0');
+        const activePI = st.currentPI;
+        if (this.playerTagEl) {
+            this.playerTagEl.textContent = `P-${String(activePI + 1).padStart(2, '0')}`;
+            this.playerTagEl.classList.remove('p1', 'p2', 'p3');
+            this.playerTagEl.classList.add('p' + (activePI + 1));
+        }
+        // Opponent score chips
+        if (this.oppScoresEl) {
+            const chips = [];
+            for (let i = 0; i < st.players.length; i++) {
+                if (i === activePI) continue;
+                chips.push(`<span class="p${i+1}">P${i+1}:${st.players[i].score}</span>`);
             }
-            this._prevScores[i] = p.score;
-            barEls[i].style.width = Math.min(100, (p.score / win) * 100) + '%';
-            supplyEls[i].textContent = `Запас: ${p.supply}`;
-            chipsEls[i].textContent = `Фишки: ${p.chipsOnBoard}/8`;
+            this.oppScoresEl.innerHTML = chips.join('');
+        }
+        // Active player score — animate on change
+        const activeScore = st.players[activePI].score;
+        const prevActiveScore = this._prevScores[activePI] ?? 0;
+        if (activeScore > prevActiveScore && this.curScoreEl) {
+            this._animateCounter(this.curScoreEl, prevActiveScore, activeScore, win, /*noSuffix*/ true);
+        } else if (this.curScoreEl) {
+            this.curScoreEl.textContent = String(activeScore);
+        }
+        for (let i = 0; i < st.players.length; i++) this._prevScores[i] = st.players[i].score;
+        if (this.curScoreMaxEl) this.curScoreMaxEl.textContent = `/${win}`;
+
+        this.deckCountEl.textContent = String(st.deck.count);
+        this.discardCountEl.textContent = String(st.discard.length);
+
+        // Phase stepper — map Replenish→0, Action→1, Task→2 (END=3 only during summary)
+        const phaseIdx = st.phase === Phase.Replenish ? 0 : st.phase === Phase.Action ? 1 : st.phase === Phase.Task ? 2 : 3;
+        if (this.phaseStepperEl) {
+            for (const cell of this.phaseStepperEl.querySelectorAll('.ps-cell')) {
+                const p = parseInt(cell.dataset.phase, 10);
+                cell.classList.remove('current', 'past');
+                if (p === phaseIdx) cell.classList.add('current');
+                else if (p < phaseIdx) cell.classList.add('past');
+            }
         }
 
-        this.deckCountEl.textContent = `Колода: ${st.deck.count}`;
-        this.discardCountEl.textContent = `Сброс: ${st.discard.length}`;
-
-        const phaseNames = { Replenish: 'Восполнение', Action: 'Действия', Task: 'Задача' };
-        const phaseName = phaseNames[st.phase] || st.phase;
-        const turnName = `Ход Игрока ${st.currentPI + 1}`;
-        this.phaseEl.textContent = phaseName;
-        this.turnEl.textContent = turnName;
-
-        // 3-player compact info strip
-        const p3phase = document.getElementById('phase-label-3p');
-        const p3turn  = document.getElementById('turn-label-3p');
-        const p3deck  = document.getElementById('deck-count-3p');
-        const p3disc  = document.getElementById('discard-count-3p');
-        if (p3phase) p3phase.textContent = phaseName;
-        if (p3turn)  p3turn.textContent  = turnName;
-        if (p3deck)  p3deck.textContent  = `Колода: ${st.deck.count}`;
-        if (p3disc)  p3disc.textContent  = `Сброс: ${st.discard.length}`;
-
-        // Active player highlight
-        for (let i = 0; i < 3; i++) {
-            const panel = document.getElementById(`p${i+1}-panel`);
-            if (panel) panel.classList.toggle('active-player', st.currentPI === i);
-        }
-
-        // Hand label with player color
+        // Hand label per UX_SPEC §2.7: "◦ РУКА ··· N/5"
         const viewPI = this._viewPI();
         const playerColor = this._playerColor(viewPI);
-        this.handLabelEl.textContent = this.netMode
-            ? `Моя рука (Игрок ${viewPI + 1})`
-            : `Рука Игрока ${st.currentPI + 1}`;
+        const handSize = st.players[this.netMode ? viewPI : st.currentPI].hand.length;
+        const playerTag = this.netMode
+            ? `Игрок ${viewPI + 1}`
+            : `Игрок ${st.currentPI + 1}`;
+        this.handLabelEl.innerHTML = `◦ РУКА · ${playerTag} <span style="color:var(--text-ghost)">··· ${handSize}/5</span> <span class="zone-hint">зажать = детали</span>`;
         this.handLabelEl.style.color = playerColor;
 
         // Phase hint
@@ -450,14 +459,15 @@ class GameUI {
     _updatePhaseHint() {
         const st = this.state;
         let text = '';
-        let color = '#aac4ff';
+        let tone = 'replenish';
+        let counter = '';
 
         if (this.nodePickDone) {
             const n = this.nodePickRemaining;
             text = `Выбери ${n} узел${n === 1 ? '' : n < 5 ? 'а' : 'ов'} на доске`;
-            color = '#ffcc44';
+            tone = 'action';
         } else if (this.synth) {
-            color = '#cc99ff';
+            tone = 'synth';
             if (this.synth.step === 'selectB') {
                 text = `⊕ Синтез 2/4 · выбери вторую карту для "${this.synth.cardA.name}"`;
             } else if (this.synth.step === 'placeB') {
@@ -467,58 +477,46 @@ class GameUI {
             }
         } else if (st.phase === Phase.Replenish) {
             text = 'Добираем карты до запаса...';
-            color = '#556677';
+            tone = 'replenish';
         } else if (st.phase === Phase.Action) {
             const chipsLeft = st.chipsAllowed - st.chipsPlaced;
             if (chipsLeft > 0) {
                 const w = chipsLeft === 1 ? 'фишку' : chipsLeft < 5 ? 'фишки' : 'фишек';
                 text = `Поставь ${chipsLeft} ${w} на поле`;
-                color = '#ffcc44';
+                tone = 'action';
+                counter = `${chipsLeft}/${st.chipsAllowed}`;
             } else {
-                text = '✓ Фишки поставлены · нажми «✓ Конец действий»';
-                color = '#66dd88';
+                text = '✓ Фишки поставлены · нажми «конец действий»';
+                tone = 'ok';
             }
         } else if (st.phase === Phase.Task) {
             const t = st.tasksThisTurn, u = st.utilizesThisTurn;
             if (this.pendingCard) {
                 const pl = this.pendingCard.pattern.length;
                 text = `Тапни ${pl} фишк${pl===1?'у':pl<5?'и':'ек'} паттерна · или ⊗ Утилизировать`;
-                color = '#ffcc44';
+                tone = 'action';
             } else {
                 const allCards = [...st.cp.hand, ...st.players.flatMap(p => p.revealed)];
                 const hasPlayable = allCards.some(c => this.tm.getValidPlacements(c).length > 0);
                 const hasHand = st.cp.hand.length > 0 || st.cp.revealed.length > 0;
                 if (!hasHand) {
                     text = `Карт нет · завершай ход`;
-                    color = '#8899aa';
+                    tone = 'replenish';
                 } else if (!hasPlayable) {
                     text = `Розыгрыш невозможен · ✦ утилизируй или завершай ход`;
-                    color = '#e0a860';
+                    tone = 'action';
                 } else {
-                    text = `Выбери карту · ▶ разыграй или ✦ утилизируй (${t}/2 · ${u}/2)`;
-                    color = '#88ccff';
+                    text = `Выбери карту · ▶ разыграй или ✦ утилизируй`;
+                    tone = 'task';
+                    counter = `${t}/2 · ${u}/2`;
                 }
             }
         }
 
-        this.phaseHintEl.textContent = text;
-        this.phaseHintEl.style.color = color;
-
-        // Тонировать SVG-бар через hue-rotate
-        let hue = '0deg', sat = '1', bri = '1';
-        if (this.synth) {
-            hue = '78deg';                      // фиолетовый
-        } else if (st.phase === Phase.Replenish) {
-            hue = '0deg'; sat = '0.15'; bri = '0.55'; // приглушённый
-        } else if (st.phase === Phase.Action) {
-            const chipsLeft = st.chipsAllowed - st.chipsPlaced;
-            hue = chipsLeft > 0 ? '-147deg' : '-57deg'; // жёлтый / зелёный
-        } else if (st.phase === Phase.Task) {
-            hue = '18deg';                      // синий
-        }
-        this.phaseHintEl.style.setProperty('--hint-hue', hue);
-        this.phaseHintEl.style.setProperty('--hint-sat', sat);
-        this.phaseHintEl.style.setProperty('--hint-bri', bri);
+        // Render hint bar with arrow + text + optional counter (kit proto pattern)
+        const counterHTML = counter ? `<span class="hint-counter">${counter}</span>` : '';
+        this.phaseHintEl.innerHTML = `<span class="hint-arrow">&gt;</span><span class="hint-text">${text}</span>${counterHTML}`;
+        this.phaseHintEl.className = 'tone-' + tone;
     }
 
     _renderBoard() {
@@ -597,60 +595,81 @@ class GameUI {
         el.className = 'card' + (isPlayable ? ' playable' : ' unplayable');
         if (card === this.pendingCard) el.classList.add('selected');
 
-        // Cost badge color: red(-1 штраф) → gray(0) → blue(1-2) → orange(3-4)
-        const costColor = card.cost < 0 ? '#cc4455'
-                        : card.cost === 0 ? '#3a4452'
-                        : card.cost <= 2  ? '#4488ff'
-                        : '#ff8833';
+        const storedRot = this._cardRotations.get(card.id) || 0;
+        const cornerText = storedRot ? `↻${storedRot}°` : '◇◇◇';
+        const cornerClass = storedRot ? 'card-corner rot' : 'card-corner';
         el.innerHTML = `
-            <div class="card-cost" style="background:${costColor}">${card.cost}</div>
+            <div class="card-header">
+                <div class="card-cost">${card.cost}</div>
+                <div class="${cornerClass}">${cornerText}</div>
+            </div>
+            <div class="card-pattern">${this._patternGridHTML(card.pattern)}</div>
             <div class="card-name">${card.name}</div>
-            <div class="card-pattern">${this._patternSVG(card.pattern, 44)}</div>
-            <div class="card-fx">${this._describeEffectsCompact(card)}</div>
         `;
 
-        // Apply stored rotation
-        const storedRot = this._cardRotations.get(card.id) || 0;
+        // Apply stored rotation to pattern grid
         if (storedRot) {
-            const svg = el.querySelector('.card-pattern svg');
-            if (svg) svg.style.transform = `rotate(${storedRot}deg)`;
+            const grid = el.querySelector('.card-pattern-grid');
+            if (grid) grid.style.transform = `rotate(${storedRot}deg)`;
         }
 
-        // Single tap → select card; double tap → rotate pattern
-        let lastTap = 0;
-        let didZoom = false;
+        // UX_SPEC §2.7: click = rotate (TASK phase = selection instead)
+        //   long-press 350ms = detail popup
+        let didLongPress = false;
+        const rotate = () => {
+            const next = ((this._cardRotations.get(card.id) || 0) + 90) % 360;
+            this._cardRotations.set(card.id, next);
+            const grid = el.querySelector('.card-pattern-grid');
+            if (grid) grid.style.transform = next ? `rotate(${next}deg)` : '';
+            // Update corner tag
+            const cornerEl = el.querySelector('.card-corner');
+            if (cornerEl) {
+                if (next === 0) {
+                    cornerEl.className = 'card-corner';
+                    cornerEl.textContent = '◇◇◇';
+                } else {
+                    cornerEl.className = 'card-corner rot';
+                    cornerEl.textContent = `↻${next}°`;
+                }
+            }
+            this._haptic(6);
+        };
+
         el.addEventListener('click', () => {
-            if (didZoom) { didZoom = false; return; }
-            const now = Date.now();
-            if (now - lastTap < 300) {
-                lastTap = 0;
-                const next = ((this._cardRotations.get(card.id) || 0) + 90) % 360;
-                this._cardRotations.set(card.id, next);
-                const svg = el.querySelector('.card-pattern svg');
-                if (svg) svg.style.transform = `rotate(${next}deg)`;
+            if (didLongPress) { didLongPress = false; return; }
+            // In TASK phase: selection (existing behavior)
+            if (this.state && this.state.phase === Phase.Task) {
+                this._onCardTap(card, isPlayable);
                 return;
             }
-            lastTap = now;
-            this._onCardTap(card, isPlayable);
+            // REFILL/END: no interaction per UX_SPEC line 427
+            if (this.state && (this.state.phase === Phase.Refill || this.state.phase === Phase.End)) {
+                return;
+            }
+            // ACTIONS or anywhere else: rotate
+            rotate();
         });
 
         // Prevent text selection and context menu on long press
         el.addEventListener('selectstart', e => e.preventDefault());
         el.addEventListener('contextmenu', e => e.preventDefault());
 
-        // Long press → floating popup above card
+        // Long press (touch + mouse) → floating popup above card, 350ms per UX_SPEC §2.7
         let pressTimer;
-        const zoomIn = (e) => {
-            didZoom = true;
-            this._haptic(8);
-            this._showCardPopup(card, el);
+        const startPress = () => {
+            pressTimer = setTimeout(() => {
+                didLongPress = true;
+                this._haptic(8);
+                this._showCardPopup(card, el);
+            }, 350);
         };
-        const zoomOut = () => { clearTimeout(pressTimer); };
-        el.addEventListener('touchstart', (e) => {
-            pressTimer = setTimeout(() => zoomIn(e), 400);
-        }, { passive: true });
-        el.addEventListener('touchend', zoomOut, { passive: true });
-        el.addEventListener('touchcancel', zoomOut, { passive: true });
+        const endPress = () => clearTimeout(pressTimer);
+        el.addEventListener('touchstart', startPress, { passive: true });
+        el.addEventListener('touchend', endPress, { passive: true });
+        el.addEventListener('touchcancel', endPress, { passive: true });
+        el.addEventListener('mousedown', startPress);
+        el.addEventListener('mouseup', endPress);
+        el.addEventListener('mouseleave', endPress);
 
         return el;
     }
@@ -661,12 +680,8 @@ class GameUI {
 
         const popup = document.createElement('div');
         popup.id = 'card-popup';
-        const costColor = card.cost < 0 ? '#cc4455'
-                        : card.cost === 0 ? '#3a4452'
-                        : card.cost <= 2  ? '#4488ff'
-                        : '#ff8833';
         popup.innerHTML = `
-            <div class="card-cost" style="background:${costColor}">${card.cost}</div>
+            <div class="card-cost">${card.cost}</div>
             <div class="card-popup-name">${card.name}</div>
             <div class="card-pattern" style="display:flex;justify-content:center;margin:4px 0">${this._patternSVG(card.pattern, 56)}</div>
             <div class="card-fx" style="display:block">${this._describeEffects(card)}</div>
@@ -694,21 +709,37 @@ class GameUI {
         setTimeout(() => document.addEventListener('touchstart', dismiss, { passive: true }), 50);
     }
 
+    // Inline HTML 3x3 grid per kit GameCard (strictly matches chips-cards.jsx)
+    _patternGridHTML(pattern) {
+        let html = '<div class="card-pattern-grid">';
+        for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+            const cell_data = pattern.find(p => p.row === r && p.col === c);
+            let cls = 'empty';
+            if (cell_data) cls = cell_data.type === CellType.W ? 'w' : 'g';
+            html += `<div class="card-pattern-cell ${cls}"></div>`;
+        }
+        html += '</div>';
+        return html;
+    }
+
     _patternSVG(pattern, size = 48) {
         const cell = Math.floor((size - 8) / 3 - 2), gap = 2;
         let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`;
-        svg += `<rect width="${size}" height="${size}" rx="5" fill="#07101e" stroke="rgba(40,60,120,0.5)" stroke-width="1"/>`;
+        svg += `<rect width="${size}" height="${size}" fill="transparent"/>`;
         for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
             const x = 4 + c * (cell + gap), y = 4 + r * (cell + gap);
             const cell_data = pattern.find(p => p.row === r && p.col === c);
             if (cell_data) {
                 if (cell_data.type === CellType.W) {
-                    svg += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="3" fill="#c0d0ff" stroke="rgba(160,190,255,0.5)" stroke-width="0.5"/>`;
+                    // W = своя фишка → accent orange
+                    svg += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="#ff6a2b"/>`;
                 } else {
-                    svg += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="3" fill="#3a4a72" stroke="rgba(80,110,170,0.6)" stroke-width="0.5"/>`;
+                    // G = фишка противника → cyan line
+                    svg += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="#3fd0e6"/>`;
                 }
             } else {
-                svg += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" rx="3" fill="rgba(255,255,255,0.025)" stroke="rgba(255,255,255,0.07)" stroke-width="0.5"/>`;
+                // empty → dashed ghost outline
+                svg += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="transparent" stroke="#0e3542" stroke-width="0.5" stroke-dasharray="1.5 1.5"/>`;
             }
         }
         svg += '</svg>';
@@ -785,14 +816,27 @@ class GameUI {
     _buildBoard(size = 4) {
         this.boardEl.innerHTML = '';
         this.boardEl.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
-        // For 5×5, slightly reduce board visual size
-        if (size === 5) {
-            this.boardEl.style.gap = '6px';
-            this.boardEl.style.padding = '10px';
-        } else {
-            this.boardEl.style.gap = '';
-            this.boardEl.style.padding = '';
+        // Board uses 0 gap; connection lines drawn via SVG overlay
+        this.boardEl.style.gap = '0';
+        this.boardEl.style.padding = size === 5 ? '10px' : '14px';
+
+        // SVG overlay with dashed connection lines between node centers (per kit ChipBoard)
+        const unit = 100; // viewBox unit per cell
+        const W = size * unit;
+        let svg = `<svg id="board-lines" viewBox="0 0 ${W} ${W}" preserveAspectRatio="none">`;
+        for (let r = 0; r < size; r++) for (let c = 0; c < size; c++) {
+            const cx = c * unit + unit / 2;
+            const cy = r * unit + unit / 2;
+            if (c < size - 1) {
+                svg += `<line x1="${cx}" y1="${cy}" x2="${cx + unit}" y2="${cy}" stroke="#0e3542" stroke-width="0.6" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>`;
+            }
+            if (r < size - 1) {
+                svg += `<line x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy + unit}" stroke="#0e3542" stroke-width="0.6" stroke-dasharray="2 3" vector-effect="non-scaling-stroke"/>`;
+            }
         }
+        svg += '</svg>';
+        this.boardEl.insertAdjacentHTML('beforeend', svg);
+
         for (let r = 0; r < size; r++) {
             for (let c = 0; c < size; c++) {
                 const cell = document.createElement('div');
