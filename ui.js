@@ -561,7 +561,7 @@ class GameUI {
             const t = st.tasksThisTurn, u = st.utilizesThisTurn;
             if (this.pendingCard) {
                 const pl = this.pendingCard.pattern.length;
-                text = `Тапни ${pl} фишк${pl===1?'у':pl<5?'и':'ек'} паттерна · или ⊗ Утилизировать`;
+                text = `Тапни ${pl} фишк${pl===1?'у':pl<5?'и':'ек'} паттерна · или ✦ Утилизировать`;
                 tone = 'action';
             } else {
                 const allCards = [...st.cp.hand, ...st.players.flatMap(p => p.revealed)];
