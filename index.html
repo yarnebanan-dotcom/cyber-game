@@ -1240,40 +1240,119 @@ html, body {
 }
 .pause-btn.ghost:hover { border-color: var(--line-dim); color: var(--text); background: var(--bg-2); }
 
-/* ── Menu screen ─────────────────────────────────────────── */
-#menu-screen { background: radial-gradient(ellipse at 50% 20%, #0c1a3a 0%, #030508 70%); z-index: 150; }
-#menu-screen.hidden { display: none; }
-.menu-title {
-    font-size: 48px; font-weight: 900; letter-spacing: 0.12em;
-    color: #25C8F3; text-shadow: 0 0 40px rgba(37,200,243,0.6), 0 0 80px rgba(37,200,243,0.25);
-    line-height: 1;
+/* ── Menu screen — HUD Kit V1 ─────────────────────────────── */
+#menu-screen {
+    background: var(--bg-0);
+    z-index: 150;
+    padding: 30px 18px 22px;
+    justify-content: flex-start;
+    gap: 0;
 }
-.menu-subtitle { font-size: 11px; color: #2a4060; letter-spacing: 0.2em; margin-top: 4px; }
-.menu-modes { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 320px; margin-top: 16px; }
+#menu-screen.hidden { display: none; }
+.menu-sys-tag {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--accent); letter-spacing: 0.25em;
+    padding: 3px 8px;
+    border: 1px solid var(--accent);
+    align-self: flex-start;
+    clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
+    margin-bottom: 10px;
+}
+.menu-signal {
+    position: absolute; top: 8px; right: 18px;
+    font-family: var(--mono); font-size: 8px;
+    color: var(--text-ghost); letter-spacing: 0.25em;
+}
+.menu-title {
+    font-family: var(--display);
+    font-size: 52px; font-weight: 700; letter-spacing: 0.18em;
+    color: var(--text);
+    text-shadow: 0 0 20px rgba(63,208,230,0.4);
+    line-height: 1;
+    align-self: flex-start;
+}
+.menu-subtitle {
+    font-family: var(--mono);
+    font-size: 10px; color: var(--text-dim);
+    letter-spacing: 0.4em; margin-top: 4px;
+    align-self: flex-start;
+}
+.menu-segbar {
+    display: flex; gap: 2px; margin-top: 12px; width: 100%;
+}
+.menu-segbar-cell {
+    flex: 1; height: 6px; background: var(--line-ghost);
+}
+.menu-segbar-cell.on { background: var(--accent); }
+.menu-select-tag {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--text-dim); letter-spacing: 0.2em;
+    margin-top: 20px; margin-bottom: 10px;
+    align-self: flex-start;
+}
+.menu-modes { display: flex; flex-direction: column; gap: 10px; width: 100%; }
 .btn-mode {
-    padding: 18px 22px;
+    padding: 12px 14px;
     position: relative;
     border: 1px solid var(--line-dim);
     background: var(--bg-1);
     color: var(--text);
-    font-family: var(--sans);
-    font-size: 15px; font-weight: 600;
     cursor: pointer;
     text-align: left;
+    display: flex; align-items: center; gap: 12px;
+    transition: background 0.15s, border-color 0.15s;
     clip-path: polygon(
-        14px 0, calc(100% - 6px) 0, 100% 6px,
-        100% calc(100% - 14px), calc(100% - 14px) 100%, 6px 100%,
-        0 calc(100% - 6px), 0 14px
+        0 0, calc(100% - 6px) 0, 100% 6px,
+        100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%,
+        0 calc(100% - 6px), 0 6px
     );
-    transition: background 0.2s, border-color 0.2s, color 0.2s;
-    display: flex; flex-direction: column; gap: 4px;
 }
-.btn-mode:hover, .btn-mode:focus { background: var(--bg-2); border-color: var(--line); color: #fff; outline: none; }
-.btn-mode:active { transform: scale(0.98); }
-.btn-mode-2p:hover, .btn-mode-2p:focus { border-color: var(--line); }
-.btn-mode-3p:hover, .btn-mode-3p:focus { border-color: var(--ok); }
-.btn-mode-online { border-color: var(--accent-dim); }
-.btn-mode-online:hover, .btn-mode-online:focus { border-color: var(--accent); color: #fff; }
+.btn-mode:hover, .btn-mode:focus { background: var(--bg-2); outline: none; }
+.btn-mode:active { transform: scale(0.99); }
+.btn-mode::before, .btn-mode::after {
+    content: ''; position: absolute; width: 6px; height: 6px;
+    border: 1px solid var(--text-dim);
+}
+.btn-mode::before { top: 2px; left: 2px; border-right: none; border-bottom: none; }
+.btn-mode::after  { bottom: 2px; right: 2px; border-left: none; border-top: none; }
+.btn-mode-num {
+    width: 44px; height: 44px; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    border: 1px solid var(--line-dim);
+    font-family: var(--display); font-size: 20px; font-weight: 600;
+    letter-spacing: 0.04em;
+    clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+}
+.btn-mode-body { flex: 1; min-width: 0; }
+.btn-mode-title {
+    font-family: var(--display); font-size: 13px;
+    color: var(--text); letter-spacing: 0.12em;
+}
+.btn-mode-desc {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--text-dim); letter-spacing: 0.1em;
+    margin-top: 3px; text-transform: uppercase;
+}
+.btn-mode-arrow {
+    width: 0; height: 0; flex-shrink: 0;
+    border-style: solid;
+    border-width: 6px 0 6px 8px;
+    border-color: transparent transparent transparent var(--line-dim);
+}
+.btn-mode-2p { border-color: var(--accent); }
+.btn-mode-2p .btn-mode-num { border-color: var(--accent); color: var(--accent); }
+.btn-mode-2p .btn-mode-arrow { border-left-color: var(--accent); }
+.btn-mode-2p::before, .btn-mode-2p::after { border-color: var(--accent); }
+.btn-mode-2p:hover, .btn-mode-2p:focus { background: rgba(255,106,43,0.06); }
+
+.btn-mode-3p .btn-mode-num { border-color: var(--line); color: var(--line); }
+.btn-mode-3p .btn-mode-arrow { border-left-color: var(--line); }
+.btn-mode-3p:hover, .btn-mode-3p:focus { border-color: var(--line); background: rgba(63,208,230,0.05); }
+
+.btn-mode-online { border-color: var(--accent-dim, rgba(255,106,43,0.4)); }
+.btn-mode-online .btn-mode-num { border-color: var(--accent-dim, rgba(255,106,43,0.4)); color: var(--accent); }
+.btn-mode-online .btn-mode-arrow { border-left-color: var(--accent); }
+.btn-mode-online:hover, .btn-mode-online:focus { border-color: var(--accent); background: rgba(255,106,43,0.04); }
 
 /* ── Online screens ──────────────────────────────────────── */
 #online-screen, #online-host-screen, #online-join-screen, #online-wait-screen {
@@ -1724,32 +1803,51 @@ html, body {
 
 <!-- Menu screen -->
 <div class="overlay" id="menu-screen">
+    <div class="menu-signal">█ SIGNAL · 98%</div>
+    <div class="menu-sys-tag">&gt; SYS.v1.2</div>
     <div class="menu-title">КИБЕР</div>
-    <div class="menu-subtitle">DIGITAL CARD GAME</div>
+    <div class="menu-subtitle">DIGITAL · CARD · GAME</div>
+    <div class="menu-segbar">
+        <div class="menu-segbar-cell on"></div><div class="menu-segbar-cell on"></div>
+        <div class="menu-segbar-cell on"></div><div class="menu-segbar-cell on"></div>
+        <div class="menu-segbar-cell on"></div><div class="menu-segbar-cell on"></div>
+        <div class="menu-segbar-cell on"></div>
+        <div class="menu-segbar-cell"></div><div class="menu-segbar-cell"></div>
+        <div class="menu-segbar-cell"></div><div class="menu-segbar-cell"></div>
+        <div class="menu-segbar-cell"></div><div class="menu-segbar-cell"></div>
+        <div class="menu-segbar-cell"></div><div class="menu-segbar-cell"></div>
+        <div class="menu-segbar-cell"></div><div class="menu-segbar-cell"></div>
+        <div class="menu-segbar-cell"></div>
+    </div>
+    <div class="menu-select-tag">&gt; SELECT.PROTOCOL</div>
     <div class="menu-modes">
         <button class="btn-mode btn-mode-2p" id="btn-mode-2p">
-            <div class="btn-mode-label">
-                <span class="btn-mode-icon">⚔</span>
-                <span class="btn-mode-title">2 игрока</span>
+            <div class="btn-mode-num">2</div>
+            <div class="btn-mode-body">
+                <div class="btn-mode-title">ДУЭЛЬ</div>
+                <div class="btn-mode-desc">GRID 4×4 · DECK 54 · 15 PTS</div>
             </div>
-            <div class="btn-mode-desc">Поле 4×4 · 54 карты · 15 очков</div>
+            <div class="btn-mode-arrow"></div>
         </button>
         <button class="btn-mode btn-mode-3p" id="btn-mode-3p">
-            <div class="btn-mode-label">
-                <span class="btn-mode-icon">⚡</span>
-                <span class="btn-mode-title">3 игрока</span>
+            <div class="btn-mode-num">3</div>
+            <div class="btn-mode-body">
+                <div class="btn-mode-title">ТРИАДА</div>
+                <div class="btn-mode-desc">GRID 5×5 · DECK 54 · 20 PTS</div>
             </div>
-            <div class="btn-mode-desc">Поле 5×5 · 54 карты · 20 очков</div>
+            <div class="btn-mode-arrow"></div>
         </button>
         <button class="btn-mode btn-mode-online" id="btn-mode-online">
-            <div class="btn-mode-label">
-                <span class="btn-mode-icon">📡</span>
-                <span class="btn-mode-title">Онлайн 2 игрока</span>
+            <div class="btn-mode-num">◉</div>
+            <div class="btn-mode-body">
+                <div class="btn-mode-title">ОНЛАЙН · ДУЭЛЬ</div>
+                <div class="btn-mode-desc">P2P · 2 УСТРОЙСТВА · ПО КОДУ</div>
             </div>
-            <div class="btn-mode-desc">С двух телефонов по коду · P2P соединение</div>
+            <div class="btn-mode-arrow"></div>
         </button>
     </div>
-    <button class="btn-rules-link" id="btn-show-rules">📖 Правила игры</button>
+    <div style="flex:1"></div>
+    <button class="btn-rules-link" id="btn-show-rules">▤ ПРАВИЛА ИГРЫ</button>
 </div>
 
 <!-- Online — выбор host/join -->

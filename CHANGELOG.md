@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-04-18 — HUD Kit: меню в стиле MainMenuV1
+
+- **`HEAD`** Feat: главное меню полностью переведено на HUD Kit (`screens-menu.jsx` V1)
+  - Убран эмодзи-стиль (⚔/⚡/📡) и круглый гламур
+  - `> SYS.v1.2` accent-tag в левом верхнем углу · `SIGNAL · 98%` метка справа
+  - Сегментированный прогресс-бар под заголовком (7/19 заполнено)
+  - `> SELECT.PROTOCOL` mono-заголовок над списком
+  - `.btn-mode` → HUD-рамка с угловыми бракетами (::before/::after)
+    - Квадрат номера 44×44 (Orbitron): `2`/`3`/`◉`
+    - Заголовок: ДУЭЛЬ / ТРИАДА / ОНЛАЙН · ДУЭЛЬ (Orbitron display)
+    - Описание: `GRID 4×4 · DECK 54 · 15 PTS` (mono dim uppercase)
+    - Play-стрелка справа в цвет кнопки
+  - Палитра: 2p → accent orange, 3p → cyan line, online → accent-dim outline
+  - Кнопка «ПРАВИЛА ИГРЫ» → `▤ ПРАВИЛА ИГРЫ` ghost mono uppercase
+
+---
+
 ## 2026-04-18 — HUD Kit: аудит + CardPick title fix
 
 - **`HEAD`** Fix: заголовок `#card-pick-title` переведён в HUD Kit палитру
