@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-04-17 — HUD Kit: этап 1 — токены + шрифты + кнопки
+
+- **`HEAD`** Feat: интеграция дизайн-системы «HUD Kit» (из `Дизайн/_/hud.css`) — этап 1 из 4
+  - Добавлены дизайн-токены в `:root` (палитра `--bg-0..3`, `--line*`, `--accent`, `--text*`, `--danger`, `--ok`; шрифты `--mono/sans/display`)
+  - Подключены Google Fonts: Orbitron, Rajdhani, JetBrains Mono, Share Tech Mono
+  - Утилитарные классы: `.hud-btn`, `.hud-frame`, `.seg-bar`, `.corner-brackets`, `.chip-tag`, `.mono`, `.display`, `.label`, `.scan-grid` (задел для этапов 2–4)
+  - Переопределены все кнопки под HUD-стиль: beveled `clip-path` углы, monospace uppercase текст, cyan/orange палитра
+    - `.btn` / `.btn-action/utilize/skip/primary/ghost` — экшн-бар во время хода
+    - `.btn-nav`, `#btn-confirm`, `#btn-synth`, `#btn-synth-cancel` — placement/synth панели
+    - `.btn-rotate`, `#card-detail-close` — detail-оверлей
+    - `.btn-mode` (2p/3p/online), `.online-back`, `.online-primary`, `.btn-rules-link` — меню и онлайн-экраны
+  - Body: новый фон с cyan/orange радиальными градиентами + Rajdhani по умолчанию
+  - Механика/баланс/логика — нетронуто, изменения только в CSS `index.html`
+  - Следующие этапы: карты и доска (этап 2), модалки (этап 3), экраны синтеза/утилизации (этап 4)
+
+---
+
 ## 2026-04-17 — Онлайн 2p через WebRTC (PeerJS)
 
 - **`HEAD`** Feat: онлайн-режим 2 игроков с двух устройств через P2P-соединение
