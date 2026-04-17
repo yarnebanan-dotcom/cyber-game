@@ -380,7 +380,7 @@ class GameUI {
     // ── Rendering ─────────────────────────────────────────────
 
     _playerColor(pi) {
-        return ['#6699ff', '#ff6655', '#44dd88'][pi] ?? '#aaccff';
+        return ['#3fd0e6', '#ff6a2b', '#b76cff'][pi] ?? '#aaccff';
     }
 
     _render() {
