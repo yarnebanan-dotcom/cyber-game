@@ -352,16 +352,23 @@ html, body {
 #phase-hint.tone-replenish { color: var(--text-dim); border-color: var(--line-dim); }
 #phase-hint.tone-action    { color: var(--accent); border-color: var(--accent); }
 #phase-hint.tone-task      { color: var(--line); border-color: var(--line); }
-#phase-hint.tone-synth     { color: #cc99ff; border-color: #aa77ee; }
+#phase-hint.tone-synth     { color: var(--accent); border-color: var(--accent); }
 #phase-hint.tone-ok        { color: var(--ok); border-color: var(--ok); }
 
 /* ── Revealed zones ──────────────────────────────────────── */
 .revealed-zone {
     display: flex; gap: 4px; overflow-x: auto;
-    padding: 2px 0; flex-shrink: 0; scrollbar-width: none;
+    padding: 4px 6px; flex-shrink: 0; scrollbar-width: none;
+    background: var(--bg-1);
+    border: 1px dashed var(--line-dim);
+}
+#own-revealed-wrap .revealed-zone {
+    border: 1px solid var(--accent);
+    box-shadow: inset 0 0 10px rgba(255,106,43,0.06);
 }
 .revealed-zone::-webkit-scrollbar { display: none; }
-.zone-label { font-family: var(--mono); font-size: 10px; color: var(--text-dim); margin-bottom: 2px; padding-left: 2px; letter-spacing: 0.18em; font-weight: 400; text-transform: uppercase; }
+.zone-label { font-family: var(--mono); font-size: 9px; color: var(--text-dim); margin-bottom: 3px; padding-left: 2px; letter-spacing: 0.25em; font-weight: 400; text-transform: uppercase; }
+#own-revealed-label { color: var(--accent); }
 .zone-hint { font-family: var(--mono); font-size: 9px; color: var(--text-ghost); float: right; padding-right: 2px; font-weight: 400; letter-spacing: 0.12em; }
 .revealed-wrap { flex-shrink: 0; overflow: visible; }
 .revealed-wrap.collapsed { display: none; }
@@ -632,27 +639,57 @@ html, body {
 }
 #btn-synth-cancel:hover { background: rgba(255,51,85,0.14); color: #ff6f85; }
 
-/* Synth order panel */
+/* Synth order panel — HUD Kit */
 #synth-order-panel {
-    background: rgba(7, 12, 28, 0.92);
-    border: 1px solid rgba(80,40,200,0.45);
-    border-radius: 12px; padding: 10px;
+    background: var(--bg-1);
+    border: 1px solid var(--accent);
+    padding: 10px 12px;
     display: flex; flex-direction: column; gap: 6px; flex-shrink: 0;
-    box-shadow: 0 4px 22px rgba(60,20,160,0.35);
+    box-shadow: 0 0 18px rgba(255,106,43,0.22);
+    clip-path: polygon(
+        0 0, calc(100% - 6px) 0, 100% 6px,
+        100% 100%, 6px 100%, 0 calc(100% - 6px)
+    );
+    position: relative;
 }
 #synth-order-panel.hidden { display: none; }
-.synth-order-title { font-size: 10px; color: #aa88ff; text-align: center; font-weight: 700; letter-spacing: 0.07em; }
-.synth-order-btn {
-    padding: 8px 12px;
-    background: linear-gradient(155deg, rgba(28,14,68,0.95), rgba(16,8,42,0.98));
-    border: 1px solid rgba(80,40,200,0.55);
-    border-radius: 8px; color: #cc99ff; font-size: 12px; cursor: pointer; font-family: inherit;
-    display: flex; align-items: center; justify-content: center; gap: 4px;
-    transition: background 0.15s;
+.synth-order-title {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--accent);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    text-align: left;
+    padding-bottom: 4px;
+    border-bottom: 1px dashed var(--line-ghost);
+    margin-bottom: 2px;
 }
-.synth-order-btn:active { background: linear-gradient(155deg, rgba(50,26,100,0.95), rgba(28,12,60,0.98)); }
-.synth-order-name { color: #e0d4ff; font-weight: 700; }
-.synth-order-arrow { color: #7755cc; }
+.synth-order-btn {
+    padding: 10px 12px;
+    background: var(--bg-2);
+    border: 1px solid var(--line-dim);
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 11px;
+    letter-spacing: 0.1em;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    clip-path: polygon(
+        0 0, calc(100% - 5px) 0, 100% 5px,
+        100% 100%, 5px 100%, 0 calc(100% - 5px)
+    );
+}
+.synth-order-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(255,106,43,0.08); }
+.synth-order-btn:active { background: rgba(255,106,43,0.18); }
+.synth-order-name {
+    font-family: var(--display);
+    color: var(--text);
+    font-weight: 600;
+    letter-spacing: 0.12em;
+}
+.synth-order-btn:hover .synth-order-name { color: var(--accent); }
+.synth-order-arrow { color: var(--accent); font-family: var(--mono); }
 
 /* ── Hand ────────────────────────────────────────────────── */
 #hand-wrap {
@@ -1561,7 +1598,7 @@ html, body {
 
     <!-- Opponent's revealed cards -->
     <div id="opp-revealed-wrap" class="revealed-wrap">
-        <div class="zone-label" id="opp-revealed-label">Раскрытые карты Игрока 2</div>
+        <div class="zone-label" id="opp-revealed-label">◦ РАСКРЫТО · P-02</div>
         <div class="revealed-zone" id="opp-revealed"></div>
     </div>
 
@@ -1572,7 +1609,7 @@ html, body {
 
     <!-- Own revealed cards -->
     <div id="own-revealed-wrap" class="revealed-wrap">
-        <div class="zone-label" id="own-revealed-label">Мои раскрытые карты</div>
+        <div class="zone-label" id="own-revealed-label">◦ РАСКРЫТО · P-01 (ВЫ)</div>
         <div class="revealed-zone" id="own-revealed"></div>
     </div>
 
@@ -1596,7 +1633,7 @@ html, body {
 
     <!-- Synth order panel -->
     <div id="synth-order-panel" class="hidden">
-        <div class="synth-order-title">Порядок эффектов синтеза:</div>
+        <div class="synth-order-title">&gt; SYNTHESIS.ORDER</div>
         <button class="synth-order-btn" id="btn-order-a"></button>
         <button class="synth-order-btn" id="btn-order-b"></button>
     </div>

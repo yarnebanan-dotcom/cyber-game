@@ -457,9 +457,9 @@ class GameUI {
         const vpi = this._viewPI();
         const oppNums = st.players.map((_, i) => i + 1).filter(n => n !== vpi + 1);
         document.getElementById('opp-revealed-label').textContent =
-            `Раскрытые Игрок${oppNums.length > 1 ? 'и' : ''} ${oppNums.join(' & ')}`;
+            `◦ РАСКРЫТО · P-${oppNums.map(n => String(n).padStart(2, '0')).join(' · P-')}`;
         document.getElementById('own-revealed-label').textContent =
-            `Мои раскрытые (Игрок ${vpi + 1})`;
+            `◦ РАСКРЫТО · P-${String(vpi + 1).padStart(2, '0')} (ВЫ)`;
 
         this._renderBoard();
         this._renderHand();

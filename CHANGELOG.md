@@ -6,6 +6,23 @@
 
 ---
 
+## 2026-04-17 — HUD Kit: этап 5 — synth-order + revealed zones
+
+- **`HEAD`** Feat: завершающий рестайл оставшихся UI-поверхностей под HUD Kit
+  - **Synth-order panel** (`#synth-order-panel`) — удалён фиолетовый legacy-стиль
+    - Фон `var(--bg-1)`, border `accent`, clip-path polygon beveled углы
+    - Заголовок `> SYNTHESIS.ORDER` — mono 9px accent uppercase
+    - Кнопки на `bg-2` с HUD clip-path, hover → accent tint + outline
+    - Имена карт — Orbitron display, стрелка `→` accent
+  - **Tone-synth** (`#phase-hint.tone-synth`) — фиолет `#cc99ff` → `var(--accent)`
+  - **Revealed zones** (`.revealed-zone`) — HUD Kit
+    - Оппонент: dashed `var(--line-dim)` border, background `bg-1`
+    - Свои: solid `var(--accent)` border + `inset 0 0 10px rgba(255,106,43,0.06)` glow
+    - Label `◦ РАСКРЫТО · P-02` (dim) / `◦ РАСКРЫТО · P-01 (ВЫ)` (accent)
+  - Больше нигде в main-gameplay нет не-kit палитры
+
+---
+
 ## 2026-04-17 — HUD Kit: этап 4 — модалы (Rules / Pause / Victory / CardPick)
 
 - **`HEAD`** Feat: все in-game модалы переведены на стиль `Дизайн/_/modals-v2.jsx`
