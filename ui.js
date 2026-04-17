@@ -1626,6 +1626,10 @@ class GameUI {
 
         this.cardPickCount.textContent = `0 / ${count}`;
         this.cardPickConfirm.disabled = true;
+        // FIX-08: portal — перенести в body, чтобы не наследовать stacking context родителя
+        if (this.cardPickModal.parentElement !== document.body) {
+            document.body.appendChild(this.cardPickModal);
+        }
         this.cardPickModal.classList.remove('hidden');
     }
 
@@ -1655,6 +1659,10 @@ class GameUI {
             card.utilizeEffect.hasEffects ? `<b>Утилизация:</b> ${this._fxText(card.utilizeEffect)}` : '',
             card.synthesisEffect.hasEffects ? `<b>Синтез:</b> ${this._fxText(card.synthesisEffect)}` : '',
         ].filter(Boolean).join('<br>') || '—';
+        // FIX-08: portal в body
+        if (this.cardDetail.parentElement !== document.body) {
+            document.body.appendChild(this.cardDetail);
+        }
         this.cardDetail.classList.remove('hidden');
     }
 
