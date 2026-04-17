@@ -96,6 +96,14 @@ class GameUI {
         // Rules screen
         document.getElementById('btn-show-rules').onclick = () => document.getElementById('rules-screen').classList.remove('hidden');
         document.getElementById('btn-rules-close').onclick = () => document.getElementById('rules-screen').classList.add('hidden');
+        // Rules tabs
+        document.querySelectorAll('.rules-tab').forEach(btn => {
+            btn.onclick = () => {
+                const idx = btn.dataset.pane;
+                document.querySelectorAll('.rules-tab').forEach(t => t.classList.toggle('active', t.dataset.pane === idx));
+                document.querySelectorAll('.rules-pane').forEach(p => p.classList.toggle('active', p.dataset.pane === idx));
+            };
+        });
 
         // In-game menu
         document.getElementById('btn-ingame-menu').onclick = () => this._showIngameMenu();
@@ -1443,12 +1451,54 @@ class GameUI {
     _onGameOver(winner) {
         const st = this.state;
         const winColor = this._playerColor(winner);
-        const scores = st.players.map((p, i) =>
-            `<span style="color:${this._playerColor(i)}">${p.score}</span>`
-        ).join(' — ');
-        this.gameOverText.innerHTML =
-            `🏆 <span style="color:${winColor}">Игрок ${winner + 1}</span> победил!<br>` +
-            `<span style="font-size:18px">${scores}</span>`;
+        const winScore = st.winScore;
+        const winnerScore = st.players[winner].score;
+
+        // Title "ПОБЕДА"
+        this.gameOverText.textContent = 'ПОБЕДА';
+        this.gameOverText.style.color = winColor;
+        this.gameOverText.style.textShadow = `0 0 30px ${winColor}99`;
+
+        // Sub: "P-0N · score/win PTS"
+        document.getElementById('gameover-sub').innerHTML =
+            `<span style="color:${winColor}">P-${String(winner+1).padStart(2,'0')}</span> · ${winnerScore}/${winScore} PTS`;
+
+        // Ring ticks (36 ticks, every 9th bolder)
+        const ticks = document.getElementById('gameover-ticks');
+        if (ticks && !ticks.dataset.done) {
+            let svg = '';
+            for (let i = 0; i < 36; i++) {
+                const a = (i / 36) * Math.PI * 2;
+                const x1 = 120 + Math.cos(a) * 96;
+                const y1 = 120 + Math.sin(a) * 96;
+                const x2 = 120 + Math.cos(a) * 102;
+                const y2 = 120 + Math.sin(a) * 102;
+                const w = i % 9 === 0 ? 2 : 0.5;
+                svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--accent)" stroke-width="${w}"/>`;
+            }
+            ticks.innerHTML = svg;
+            ticks.dataset.done = '1';
+        }
+
+        // MATCH.LOG
+        const rows = [];
+        const turns = this._turnNumber || 1;
+        rows.push({ label: 'TURNS', val: String(turns) });
+        rows.push({ label: 'SCORE', val: `${winnerScore}/${winScore}`, hot: true });
+        st.players.forEach((p, i) => {
+            if (i !== winner) rows.push({ label: `P-${String(i+1).padStart(2,'0')} SCORE`, val: `${p.score}/${winScore}` });
+        });
+        if (this._totalCardsPlayed != null) rows.push({ label: 'CARDS PLAYED', val: String(this._totalCardsPlayed) });
+        if (this._totalSyntheses != null) rows.push({ label: 'SYNTHESES', val: String(this._totalSyntheses) });
+
+        document.getElementById('gameover-log-rows').innerHTML = rows.map(r => `
+            <div class="gameover-stat ${r.hot ? 'hot' : ''}">
+                <span class="gs-label">${r.label}</span>
+                <span class="gs-sep"></span>
+                <span class="gs-val">${r.val}</span>
+            </div>
+        `).join('');
+
         this.gameOverScreen.classList.remove('hidden');
     }
 
@@ -1499,13 +1549,13 @@ class GameUI {
                     this._cardPickSelected.push(card);
                     item.classList.add('selected');
                 }
-                this.cardPickCount.textContent = `Выбрано: ${this._cardPickSelected.length} / ${count}`;
+                this.cardPickCount.textContent = `${this._cardPickSelected.length} / ${count}`;
                 this.cardPickConfirm.disabled = this._cardPickSelected.length !== count;
             });
             this.cardPickList.appendChild(item);
         });
 
-        this.cardPickCount.textContent = `Выбрано: 0 / ${count}`;
+        this.cardPickCount.textContent = `0 / ${count}`;
         this.cardPickConfirm.disabled = true;
         this.cardPickModal.classList.remove('hidden');
     }
@@ -1541,7 +1591,40 @@ class GameUI {
 
     // ── In-game menu ───────────────────────────────────────────
 
-    _showIngameMenu() { document.getElementById('ingame-menu').classList.remove('hidden'); }
+    _showIngameMenu() {
+        // Update turn tag
+        const turnEl = document.getElementById('pause-turn-tag');
+        if (turnEl) turnEl.textContent = 'T' + String(this._turnNumber || 1).padStart(2, '0');
+
+        // Render HudRings for each player
+        const ringsEl = document.getElementById('pause-rings');
+        if (ringsEl && this.state) {
+            const st = this.state;
+            const win = st.winScore;
+            const activePI = st.currentPI;
+            ringsEl.innerHTML = st.players.map((p, i) => {
+                const pct = Math.min(1, p.score / win);
+                const r = 28, c = 2 * Math.PI * r;
+                const dash = c * pct;
+                const colorVar = i === activePI ? 'var(--accent)' : 'var(--line-dim)';
+                const activeCls = i === activePI ? 'active' : '';
+                return `
+                <div class="pause-ring-item ${activeCls}">
+                    <div class="hud-ring ${activeCls}">
+                        <svg viewBox="0 0 64 64">
+                            <circle cx="32" cy="32" r="${r}" fill="none" stroke="var(--line-ghost)" stroke-width="2"/>
+                            <circle cx="32" cy="32" r="${r}" fill="none" stroke="${colorVar}" stroke-width="2"
+                                stroke-dasharray="${dash} ${c - dash}" stroke-linecap="butt"/>
+                        </svg>
+                        <div class="ring-val">${p.score}</div>
+                    </div>
+                    <div class="ring-label">P-${String(i+1).padStart(2,'0')}</div>
+                </div>`;
+            }).join('');
+        }
+
+        document.getElementById('ingame-menu').classList.remove('hidden');
+    }
     _hideIngameMenu() { document.getElementById('ingame-menu').classList.add('hidden'); }
 
     // ── Utils ──────────────────────────────────────────────────

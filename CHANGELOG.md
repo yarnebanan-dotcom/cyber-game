@@ -6,6 +6,31 @@
 
 ---
 
+## 2026-04-17 — HUD Kit: этап 4 — модалы (Rules / Pause / Victory / CardPick)
+
+- **`HEAD`** Feat: все in-game модалы переведены на стиль `Дизайн/_/modals-v2.jsx`
+  - **Rules** (`#rules-screen`) — 4 таба `ЦЕЛЬ / ХОД / КАРТЫ / СИНТЕЗ`
+    - Табы с `.rules-tab.active` (accent fill), clip-path polygon
+    - `.rules-frame.bracket` с угловыми скобками accent · `.rules-frame-label` mono
+    - Pane ХОД — 4 step-row (`01–04`) с Orbitron номером и display/mono текстом
+    - Pane КАРТЫ — легенда W/G тегами, tag-play/tag-util для эффектов, tag-synth ⊕
+    - Pane СИНТЕЗ — placeholder-карточки `LOOP + SYNC`
+  - **Pause** (`#ingame-menu`) — HUD Kit `PauseModalV2`
+    - `SYS.HALT` + `T{NN}` теги сверху · Orbitron 40px `ПАУЗА` + `◦ GAME.SUSPENDED ◦`
+    - `STATE`-панель с HudRing (SVG) для каждого игрока, активный accent
+    - 3 кнопки: `▶ ПРОДОЛЖИТЬ` (accent fill), `↺ ЗАНОВО`, `↩ В МЕНЮ` (ghost)
+  - **Victory** (`#gameover-screen`) — HUD Kit `VictoryModalV2`
+    - `◦ MATCH.COMPLETE ◦` лейбл, большой SVG-круг с 36 тиками (accent)
+    - Orbitron 40px `ПОБЕДА` цветом победителя + sub `P-0N · score/win PTS`
+    - `MATCH.LOG` панель с dotted rows (TURNS, SCORE, per-player scores)
+    - Accent-filled `↺ ИГРАТЬ СНОВА` + ghost `↩ В МЕНЮ`
+  - **CardPick** (`#card-pick-modal`) — HUD Kit
+    - `.modal-box` с clip-path polygon, accent `> ВЫБОР КАРТ` заголовок
+    - `.pick-item` на `bg-2` с `.selected` → accent border + orange tint
+    - Cost tag в accent обводке `[N]`
+    - Accent-filled `ПОДТВЕРДИТЬ →` кнопка, счётчик `N / M` mono
+- **Изменено:** `Web/index.html` (CSS и HTML для rules/pause/gameover/card-pick), `Web/ui.js` (`_onGameOver` с ring ticks + MATCH.LOG rows, `_showIngameMenu` с HudRings, обработчик rules-табов, текст CardPick-счётчика)
+
 ## 2026-04-17 — HUD Kit: этап 3.2a — END summary на handoff экране
 
 - **`HEAD`** Feat: переработан экран передачи устройства под стиль HUD Kit `proto.jsx` §END

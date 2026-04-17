@@ -903,62 +903,154 @@ html, body {
 #btn-handoff-ok:hover { background: #ff8b55; }
 #btn-handoff-ok:active { background: var(--accent-dim); }
 
-/* Game Over */
-#gameover-screen { background: rgba(3, 5, 12, 0.97); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
-#gameover-text { font-size: 24px; font-weight: 800; color: #ffdd88; line-height: 1.4; letter-spacing: -0.5px; }
-#gameover-buttons { display: flex; flex-direction: column; gap: 10px; align-items: center; }
+/* Game Over — HUD Kit Victory */
+#gameover-screen {
+    background: rgba(2,6,10,0.97);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    gap: 14px; padding: 20px; justify-content: center;
+}
+.gameover-top-label {
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.4em; color: var(--accent);
+    text-align: center;
+}
+.gameover-ring-wrap {
+    position: relative; width: 240px; height: 240px;
+    display: flex; align-items: center; justify-content: center;
+}
+.gameover-ring-wrap svg { position: absolute; inset: 0; }
+.gameover-ring-center { position: relative; z-index: 1; text-align: center; width: 200px; }
+#gameover-text {
+    font-family: var(--display); font-size: 40px; font-weight: 700;
+    color: var(--accent); letter-spacing: 0.15em; line-height: 1;
+    text-shadow: 0 0 30px rgba(255,106,43,0.6);
+    margin: 0;
+}
+.gameover-sub {
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.3em; color: var(--text);
+    margin-top: 10px;
+}
+.gameover-log {
+    width: 100%; max-width: 340px;
+    border: 1px solid var(--line-dim);
+    padding: 12px 14px;
+    background: var(--bg-1);
+}
+.gameover-log-label {
+    font-family: var(--mono); font-size: 8px;
+    letter-spacing: 0.25em; color: var(--text-dim);
+    margin-bottom: 10px; padding-bottom: 6px;
+    border-bottom: 1px solid var(--line-ghost);
+}
+.gameover-stat {
+    display: flex; align-items: center; gap: 8px;
+    padding: 3px 0;
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.15em;
+}
+.gameover-stat .gs-label { color: var(--text-dim); text-transform: uppercase; }
+.gameover-stat .gs-sep { flex: 1; border-bottom: 1px dotted var(--line-ghost); height: 1px; }
+.gameover-stat .gs-val { color: var(--text); }
+.gameover-stat.hot .gs-val { color: var(--accent); }
+#gameover-buttons {
+    display: flex; flex-direction: column; gap: 6px;
+    width: 100%; max-width: 340px;
+}
+#btn-play-again, #btn-gameover-menu {
+    padding: 11px 14px;
+    font-family: var(--mono); font-size: 11px;
+    font-weight: 500; cursor: pointer;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
 #btn-play-again {
-    padding: 16px 52px;
-    background: linear-gradient(155deg, #2a8833, #165520);
-    border: none; border-radius: 14px; color: #fff;
-    font-size: 18px; font-weight: 700; cursor: pointer; font-family: inherit;
-    box-shadow: 0 6px 26px rgba(30,140,50,0.55), inset 0 1px 0 rgba(255,255,255,0.16);
+    background: var(--accent); border: 1px solid var(--accent);
+    color: var(--bg-0);
 }
+#btn-play-again:hover { background: #ff8b55; border-color: #ff8b55; }
 #btn-gameover-menu {
-    padding: 12px 40px;
-    background: transparent;
-    border: 1px solid rgba(120,140,180,0.3);
-    border-radius: 12px; color: #7a8eb5;
-    font-size: 14px; font-weight: 600; cursor: pointer; font-family: inherit;
-    letter-spacing: 0.03em;
+    background: transparent; border: 1px solid var(--line-ghost);
+    color: var(--text-dim); font-size: 10px; padding: 8px 14px;
 }
-#btn-gameover-menu:active { background: rgba(30,40,60,0.5); transform: scale(0.97); color: #a8bfe0; }
+#btn-gameover-menu:hover { border-color: var(--line-dim); color: var(--text); background: var(--bg-2); }
 
-/* Card Pick Modal */
-#card-pick-modal { background: rgba(3, 5, 12, 0.95); backdrop-filter: blur(20px); }
+/* Card Pick Modal — HUD Kit */
+#card-pick-modal { background: rgba(2,6,10,0.96); backdrop-filter: blur(20px); }
 #card-pick-modal.hidden { display: none; }
 .modal-box {
-    background: linear-gradient(155deg, #0e1a38 0%, #090e22 100%);
-    border: 1px solid rgba(70,110,210,0.28);
-    border-radius: 18px; padding: 16px; width: 100%; max-width: 400px; max-height: 70dvh;
-    display: flex; flex-direction: column; gap: 12px;
-    box-shadow: 0 24px 64px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.06);
+    background: var(--bg-1);
+    border: 1px solid var(--line-dim);
+    padding: 14px; width: 100%; max-width: 400px; max-height: 72dvh;
+    display: flex; flex-direction: column; gap: 10px;
+    clip-path: polygon(
+        10px 0, calc(100% - 6px) 0, 100% 6px,
+        100% calc(100% - 10px), calc(100% - 10px) 100%, 6px 100%,
+        0 calc(100% - 6px), 0 10px
+    );
 }
-#card-pick-title { font-size: 14px; font-weight: 700; color: #9ab8ff; letter-spacing: 0.04em; }
-#card-pick-list { overflow-y: auto; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+#card-pick-title {
+    font-family: var(--mono); font-size: 10px; font-weight: 400;
+    color: var(--accent); letter-spacing: 0.2em;
+    padding-bottom: 8px; border-bottom: 1px solid var(--line-ghost);
+}
+#card-pick-list {
+    overflow-y: auto; display: flex; flex-direction: column; gap: 6px; flex: 1;
+    scrollbar-width: thin; scrollbar-color: var(--line-ghost) transparent;
+}
 .pick-item {
-    padding: 10px 12px;
-    background: rgba(18,28,58,0.85);
-    border: 1px solid rgba(55,85,165,0.38);
-    border-radius: 10px; cursor: pointer; font-size: 13px;
-    transition: border-color 0.15s, background 0.15s;
+    padding: 8px 10px;
+    background: var(--bg-2);
+    border: 1px solid var(--line-ghost);
+    cursor: pointer; font-size: 12px;
+    transition: border-color 0.15s, background 0.15s, color 0.15s;
     display: flex; flex-direction: row; align-items: flex-start; gap: 10px;
+    color: var(--text);
 }
-.pick-item.selected { border-color: rgba(68,136,255,0.85); background: rgba(28,48,120,0.75); }
-.pick-item-header { font-weight: 700; display: flex; justify-content: space-between; align-items: center; }
-.pick-cost { font-size: 11px; color: #5566aa; margin-left: 8px; }
+.pick-item:hover { border-color: var(--line-dim); background: var(--bg-3); }
+.pick-item.selected {
+    border-color: var(--accent);
+    background: rgba(255,106,43,0.08);
+}
+.pick-item-header {
+    font-family: var(--display); font-weight: 700;
+    font-size: 11px; letter-spacing: 0.1em;
+    display: flex; justify-content: space-between; align-items: center; gap: 6px;
+}
+.pick-cost {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--accent); letter-spacing: 0.15em;
+    padding: 1px 5px; border: 1px solid var(--accent);
+}
 .pick-item-pattern { flex-shrink: 0; }
-.pick-item-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
-.pick-item-fx { font-size: 10px; color: #5566aa; line-height: 1.4; }
-#card-pick-count { color: #5566aa; font-size: 12px; }
-#card-pick-confirm {
-    padding: 12px;
-    background: linear-gradient(155deg, #2c6ee0, #1844a8);
-    border: none; border-radius: 10px; color: #fff;
-    font-size: 14px; font-weight: 700; cursor: pointer; font-family: inherit;
-    box-shadow: 0 4px 14px rgba(34,90,200,0.45);
+.pick-item-info { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+.pick-item-fx {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--text-dim); line-height: 1.5;
+    letter-spacing: 0.05em;
 }
-#card-pick-confirm:disabled { background: rgba(16,24,52,0.7); color: #334; cursor: default; box-shadow: none; }
+#card-pick-count {
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.2em; color: var(--text-dim);
+    text-align: right;
+}
+#card-pick-confirm {
+    padding: 11px 14px;
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    color: var(--bg-0);
+    font-family: var(--mono); font-size: 11px;
+    font-weight: 700; cursor: pointer;
+    letter-spacing: 0.25em; text-transform: uppercase;
+    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+    transition: background 0.15s;
+}
+#card-pick-confirm:hover:not(:disabled) { background: #ff8b55; }
+#card-pick-confirm:disabled {
+    background: transparent; border-color: var(--line-ghost);
+    color: var(--text-ghost); cursor: default;
+}
 
 /* Card Detail */
 #card-detail { background: rgba(3, 5, 12, 0.95); backdrop-filter: blur(20px); }
@@ -1009,43 +1101,107 @@ html, body {
 /* ── 3-player mode (KIT Phase 3 — no more panels) ───────── */
 /* HUD is identical for 2p/3p; only opp-scores row differs */
 
-/* ── In-game menu ────────────────────────────────────────── */
+/* ── In-game menu (HUD Kit Pause) ────────────────────────── */
 #ingame-menu {
     position: fixed; inset: 0;
-    background: rgba(0,0,0,0.55);
+    background: rgba(2,6,10,0.92);
     display: flex; align-items: center; justify-content: center;
-    z-index: 200;
-    backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px);
+    z-index: 200; padding: 20px;
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
 }
 #ingame-menu.hidden { display: none; }
 .ingame-menu-box {
-    background: linear-gradient(155deg, #0e1a38 0%, #090e22 100%);
-    border: 1px solid rgba(70,110,210,0.3);
-    border-radius: 16px; padding: 20px; width: 230px;
-    display: flex; flex-direction: column; gap: 10px;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.8), inset 0 1px 0 rgba(255,255,255,0.06);
+    width: 100%; max-width: 340px;
+    display: flex; flex-direction: column; gap: 12px;
+    background: var(--bg-1);
+    border: 1px solid var(--line-dim);
+    padding: 18px 16px;
+    clip-path: polygon(
+        12px 0, calc(100% - 6px) 0, 100% 6px,
+        100% calc(100% - 12px), calc(100% - 12px) 100%, 6px 100%,
+        0 calc(100% - 6px), 0 12px
+    );
 }
-.ingame-menu-title { font-size: 11px; color: #3a4a66; text-align: center; letter-spacing: 0.12em; font-weight: 700; padding-bottom: 4px; }
-#btn-to-menu {
-    padding: 12px; background: rgba(60,20,80,0.5);
-    border: 1px solid rgba(140,60,180,0.3);
-    border-radius: 10px; color: #cc88ff; font-size: 13px; font-weight: 700;
-    cursor: pointer; font-family: inherit;
+.pause-top {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 10px; border-bottom: 1px solid var(--line-dim);
 }
-#btn-to-menu:active { background: rgba(80,30,100,0.7); }
-#btn-restart {
-    padding: 12px; background: rgba(20,50,100,0.5);
-    border: 1px solid rgba(60,120,220,0.3);
-    border-radius: 10px; color: #88aaff; font-size: 13px; font-weight: 700;
-    cursor: pointer; font-family: inherit;
+.pause-tag {
+    font-family: var(--mono); font-size: 9px; font-weight: 700;
+    letter-spacing: 0.2em; padding: 3px 7px;
+    background: var(--accent); color: var(--bg-0);
+    border: 1px solid var(--accent);
 }
-#btn-restart:active { background: rgba(30,70,140,0.7); }
-#btn-close-ingame-menu {
-    padding: 8px; background: transparent;
-    border: 1px solid rgba(40,60,100,0.3);
-    border-radius: 8px; color: #3a4a66; font-size: 12px;
-    cursor: pointer; font-family: inherit;
+.pause-turn-tag {
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.2em; padding: 3px 7px;
+    border: 1px solid var(--line-dim); color: var(--text-dim);
 }
+.pause-title-wrap { text-align: center; padding: 14px 0 8px; }
+.ingame-menu-title {
+    font-family: var(--display); font-weight: 700;
+    font-size: 40px; letter-spacing: 0.15em; line-height: 1;
+    color: var(--text);
+    text-shadow: 0 0 20px rgba(63,208,230,0.3);
+}
+.pause-subtitle {
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.3em; color: var(--text-dim);
+    margin-top: 8px;
+}
+.pause-state {
+    border: 1px solid var(--line-ghost);
+    background: rgba(10,22,32,0.5);
+    padding: 12px;
+}
+.pause-state-label {
+    font-family: var(--mono); font-size: 8px;
+    letter-spacing: 0.25em; color: var(--text-dim);
+    margin-bottom: 10px;
+}
+.pause-rings {
+    display: flex; justify-content: space-around; gap: 12px;
+}
+.pause-ring-item { text-align: center; }
+.pause-ring-item .ring-label {
+    font-family: var(--mono); font-size: 8px;
+    letter-spacing: 0.2em; margin-top: 6px;
+    color: var(--text-dim);
+}
+.pause-ring-item.active .ring-label { color: var(--accent); }
+.hud-ring {
+    width: 64px; height: 64px; position: relative;
+}
+.hud-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.hud-ring .ring-val {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--display); font-size: 16px;
+    color: var(--text);
+}
+.hud-ring.active .ring-val { color: var(--accent); }
+.pause-btns { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
+.pause-btn {
+    padding: 11px 14px;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--text);
+    font-family: var(--mono); font-size: 11px;
+    font-weight: 500; cursor: pointer;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.pause-btn:hover { background: var(--bg-3); color: #fff; border-color: #6fe4f5; }
+.pause-btn.hot {
+    background: var(--accent); border-color: var(--accent); color: var(--bg-0);
+}
+.pause-btn.hot:hover { background: #ff8b55; border-color: #ff8b55; color: var(--bg-0); }
+.pause-btn.ghost {
+    border-color: var(--line-ghost); color: var(--text-dim);
+    font-size: 10px; padding: 8px 14px;
+}
+.pause-btn.ghost:hover { border-color: var(--line-dim); color: var(--text); background: var(--bg-2); }
 
 /* ── Menu screen ─────────────────────────────────────────── */
 #menu-screen { background: radial-gradient(ellipse at 50% 20%, #0c1a3a 0%, #030508 70%); z-index: 150; }
@@ -1189,54 +1345,162 @@ html, body {
 .btn-mode-desc { font-size: 11px; color: #3a5070; padding-left: 32px; }
 
 /* ── Rules screen ────────────────────────────────────────── */
+/* Rules — HUD Kit 4-tab modal */
 #rules-screen {
     position: fixed; inset: 0;
-    background: rgba(3, 5, 12, 0.98);
+    background: rgba(2,6,10,0.98);
     backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
     z-index: 160;
     display: flex; flex-direction: column;
-    align-items: center;
-    padding: 0;
+    padding: 20px 14px;
     overflow: hidden;
 }
 #rules-screen.hidden { display: none; }
 #rules-header {
     flex-shrink: 0;
-    width: 100%; max-width: 480px;
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 14px 16px 10px;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 14px; gap: 12px;
 }
-#rules-title { font-size: 15px; font-weight: 800; color: #25C8F3; letter-spacing: 0.1em; }
+#rules-header .rules-head-label {
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.2em; color: var(--accent);
+    margin-bottom: 2px;
+}
+#rules-title {
+    font-family: var(--display); font-size: 22px;
+    letter-spacing: 0.12em; color: var(--text);
+    font-weight: 700;
+}
 #btn-rules-close {
-    padding: 6px 14px;
-    background: rgba(18,28,58,0.85);
-    border: 1px solid rgba(70,100,180,0.35);
-    border-radius: 8px; color: #7788bb; font-size: 12px;
-    cursor: pointer; font-family: inherit;
+    padding: 8px 12px;
+    background: transparent;
+    border: 1px solid var(--line-dim);
+    color: var(--text-dim);
+    font-family: var(--mono); font-size: 11px;
+    cursor: pointer; letter-spacing: 0.15em;
+    clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+    transition: all 0.15s;
+}
+#btn-rules-close:hover { border-color: var(--accent); color: var(--accent); }
+#rules-tabs {
+    flex-shrink: 0;
+    display: flex; gap: 3px; margin-bottom: 14px;
+}
+.rules-tab {
+    flex: 1; padding: 8px 0;
+    background: transparent;
+    border: 1px solid var(--line-dim);
+    color: var(--text-dim);
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.15em; cursor: pointer;
+    clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
+    transition: all 0.15s;
+}
+.rules-tab.active {
+    background: var(--bg-3);
+    border-color: var(--accent);
+    color: var(--accent);
 }
 #rules-body {
-    flex: 1; overflow-y: auto; width: 100%; max-width: 480px;
-    padding: 16px; scrollbar-width: thin; scrollbar-color: #1e2a4a transparent;
+    flex: 1; overflow-y: auto;
+    scrollbar-width: thin; scrollbar-color: var(--line-ghost) transparent;
 }
 #rules-body::-webkit-scrollbar { width: 4px; }
-#rules-body::-webkit-scrollbar-thumb { background: #1e2a4a; border-radius: 2px; }
-.rules-section { margin-bottom: 20px; }
-.rules-h { font-size: 11px; font-weight: 800; color: #25C8F3; letter-spacing: 0.12em; margin-bottom: 8px; padding-bottom: 4px; border-bottom: 1px solid rgba(37,200,243,0.12); }
-.rules-p { font-size: 13px; color: #7a8eaa; line-height: 1.65; }
-.rules-p + .rules-p { margin-top: 6px; }
-.rules-step { display: flex; gap: 10px; margin-bottom: 8px; }
-.rules-step-num { flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%; background: rgba(37,200,243,0.12); border: 1px solid rgba(37,200,243,0.25); color: #25C8F3; font-size: 11px; font-weight: 800; display: flex; align-items: center; justify-content: center; margin-top: 1px; }
+#rules-body::-webkit-scrollbar-thumb { background: var(--line-ghost); }
+.rules-pane { display: none; }
+.rules-pane.active { display: block; }
+
+.rules-frame {
+    position: relative;
+    padding: 14px;
+    border: 1px solid var(--line-dim);
+    background: var(--bg-1);
+    margin-bottom: 10px;
+}
+.rules-frame.bracket::before,
+.rules-frame.bracket::after {
+    content: ''; position: absolute;
+    width: 10px; height: 10px;
+    border: 1px solid var(--accent);
+}
+.rules-frame.bracket::before { top: -3px; left: -3px; border-right: none; border-bottom: none; }
+.rules-frame.bracket::after { bottom: -3px; right: -3px; border-left: none; border-top: none; }
+.rules-frame-label {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--accent); letter-spacing: 0.2em;
+    margin-bottom: 8px;
+}
+.rules-p {
+    font-size: 13px; line-height: 1.5; color: var(--text);
+    font-family: var(--sans);
+}
+.rules-p + .rules-p { margin-top: 8px; }
+.rules-p .accent { color: var(--accent); font-weight: 600; }
+.rules-divider {
+    margin-top: 12px; padding-top: 10px;
+    border-top: 1px dashed var(--line-ghost);
+    font-size: 11px; color: var(--text-dim); line-height: 1.5;
+}
+.rules-step-row {
+    display: flex; gap: 12px; align-items: center;
+    padding: 10px 12px;
+    border: 1px solid var(--line-dim);
+    background: var(--bg-1);
+    margin-bottom: 6px;
+}
+.rules-step-num {
+    font-family: var(--display); font-size: 22px;
+    color: var(--accent); letter-spacing: 0.1em;
+}
 .rules-step-body { flex: 1; }
-.rules-step-title { font-size: 12px; font-weight: 700; color: #c8dcff; margin-bottom: 2px; }
-.rules-step-desc { font-size: 12px; color: #5a6a8a; line-height: 1.55; }
-.rules-tag { display: inline-block; padding: 1px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; margin-right: 4px; }
-.rules-tag-w { background: rgba(192,208,255,0.12); color: #c0d0ff; border: 1px solid rgba(160,190,255,0.25); }
-.rules-tag-g { background: rgba(58,74,114,0.3); color: #8898bb; border: 1px solid rgba(80,110,170,0.3); }
-.rules-tag-play { background: rgba(85,187,119,0.12); color: #55bb77; border: 1px solid rgba(85,187,119,0.25); }
-.rules-tag-util { background: rgba(204,153,51,0.12); color: #cc9933; border: 1px solid rgba(204,153,51,0.25); }
-.rules-tag-synth { background: rgba(170,119,238,0.12); color: #aa77ee; border: 1px solid rgba(170,119,238,0.25); }
-.rules-win { text-align: center; padding: 12px; background: rgba(255,221,136,0.06); border: 1px solid rgba(255,221,136,0.12); border-radius: 10px; color: #ffdd88; font-size: 13px; font-weight: 700; }
+.rules-step-title {
+    font-family: var(--display); font-size: 12px;
+    color: var(--text); letter-spacing: 0.12em; font-weight: 700;
+}
+.rules-step-desc {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--text-dim); margin-top: 3px;
+    letter-spacing: 0.05em;
+}
+.rules-tag {
+    display: inline-block;
+    padding: 1px 6px;
+    font-family: var(--mono); font-size: 10px;
+    font-weight: 700; letter-spacing: 0.1em;
+    border: 1px solid currentColor;
+    margin-right: 4px;
+}
+.rules-tag-w { color: var(--text); }
+.rules-tag-g { color: var(--line-dim); }
+.rules-tag-play { color: var(--ok); }
+.rules-tag-util { color: var(--accent); }
+.rules-tag-synth { color: #b88aff; }
+.rules-legend {
+    display: flex; gap: 14px; justify-content: center;
+    font-family: var(--mono); font-size: 9px;
+    margin-top: 10px; color: var(--text-dim);
+}
+.rules-legend-item { display: flex; gap: 4px; align-items: center; }
+.rules-legend-swatch { width: 10px; height: 10px; }
+.rules-legend-swatch.w { background: var(--accent); }
+.rules-legend-swatch.g { background: var(--line); }
+.rules-synth-cards {
+    display: flex; justify-content: center; gap: 10px;
+    padding: 10px 0; align-items: center;
+}
+.rules-synth-card {
+    width: 56px; height: 78px;
+    border: 1px solid var(--accent);
+    background: var(--bg-2);
+    clip-path: polygon(4px 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%, 0 4px);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.1em; color: var(--accent);
+}
+.rules-synth-plus {
+    font-family: var(--display); font-size: 20px;
+    color: var(--accent);
+}
 .btn-rules-link {
     display: block; margin-top: 16px;
     padding: 11px;
@@ -1373,20 +1637,36 @@ html, body {
 
 <!-- Game over screen -->
 <div class="overlay hidden" id="gameover-screen">
-    <div id="gameover-text">Победитель: Игрок 1!</div>
+    <div class="gameover-top-label">◦ MATCH.COMPLETE ◦</div>
+    <div class="gameover-ring-wrap" id="gameover-ring-wrap">
+        <svg viewBox="0 0 240 240">
+            <circle cx="120" cy="120" r="110" fill="none" stroke="var(--accent)" stroke-width="1" opacity="0.4"/>
+            <circle cx="120" cy="120" r="92" fill="none" stroke="var(--accent)" stroke-width="2"/>
+            <circle cx="120" cy="120" r="74" fill="none" stroke="var(--line)" stroke-width="0.5" stroke-dasharray="3 3"/>
+            <g id="gameover-ticks"></g>
+        </svg>
+        <div class="gameover-ring-center">
+            <div id="gameover-text">ПОБЕДА</div>
+            <div class="gameover-sub" id="gameover-sub">P-01 · 15/15 PTS</div>
+        </div>
+    </div>
+    <div class="gameover-log">
+        <div class="gameover-log-label">MATCH.LOG</div>
+        <div id="gameover-log-rows"></div>
+    </div>
     <div id="gameover-buttons">
-        <button id="btn-play-again">↺ Играть снова</button>
-        <button id="btn-gameover-menu">↩ В главное меню</button>
+        <button id="btn-play-again">↺ ИГРАТЬ СНОВА</button>
+        <button id="btn-gameover-menu">↩ В МЕНЮ</button>
     </div>
 </div>
 
 <!-- Card pick modal -->
 <div class="overlay hidden" id="card-pick-modal">
     <div class="modal-box">
-        <div id="card-pick-title">Выберите карты</div>
+        <div id="card-pick-title">&gt; ВЫБОР КАРТ</div>
         <div id="card-pick-list"></div>
-        <div id="card-pick-count">Выбрано: 0 / 1</div>
-        <button id="card-pick-confirm" disabled>Подтвердить</button>
+        <div id="card-pick-count">0 / 1</div>
+        <button id="card-pick-confirm" disabled>ПОДТВЕРДИТЬ →</button>
     </div>
 </div>
 
@@ -1496,99 +1776,152 @@ html, body {
 <!-- Rules screen -->
 <div id="rules-screen" class="hidden">
     <div id="rules-header">
-        <div id="rules-title">ПРАВИЛА ИГРЫ</div>
-        <button id="btn-rules-close">Закрыть ✕</button>
+        <div>
+            <div class="rules-head-label">&gt; MANUAL.v1.2</div>
+            <div id="rules-title">ПРАВИЛА</div>
+        </div>
+        <button id="btn-rules-close">✕</button>
     </div>
+
+    <div id="rules-tabs">
+        <button class="rules-tab active" data-pane="0">ЦЕЛЬ</button>
+        <button class="rules-tab" data-pane="1">ХОД</button>
+        <button class="rules-tab" data-pane="2">КАРТЫ</button>
+        <button class="rules-tab" data-pane="3">СИНТЕЗ</button>
+    </div>
+
     <div id="rules-body">
-
-        <div class="rules-section">
-            <div class="rules-h">ЦЕЛЬ</div>
-            <div class="rules-p">Первый набирает <b>15 очков</b> (2 игрока) или <b>20 очков</b> (3 игрока) — побеждает. Игра заканчивается немедленно.</div>
-        </div>
-
-        <div class="rules-section">
-            <div class="rules-h">ХОД ИГРОКА</div>
-            <div class="rules-step">
-                <div class="rules-step-num">1</div>
-                <div class="rules-step-body">
-                    <div class="rules-step-title">Восполнение</div>
-                    <div class="rules-step-desc">Добрать карты из колоды до значения Запаса (от 2 до 6). Происходит автоматически.</div>
+        <!-- Pane 0: ЦЕЛЬ -->
+        <div class="rules-pane active" data-pane="0">
+            <div class="rules-frame bracket">
+                <div class="rules-frame-label">&gt; 01 · ЦЕЛЬ ИГРЫ</div>
+                <div class="rules-p">
+                    Первый игрок, набравший <span class="accent">15 очков</span> (дуэль) или <span class="accent">20 очков</span> (триада) — побеждает. Игра заканчивается немедленно.
+                </div>
+                <div class="rules-divider">
+                    Очки получаются за розыгрыш карт, успешные паттерны и контроль узлов на поле.
                 </div>
             </div>
-            <div class="rules-step">
-                <div class="rules-step-num">2</div>
-                <div class="rules-step-body">
-                    <div class="rules-step-title">Действия</div>
-                    <div class="rules-step-desc">Поставить 2 фишки своего цвета на любые свободные узлы поля. Можно поставить меньше или убрать одну свою фишку с поля вместо расстановки.</div>
+            <div class="rules-frame">
+                <div class="rules-frame-label">&gt; ЗАПАС · КОЛОДА</div>
+                <div class="rules-p">
+                    <span class="accent">Запас</span> — сколько карт добираешь за ход. Мин 2, макс 6. Карты могут изменять запас.
                 </div>
-            </div>
-            <div class="rules-step">
-                <div class="rules-step-num">3</div>
-                <div class="rules-step-body">
-                    <div class="rules-step-title">Задача</div>
-                    <div class="rules-step-desc">Сыграть до 2 карт и/или утилизировать до 2 карт в любом порядке. Затем нажать «Завершить ход».</div>
+                <div class="rules-p">
+                    <span class="accent">Колода</span> — когда кончается, сброс перемешивается и становится новой колодой.
                 </div>
             </div>
         </div>
 
-        <div class="rules-section">
-            <div class="rules-h">ПАТТЕРН КАРТЫ</div>
-            <div class="rules-p">Каждая карта имеет паттерн — набор клеток на сетке 3×3. Два типа клеток:</div>
-            <div class="rules-p" style="margin-top:8px">
-                <span class="rules-tag rules-tag-w">W</span> <b>Белая</b> — узел занят <b>своей</b> фишкой
+        <!-- Pane 1: ХОД -->
+        <div class="rules-pane" data-pane="1">
+            <div class="rules-step-row">
+                <div class="rules-step-num">01</div>
+                <div class="rules-step-body">
+                    <div class="rules-step-title">ВОСПОЛНЕНИЕ</div>
+                    <div class="rules-step-desc">Автодобор карт до запаса</div>
+                </div>
             </div>
-            <div class="rules-p">
-                <span class="rules-tag rules-tag-g">G</span> <b>Серая</b> — узел занят фишкой <b>противника</b>
+            <div class="rules-step-row">
+                <div class="rules-step-num">02</div>
+                <div class="rules-step-body">
+                    <div class="rules-step-title">ДЕЙСТВИЯ</div>
+                    <div class="rules-step-desc">До 2 фишек на узлы · или убрать одну свою</div>
+                </div>
             </div>
-            <div class="rules-p" style="margin-top:6px; color:#3a4a5e">Паттерн можно накладывать в 4 ориентациях (повороты по 90°). Все фишки паттерна должны присутствовать на доске одновременно.</div>
+            <div class="rules-step-row">
+                <div class="rules-step-num">03</div>
+                <div class="rules-step-body">
+                    <div class="rules-step-title">ЗАДАЧА</div>
+                    <div class="rules-step-desc">До 2 розыгрышей / утилизаций в любом порядке</div>
+                </div>
+            </div>
+            <div class="rules-step-row">
+                <div class="rules-step-num">04</div>
+                <div class="rules-step-body">
+                    <div class="rules-step-title">ЗАВЕРШЕНИЕ</div>
+                    <div class="rules-step-desc">Передача хода следующему игроку</div>
+                </div>
+            </div>
         </div>
 
-        <div class="rules-section">
-            <div class="rules-h">РОЗЫГРЫШ КАРТЫ</div>
-            <div class="rules-p">Выбери карту, затем тапни на все фишки паттерна на доске. Если позиция совпадает:</div>
-            <div class="rules-p" style="margin-top:6px">1. Получаешь очки, равные стоимости карты<br>2. Выполняется эффект <span class="rules-tag rules-tag-play">▶ Розыгрыш</span><br>3. Фишки паттерна убираются с поля<br>4. Карта уходит в сброс</div>
+        <!-- Pane 2: КАРТЫ -->
+        <div class="rules-pane" data-pane="2">
+            <div class="rules-frame bracket">
+                <div class="rules-frame-label">&gt; ПАТТЕРН 3×3</div>
+                <div class="rules-p">
+                    <span class="rules-tag rules-tag-w">W</span><b>Белая</b> — узел занят <b>своей</b> фишкой
+                </div>
+                <div class="rules-p">
+                    <span class="rules-tag rules-tag-g">G</span><b>Серая</b> — узел занят фишкой <b>противника</b>
+                </div>
+                <div class="rules-legend">
+                    <span class="rules-legend-item"><span class="rules-legend-swatch w"></span>свой</span>
+                    <span class="rules-legend-item"><span class="rules-legend-swatch g"></span>противник</span>
+                </div>
+                <div class="rules-divider">
+                    Паттерн накладывается в 4 ориентациях (повороты 90°). Все фишки должны быть на доске одновременно.
+                </div>
+            </div>
+            <div class="rules-frame">
+                <div class="rules-frame-label">&gt; РОЗЫГРЫШ · УТИЛИЗАЦИЯ</div>
+                <div class="rules-p">
+                    <span class="rules-tag rules-tag-play">▶</span>Тапни фишки паттерна → получишь <span class="accent">очки</span>, сработает эффект, фишки снимутся, карта в сброс.
+                </div>
+                <div class="rules-p">
+                    <span class="rules-tag rules-tag-util">✦</span>Утилизация — сброс без паттерна, срабатывает эффект «Утилизация». Очки не начисляются.
+                </div>
+            </div>
+            <div class="rules-frame">
+                <div class="rules-frame-label">&gt; РАСКРЫТЫЕ</div>
+                <div class="rules-p" style="font-size:12px; line-height:1.6;">
+                    • не считаются в запасе при восполнении<br>
+                    • <b>любой</b> игрок может разыграть чужую раскрытую карту<br>
+                    • только владелец может утилизировать свою
+                </div>
+            </div>
         </div>
 
-        <div class="rules-section">
-            <div class="rules-h">УТИЛИЗАЦИЯ</div>
-            <div class="rules-p">Выбери карту и нажми «⊗ Утилизировать» — карта сбрасывается без паттерна. Срабатывает эффект <span class="rules-tag rules-tag-util">✦ Утилизация</span> (если есть). Очки не начисляются.</div>
+        <!-- Pane 3: СИНТЕЗ -->
+        <div class="rules-pane" data-pane="3">
+            <div class="rules-frame bracket">
+                <div class="rules-frame-label">&gt; СИНТЕЗ</div>
+                <div class="rules-synth-cards">
+                    <div class="rules-synth-card">LOOP</div>
+                    <div class="rules-synth-plus">+</div>
+                    <div class="rules-synth-card">SYNC</div>
+                </div>
+                <div class="rules-p" style="font-size:12px; line-height:1.6;">
+                    Две карты разыгрываются одновременно. Оба паттерна на доске с хотя бы одной <span class="accent">общей фишкой</span>.
+                </div>
+                <div class="rules-divider">
+                    Срабатывают <span class="rules-tag rules-tag-play">▶</span> и <span class="rules-tag rules-tag-synth">⊕</span> обеих карт. Фишки снимаются в конце. Порядок эффектов выбирает игрок.
+                </div>
+            </div>
         </div>
-
-        <div class="rules-section">
-            <div class="rules-h">СИНТЕЗ</div>
-            <div class="rules-p">Особый розыгрыш двух карт одновременно. Оба паттерна должны быть на доске, и у них должна быть хотя бы одна <b>общая фишка</b>.</div>
-            <div class="rules-p" style="margin-top:6px">Выбери первую карту → нажми «⊕ Синтез» → найди паттерн первой карты тапами → выбери вторую карту → найди паттерн второй карты → выбери порядок эффектов.</div>
-            <div class="rules-p" style="margin-top:6px">Срабатывают <span class="rules-tag rules-tag-play">▶</span> и <span class="rules-tag rules-tag-synth">⊕</span> обеих карт. Фишки снимаются в конце.</div>
-        </div>
-
-        <div class="rules-section">
-            <div class="rules-h">РАСКРЫТЫЕ КАРТЫ</div>
-            <div class="rules-p">Некоторые эффекты выкладывают карты лицом вверх в зону раскрытых. Раскрытые карты:</div>
-            <div class="rules-p" style="margin-top:4px">• не считаются в запасе при восполнении<br>• <b>любой</b> игрок может разыграть чужую раскрытую карту<br>• только владелец может утилизировать свою</div>
-        </div>
-
-        <div class="rules-section">
-            <div class="rules-h">ЗАПАС</div>
-            <div class="rules-p">Сколько карт добираешь за ход. Минимум 2, максимум 6. Некоторые карты изменяют запас.</div>
-        </div>
-
-        <div class="rules-section">
-            <div class="rules-h">КОЛОДА</div>
-            <div class="rules-p">Когда колода кончается — сброс перемешивается и становится новой колодой. Если и сброс пуст — карты просто не добираются.</div>
-        </div>
-
-        <div class="rules-win">🏆 Первый набравший winScore очков побеждает немедленно</div>
-
     </div>
 </div>
 
 <!-- In-game menu -->
 <div id="ingame-menu" class="hidden">
     <div class="ingame-menu-box">
-        <div class="ingame-menu-title">ПАУЗА</div>
-        <button id="btn-to-menu">↩ В главное меню</button>
-        <button id="btn-restart">↺ Начать заново</button>
-        <button id="btn-close-ingame-menu">Продолжить игру</button>
+        <div class="pause-top">
+            <div class="pause-tag">SYS.HALT</div>
+            <div class="pause-turn-tag" id="pause-turn-tag">T01</div>
+        </div>
+        <div class="pause-title-wrap">
+            <div class="ingame-menu-title">ПАУЗА</div>
+            <div class="pause-subtitle">◦ GAME.SUSPENDED ◦</div>
+        </div>
+        <div class="pause-state">
+            <div class="pause-state-label">STATE</div>
+            <div class="pause-rings" id="pause-rings"></div>
+        </div>
+        <div class="pause-btns">
+            <button class="pause-btn hot" id="btn-close-ingame-menu">▶ ПРОДОЛЖИТЬ</button>
+            <button class="pause-btn" id="btn-restart">↺ ЗАНОВО</button>
+            <button class="pause-btn ghost" id="btn-to-menu">↩ В МЕНЮ</button>
+        </div>
     </div>
 </div>
 
