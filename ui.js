@@ -455,7 +455,8 @@ class GameUI {
         el.innerHTML = `
             <div class="card-cost" style="background:${costColor}">${card.cost}</div>
             <div class="card-name">${card.name}</div>
-            <div class="card-pattern">${this._patternSVG(card.pattern, 40)}</div>
+            <div class="card-pattern">${this._patternSVG(card.pattern, 44)}</div>
+            <div class="card-fx">${this._describeEffects(card)}</div>
         `;
 
         // Apply stored rotation
@@ -467,7 +468,9 @@ class GameUI {
 
         // Single tap → select card; double tap → rotate pattern
         let lastTap = 0;
+        let didZoom = false;
         el.addEventListener('click', () => {
+            if (didZoom) { didZoom = false; return; }
             const now = Date.now();
             if (now - lastTap < 300) {
                 lastTap = 0;
@@ -481,14 +484,60 @@ class GameUI {
             this._onCardTap(card, isPlayable);
         });
 
-        // Long press for card detail
+        // Long press → floating popup above card
         let pressTimer;
-        el.addEventListener('touchstart', () => {
-            pressTimer = setTimeout(() => this._showCardDetail(card), 500);
+        const zoomIn = (e) => {
+            didZoom = true;
+            this._haptic(8);
+            this._showCardPopup(card, el);
+        };
+        const zoomOut = () => { clearTimeout(pressTimer); };
+        el.addEventListener('touchstart', (e) => {
+            pressTimer = setTimeout(() => zoomIn(e), 400);
         }, { passive: true });
-        el.addEventListener('touchend', () => clearTimeout(pressTimer), { passive: true });
+        el.addEventListener('touchend', zoomOut, { passive: true });
+        el.addEventListener('touchcancel', zoomOut, { passive: true });
 
         return el;
+    }
+
+    _showCardPopup(card, anchorEl) {
+        // Remove existing popup
+        document.getElementById('card-popup')?.remove();
+
+        const popup = document.createElement('div');
+        popup.id = 'card-popup';
+        const costColor = card.cost < 0 ? '#44cc77'
+                        : card.cost === 0 ? '#556677'
+                        : card.cost <= 2  ? '#4488ff'
+                        : '#ff8833';
+        popup.innerHTML = `
+            <div class="card-cost" style="background:${costColor}">${card.cost}</div>
+            <div class="card-popup-name">${card.name}</div>
+            <div class="card-pattern" style="display:flex;justify-content:center;margin:4px 0">${this._patternSVG(card.pattern, 56)}</div>
+            <div class="card-fx" style="display:block">${this._describeEffects(card)}</div>
+        `;
+        document.body.appendChild(popup);
+
+        // Position: above the anchor card, horizontally centred on it
+        const rect = anchorEl.getBoundingClientRect();
+        const pw = 160, ph = popup.offsetHeight || 180;
+        let left = rect.left + rect.width / 2 - pw / 2;
+        let top  = rect.top - ph - 10;
+        // Clamp to viewport
+        left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
+        top  = Math.max(8, top);
+        popup.style.left = left + 'px';
+        popup.style.top  = top  + 'px';
+
+        // Dismiss on any touch outside
+        const dismiss = (e) => {
+            if (!popup.contains(e.target)) {
+                popup.remove();
+                document.removeEventListener('touchstart', dismiss);
+            }
+        };
+        setTimeout(() => document.addEventListener('touchstart', dismiss, { passive: true }), 50);
     }
 
     _patternSVG(pattern, size = 48) {
