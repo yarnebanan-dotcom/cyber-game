@@ -1240,119 +1240,125 @@ html, body {
 }
 .pause-btn.ghost:hover { border-color: var(--line-dim); color: var(--text); background: var(--bg-2); }
 
-/* ── Menu screen — HUD Kit V1 ─────────────────────────────── */
+/* ── Menu screen — MenuV2Hi (canon) ────────────────────────── */
 #menu-screen {
     background: var(--bg-0);
     z-index: 150;
-    padding: 30px 18px 22px;
+    padding: 10px 14px 20px;
     justify-content: flex-start;
     gap: 0;
+    overflow: hidden;
 }
 #menu-screen.hidden { display: none; }
-.menu-sys-tag {
-    font-family: var(--mono); font-size: 9px;
-    color: var(--accent); letter-spacing: 0.25em;
-    padding: 3px 8px;
-    border: 1px solid var(--accent);
-    align-self: flex-start;
-    clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
-    margin-bottom: 10px;
-}
-.menu-signal {
-    position: absolute; top: 8px; right: 18px;
+.menu-head {
+    display: flex; justify-content: space-between;
+    padding-top: 24px;
     font-family: var(--mono); font-size: 8px;
-    color: var(--text-ghost); letter-spacing: 0.25em;
+    color: var(--text-ghost); letter-spacing: 0.2em;
+}
+.menu-center {
+    flex: 1;
+    display: flex; align-items: center; justify-content: center;
+    position: relative;
+}
+.menu-radar {
+    position: absolute;
+    width: 280px; height: 280px;
+    opacity: 0.5;
+    pointer-events: none;
+}
+.menu-hero { text-align: center; position: relative; }
+.menu-boot {
+    font-family: var(--mono); font-size: 9px;
+    color: var(--accent); letter-spacing: 0.4em;
+    margin-bottom: 8px;
 }
 .menu-title {
     font-family: var(--display);
-    font-size: 52px; font-weight: 700; letter-spacing: 0.18em;
-    color: var(--text);
-    text-shadow: 0 0 20px rgba(63,208,230,0.4);
-    line-height: 1;
-    align-self: flex-start;
+    font-size: 72px; color: var(--text);
+    letter-spacing: 0.1em; line-height: 0.9;
+    text-shadow: 0 0 30px rgba(63,208,230,0.5);
 }
 .menu-subtitle {
-    font-family: var(--mono);
-    font-size: 10px; color: var(--text-dim);
-    letter-spacing: 0.4em; margin-top: 4px;
-    align-self: flex-start;
-}
-.menu-segbar {
-    display: flex; gap: 2px; margin-top: 12px; width: 100%;
-}
-.menu-segbar-cell {
-    flex: 1; height: 6px; background: var(--line-ghost);
-}
-.menu-segbar-cell.on { background: var(--accent); }
-.menu-select-tag {
+    margin-top: 10px;
+    display: flex; justify-content: center; gap: 14px;
     font-family: var(--mono); font-size: 9px;
-    color: var(--text-dim); letter-spacing: 0.2em;
-    margin-top: 20px; margin-bottom: 10px;
-    align-self: flex-start;
+    color: var(--text-dim); letter-spacing: 0.3em;
 }
-.menu-modes { display: flex; flex-direction: column; gap: 10px; width: 100%; }
+.menu-subtitle .diamond { color: var(--line); }
+.menu-modes { display: flex; gap: 6px; margin-bottom: 12px; }
 .btn-mode {
-    padding: 12px 14px;
-    position: relative;
-    border: 1px solid var(--line-dim);
+    flex: 1; padding: 12px 8px;
     background: var(--bg-1);
-    color: var(--text);
-    cursor: pointer;
-    text-align: left;
-    display: flex; align-items: center; gap: 12px;
-    transition: background 0.15s, border-color 0.15s;
-    clip-path: polygon(
-        0 0, calc(100% - 6px) 0, 100% 6px,
-        100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%,
-        0 calc(100% - 6px), 0 6px
-    );
-}
-.btn-mode:hover, .btn-mode:focus { background: var(--bg-2); outline: none; }
-.btn-mode:active { transform: scale(0.99); }
-.btn-mode::before, .btn-mode::after {
-    content: ''; position: absolute; width: 6px; height: 6px;
-    border: 1px solid var(--text-dim);
-}
-.btn-mode::before { top: 2px; left: 2px; border-right: none; border-bottom: none; }
-.btn-mode::after  { bottom: 2px; right: 2px; border-left: none; border-top: none; }
-.btn-mode-num {
-    width: 44px; height: 44px; flex-shrink: 0;
-    display: flex; align-items: center; justify-content: center;
     border: 1px solid var(--line-dim);
-    font-family: var(--display); font-size: 20px; font-weight: 600;
-    letter-spacing: 0.04em;
+    color: var(--text-dim);
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em;
+    cursor: pointer;
     clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
 }
-.btn-mode-body { flex: 1; min-width: 0; }
-.btn-mode-title {
-    font-family: var(--display); font-size: 13px;
-    color: var(--text); letter-spacing: 0.12em;
+.btn-mode:hover, .btn-mode:focus { outline: none; background: var(--bg-2); }
+.btn-mode.active {
+    background: var(--bg-3);
+    border-color: var(--accent);
+    color: var(--accent);
 }
-.btn-mode-desc {
-    font-family: var(--mono); font-size: 9px;
-    color: var(--text-dim); letter-spacing: 0.1em;
-    margin-top: 3px; text-transform: uppercase;
+.btn-mode-chips { display: flex; gap: 3px; }
+.menu-chip {
+    width: 14px; height: 14px;
+    display: flex; align-items: center; justify-content: center;
 }
-.btn-mode-arrow {
-    width: 0; height: 0; flex-shrink: 0;
-    border-style: solid;
-    border-width: 6px 0 6px 8px;
-    border-color: transparent transparent transparent var(--line-dim);
+.menu-chip::before {
+    content: '';
+    width: calc(14px * 0.38 / 0.72); height: calc(14px * 0.38 / 0.72);
+    max-width: 14px; max-height: 14px;
+    clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
 }
-.btn-mode-2p { border-color: var(--accent); }
-.btn-mode-2p .btn-mode-num { border-color: var(--accent); color: var(--accent); }
-.btn-mode-2p .btn-mode-arrow { border-left-color: var(--accent); }
-.btn-mode-2p::before, .btn-mode-2p::after { border-color: var(--accent); }
-.btn-mode-2p:hover, .btn-mode-2p:focus { background: rgba(255,106,43,0.06); }
-
-.btn-mode-3p .btn-mode-num { border-color: var(--line); color: var(--line); }
-.btn-mode-3p .btn-mode-arrow { border-left-color: var(--line); }
-.btn-mode-3p:hover, .btn-mode-3p:focus { border-color: var(--line); background: rgba(63,208,230,0.05); }
-
-.btn-mode-online { border-color: var(--accent-dim, rgba(255,106,43,0.4)); }
-.btn-mode-online .btn-mode-num { border-color: var(--accent-dim, rgba(255,106,43,0.4)); color: var(--accent); }
-.btn-mode-online .btn-mode-arrow { border-left-color: var(--accent); }
-.btn-mode-online:hover, .btn-mode-online:focus { border-color: var(--accent); background: rgba(255,106,43,0.04); }
+.menu-chip.p1::before { background: #ff6a2b; box-shadow: 0 0 5px #ff6a2b; }
+.menu-chip.p2::before { background: #3fd0e6; box-shadow: 0 0 5px #3fd0e6; }
+.menu-chip.p3::before { background: #c77dff; box-shadow: 0 0 5px #c77dff; }
+.btn-initiate {
+    width: 100%;
+    padding: 14px 16px;
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    color: var(--bg-0);
+    font-family: var(--mono); font-size: 14px; font-weight: 700;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+    box-shadow: 0 0 24px rgba(255,106,43,0.35);
+    transition: transform 0.12s, box-shadow 0.12s;
+}
+.btn-initiate:hover, .btn-initiate:focus { outline: none; box-shadow: 0 0 32px rgba(255,106,43,0.55); }
+.btn-initiate:active { transform: scale(0.99); }
+.menu-foot {
+    display: flex; justify-content: space-between;
+    margin-top: 10px;
+}
+.btn-ghost-sm {
+    background: transparent;
+    border: 1px solid var(--line-dim);
+    color: var(--text-dim);
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em;
+    padding: 7px 12px;
+    cursor: pointer;
+    clip-path: polygon(0 0, calc(100% - 4px) 0, 100% 4px, 100% 100%, 4px 100%, 0 calc(100% - 4px));
+    transition: color 0.15s, border-color 0.15s;
+}
+.btn-ghost-sm:hover, .btn-ghost-sm:focus { outline: none; color: var(--text); border-color: var(--accent); }
+.btn-online-link {
+    margin-top: 8px; width: 100%;
+    background: transparent;
+    border: 1px dashed var(--line-dim);
+    color: var(--text-dim);
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em;
+    padding: 9px 12px;
+    cursor: pointer;
+    transition: color 0.15s, border-color 0.15s;
+}
+.btn-online-link:hover, .btn-online-link:focus { outline: none; color: var(--accent); border-color: var(--accent); }
 
 /* ── Online screens ──────────────────────────────────────── */
 #online-screen, #online-host-screen, #online-join-screen, #online-wait-screen {
@@ -1803,51 +1809,52 @@ html, body {
 
 <!-- Menu screen -->
 <div class="overlay" id="menu-screen">
-    <div class="menu-signal">█ SIGNAL · 98%</div>
-    <div class="menu-sys-tag">&gt; SYS.v1.2</div>
-    <div class="menu-title">КИБЕР</div>
-    <div class="menu-subtitle">DIGITAL · CARD · GAME</div>
-    <div class="menu-segbar">
-        <div class="menu-segbar-cell on"></div><div class="menu-segbar-cell on"></div>
-        <div class="menu-segbar-cell on"></div><div class="menu-segbar-cell on"></div>
-        <div class="menu-segbar-cell on"></div><div class="menu-segbar-cell on"></div>
-        <div class="menu-segbar-cell on"></div>
-        <div class="menu-segbar-cell"></div><div class="menu-segbar-cell"></div>
-        <div class="menu-segbar-cell"></div><div class="menu-segbar-cell"></div>
-        <div class="menu-segbar-cell"></div><div class="menu-segbar-cell"></div>
-        <div class="menu-segbar-cell"></div><div class="menu-segbar-cell"></div>
-        <div class="menu-segbar-cell"></div><div class="menu-segbar-cell"></div>
-        <div class="menu-segbar-cell"></div>
+    <div class="menu-head">
+        <span>SECT 001</span>
+        <span>◆ ◆ ◆</span>
+        <span>MEM 72%</span>
     </div>
-    <div class="menu-select-tag">&gt; SELECT.PROTOCOL</div>
+    <div class="menu-center">
+        <svg class="menu-radar" viewBox="0 0 280 280" id="menu-radar-svg">
+            <circle cx="140" cy="140" r="130" fill="none" stroke="var(--line-dim)" stroke-width="0.5"/>
+            <circle cx="140" cy="140" r="100" fill="none" stroke="var(--line-dim)" stroke-dasharray="2 4" stroke-width="0.5"/>
+            <circle cx="140" cy="140" r="70"  fill="none" stroke="var(--line)" stroke-width="0.5"/>
+        </svg>
+        <div class="menu-hero">
+            <div class="menu-boot">◦ BOOT.COMPLETE ◦</div>
+            <div class="menu-title">КИБЕР</div>
+            <div class="menu-subtitle">
+                <span>DIGITAL</span>
+                <span class="diamond">◆</span>
+                <span>CARD</span>
+                <span class="diamond">◆</span>
+                <span>GAME</span>
+            </div>
+        </div>
+    </div>
     <div class="menu-modes">
-        <button class="btn-mode btn-mode-2p" id="btn-mode-2p">
-            <div class="btn-mode-num">2</div>
-            <div class="btn-mode-body">
-                <div class="btn-mode-title">ДУЭЛЬ</div>
-                <div class="btn-mode-desc">GRID 4×4 · DECK 54 · 15 PTS</div>
+        <button class="btn-mode active" id="btn-mode-2p" data-mode="2">
+            <div class="btn-mode-chips">
+                <span class="menu-chip p1"></span>
+                <span class="menu-chip p2"></span>
             </div>
-            <div class="btn-mode-arrow"></div>
+            <span>2 ИГРОКА · 4×4</span>
         </button>
-        <button class="btn-mode btn-mode-3p" id="btn-mode-3p">
-            <div class="btn-mode-num">3</div>
-            <div class="btn-mode-body">
-                <div class="btn-mode-title">ТРИАДА</div>
-                <div class="btn-mode-desc">GRID 5×5 · DECK 54 · 20 PTS</div>
+        <button class="btn-mode" id="btn-mode-3p" data-mode="3">
+            <div class="btn-mode-chips">
+                <span class="menu-chip p1"></span>
+                <span class="menu-chip p2"></span>
+                <span class="menu-chip p3"></span>
             </div>
-            <div class="btn-mode-arrow"></div>
-        </button>
-        <button class="btn-mode btn-mode-online" id="btn-mode-online">
-            <div class="btn-mode-num">◉</div>
-            <div class="btn-mode-body">
-                <div class="btn-mode-title">ОНЛАЙН · ДУЭЛЬ</div>
-                <div class="btn-mode-desc">P2P · 2 УСТРОЙСТВА · ПО КОДУ</div>
-            </div>
-            <div class="btn-mode-arrow"></div>
+            <span>3 ИГРОКА · 5×5</span>
         </button>
     </div>
-    <div style="flex:1"></div>
-    <button class="btn-rules-link" id="btn-show-rules">▤ ПРАВИЛА ИГРЫ</button>
+    <button class="btn-initiate" id="btn-initiate">▶ INITIATE</button>
+    <button class="btn-online-link" id="btn-mode-online">◉ ОНЛАЙН · ДУЭЛЬ · P2P</button>
+    <div class="menu-foot">
+        <button class="btn-ghost-sm" id="btn-show-rules">▤ RULES</button>
+        <button class="btn-ghost-sm" id="btn-show-cfg">⚙ CFG</button>
+    </div>
 </div>
 
 <!-- Online — выбор host/join -->

@@ -114,9 +114,39 @@ class GameUI {
 
         // Menu screen
         this.menuScreen = document.getElementById('menu-screen');
-        document.getElementById('btn-mode-2p').onclick = () => this._startGame(2);
-        document.getElementById('btn-mode-3p').onclick = () => this._startGame(3);
+        this._menuMode = 2;
+        const btn2p = document.getElementById('btn-mode-2p');
+        const btn3p = document.getElementById('btn-mode-3p');
+        const setMenuMode = (n) => {
+            this._menuMode = n;
+            btn2p.classList.toggle('active', n === 2);
+            btn3p.classList.toggle('active', n === 3);
+        };
+        btn2p.onclick = () => setMenuMode(2);
+        btn3p.onclick = () => setMenuMode(3);
+        document.getElementById('btn-initiate').onclick = () => this._startGame(this._menuMode);
         document.getElementById('btn-mode-online').onclick = () => this._showOnlineMenu();
+        const cfgBtn = document.getElementById('btn-show-cfg');
+        if (cfgBtn) cfgBtn.onclick = () => {};
+
+        // Generate radar tick marks (24 marks, every 6th bolder)
+        const radarSvg = document.getElementById('menu-radar-svg');
+        if (radarSvg) {
+            const svgNS = 'http://www.w3.org/2000/svg';
+            for (let i = 0; i < 24; i++) {
+                const a = (i / 24) * Math.PI * 2;
+                const x1 = 140 + Math.cos(a) * 126;
+                const y1 = 140 + Math.sin(a) * 126;
+                const x2 = 140 + Math.cos(a) * 134;
+                const y2 = 140 + Math.sin(a) * 134;
+                const line = document.createElementNS(svgNS, 'line');
+                line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+                line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+                line.setAttribute('stroke', 'var(--line-dim)');
+                line.setAttribute('stroke-width', i % 6 === 0 ? 1.5 : 0.5);
+                radarSvg.appendChild(line);
+            }
+        }
 
         // Online screens
         this.onlineScreen = document.getElementById('online-screen');

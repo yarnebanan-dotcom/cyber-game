@@ -6,20 +6,24 @@
 
 ---
 
-## 2026-04-18 — HUD Kit: меню в стиле MainMenuV1
+## 2026-04-18 — HUD Kit: меню пересобрано под канон MenuV2Hi
 
-- **`HEAD`** Feat: главное меню полностью переведено на HUD Kit (`screens-menu.jsx` V1)
-  - Убран эмодзи-стиль (⚔/⚡/📡) и круглый гламур
-  - `> SYS.v1.2` accent-tag в левом верхнем углу · `SIGNAL · 98%` метка справа
-  - Сегментированный прогресс-бар под заголовком (7/19 заполнено)
-  - `> SELECT.PROTOCOL` mono-заголовок над списком
-  - `.btn-mode` → HUD-рамка с угловыми бракетами (::before/::after)
-    - Квадрат номера 44×44 (Orbitron): `2`/`3`/`◉`
-    - Заголовок: ДУЭЛЬ / ТРИАДА / ОНЛАЙН · ДУЭЛЬ (Orbitron display)
-    - Описание: `GRID 4×4 · DECK 54 · 15 PTS` (mono dim uppercase)
-    - Play-стрелка справа в цвет кнопки
-  - Палитра: 2p → accent orange, 3p → cyan line, online → accent-dim outline
-  - Кнопка «ПРАВИЛА ИГРЫ» → `▤ ПРАВИЛА ИГРЫ` ghost mono uppercase
+- **`HEAD`** Fix: по `SOURCES.md` канон меню — `MenuV2Hi` из `screens-v2.jsx`. Предыдущая версия была скопирована из `MainMenuV1` (IGNORE-список). Переделано целиком:
+  - Header-strip: `SECT 001 / ◆ ◆ ◆ / MEM 72%` (mono 8px text-ghost, letter-spacing 0.2em)
+  - Радар SVG 280×280 (3 концентрических круга: r=130 solid, r=100 dashed, r=70 accent) + 24 tick-mark, каждый 6-й толстый
+  - Hero: `◦ BOOT.COMPLETE ◦` accent mono → `КИБЕР` 72px Orbitron (textShadow 30px cyan glow) → `DIGITAL ◆ CARD ◆ GAME` mono-dim с line-ромбиками
+  - Режимы — toggle 2×1 (`2 ИГРОКА · 4×4` / `3 ИГРОКА · 5×5`), активный: `bg-3` + accent border + accent text, с настоящими chip-ромбиками (p1 orange, p2 cyan, p3 purple)
+  - Большая кнопка `▶ INITIATE` (hot full, accent background, cyan glow 24px)
+  - Онлайн → небольшая ghost-ссылка `◉ ОНЛАЙН · ДУЭЛЬ · P2P` (dashed border, не ломает иерархию канона)
+  - Footer: `▤ RULES` / `⚙ CFG` (ghost sm, space-between)
+  - Удалены `.menu-signal`, `.menu-sys-tag`, `.menu-segbar`, `.menu-select-tag` и стили карточных `.btn-mode-2p/3p/online` (не из канона)
+  - Новая логика: toggle только выбирает режим, старт игры → по кнопке INITIATE (был instant-start с `.btn-mode`)
+
+---
+
+## 2026-04-18 — HUD Kit: меню в стиле MainMenuV1 (удалено)
+
+- ~~Главное меню переведено на HUD Kit (`screens-menu.jsx` V1)~~ — **откачено**: `MainMenuV1` в IGNORE-списке по `SOURCES.md`, замещено каноном `MenuV2Hi`.
 
 ---
 
