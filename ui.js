@@ -760,7 +760,11 @@ class GameUI {
             this._haptic(14);
             this._playSound('chip');
             this._renderBoard();
-            if (this.state.phase === Phase.Action) this._highlightEmptyNodes();
+            if (this.state.phase === Phase.Action) {
+                // Подсветку пустых узлов оставляем только пока фишки ещё можно ставить
+                if (st.chipsPlaced < st.chipsAllowed) this._highlightEmptyNodes();
+                else this._clearHighlights();
+            }
             this._updatePhaseHint();
         }
     }
@@ -919,12 +923,38 @@ class GameUI {
         ['btn-prev', 'btn-next', 'placement-count', 'btn-confirm'].forEach(id => {
             document.getElementById(id).style.display = 'none';
         });
-        document.getElementById('btn-synth').style.display =
-            (!inSynthB && this.state.tasksThisTurn < 2) ? '' : 'none';
+        // Показываем Синтез только если возможна вторая карта-партнёр
+        const canSynth = !inSynthB
+            && this.state.tasksThisTurn < 2
+            && this.pendingCard
+            && this._hasSynthPartner(this.pendingCard);
+        document.getElementById('btn-synth').style.display = canSynth ? '' : 'none';
         const cancelBtn = document.getElementById('btn-synth-cancel');
-        cancelBtn.textContent = inSynthB ? '✕ Отмена синтеза' : '✕';
+        cancelBtn.textContent = inSynthB ? '✕ Отмена синтеза' : '✕ Отменить выбор';
         cancelBtn.style.display = '';
         this.placementPanel.classList.remove('hidden');
+    }
+
+    // Есть ли среди других карт (рука + раскрытые) хотя бы одна, с которой возможен синтез
+    _hasSynthPartner(cardA) {
+        const matchesA = this.currentPlacements;
+        if (!matchesA || !matchesA.length) return false;
+        const cp = this.state.cp;
+        const candidates = [
+            ...cp.hand,
+            ...this.state.players.flatMap(p => p.revealed)
+        ].filter(c => c !== cardA);
+        for (const cardB of candidates) {
+            const allB = this.tm.getValidPlacements(cardB);
+            if (!allB.length) continue;
+            for (const mA of matchesA) {
+                const posA = new Set(mA.chipPositions.map(([r, c]) => `${r},${c}`));
+                if (allB.some(p => p.chipPositions.some(([r, c]) => posA.has(`${r},${c}`)))) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     // Тап на узел в Task фазе — накапливаем выбранные фишки паттерна
