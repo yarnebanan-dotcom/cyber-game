@@ -183,7 +183,7 @@ html, body {
     height: 100dvh;
     max-width: 480px;
     margin: 0 auto;
-    padding: 0 6px;
+    padding: 0 6px env(safe-area-inset-bottom, 0px);
     gap: 5px;
     overflow: hidden;
 }
@@ -704,8 +704,10 @@ html, body {
 .synth-order-arrow { color: var(--accent); font-family: var(--mono); }
 
 /* ── Hand ────────────────────────────────────────────────── */
+/* FIX-03: flex-shrink без max-height чтобы карты не перекрывали action-bar */
 #hand-wrap {
-    flex-shrink: 0; max-height: 120px; overflow: visible;
+    flex: 0 0 auto;
+    overflow: visible;
     border-top: 1px solid rgba(80,110,180,0.15);
     padding-top: 3px;
     margin-top: 2px;
