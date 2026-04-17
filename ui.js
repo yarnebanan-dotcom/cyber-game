@@ -1232,8 +1232,11 @@ class GameUI {
         else if (this.pendingCard)              patternLen = this.pendingCard.pattern.length;
         if (!patternLen) return;
 
-        // Пропускаем пустые узлы — паттерн состоит только из фишек
-        if (this.state.board.nodes[r][c] === Occ.Empty) return;
+        // FIX-07: тап по пустому узлу в режиме паттерна — невалидно, явная обратная связь
+        if (this.state.board.nodes[r][c] === Occ.Empty) {
+            this._feedbackInvalidTap(r, c, 'Тапни фишку из паттерна');
+            return;
+        }
 
         // Тогл: убрать если уже выбран, добавить если нет
         const idx = this.pendingNodes.findIndex(([nr, nc]) => nr === r && nc === c);
@@ -1258,11 +1261,19 @@ class GameUI {
         });
 
         const reset = () => { this.pendingNodes = []; this._clearHighlights(); };
+        // FIX-07: вместо тихого сброса — откат последнего тапа + shake + toast
+        const rollbackLast = () => {
+            const last = this.pendingNodes.pop();
+            this._clearHighlights();
+            if (this.pendingNodes.length) this._highlightNodes(this.pendingNodes);
+            if (last) this._feedbackInvalidTap(last[0], last[1], 'Паттерн не совпадает');
+            else { this._shakeBoard(); this._showMessage('Паттерн не совпадает', { error: true }); }
+        };
 
         // Синтез: позиция первой карты
         if (this.synth?.step === 'placeA') {
             const match = matchPos(this.synth.placementsA);
-            if (!match) { this._showMessage('Паттерн не совпадает'); reset(); return; }
+            if (!match) { rollbackLast(); return; }
             this.synth.matchA = match;
             this.synth.step = 'selectB';
             reset();
@@ -1274,7 +1285,7 @@ class GameUI {
         // Синтез: позиция второй карты
         if (this.synth?.step === 'placeB') {
             const match = matchPos(this.currentPlacements);
-            if (!match) { this._showMessage('Паттерн не совпадает'); reset(); return; }
+            if (!match) { rollbackLast(); return; }
             this.synth.matchB = match;
             this.synth.step = 'chooseOrder';
             reset();
@@ -1285,7 +1296,7 @@ class GameUI {
 
         // Обычный розыгрыш
         const match = matchPos(this.currentPlacements);
-        if (!match) { this._showMessage('Паттерн не совпадает'); reset(); return; }
+        if (!match) { rollbackLast(); return; }
         reset();
         this.placementPanel.classList.add('hidden');
         const card = this.pendingCard;
@@ -1687,12 +1698,40 @@ class GameUI {
 
     // ── Utils ──────────────────────────────────────────────────
 
-    _showMessage(text) {
+    _showMessage(text, opts = {}) {
         const el = document.getElementById('toast');
         el.textContent = text;
         el.classList.remove('hidden');
+        el.classList.toggle('toast-error', opts.error === true);
         clearTimeout(this._toastTimer);
-        this._toastTimer = setTimeout(() => el.classList.add('hidden'), 2000);
+        this._toastTimer = setTimeout(() => {
+            el.classList.add('hidden');
+            el.classList.remove('toast-error');
+        }, opts.error ? 2400 : 2000);
+    }
+
+    // FIX-07: невалидный тап — красная вспышка на узле + shake доски + toast
+    _feedbackInvalidTap(r, c, message) {
+        const cell = this.boardEl?.querySelector?.(`.node[data-r="${r}"][data-c="${c}"]`);
+        if (cell) {
+            cell.classList.remove('invalid-tap');
+            // reflow to restart animation
+            void cell.offsetWidth;
+            cell.classList.add('invalid-tap');
+            setTimeout(() => cell.classList.remove('invalid-tap'), 500);
+        }
+        this._shakeBoard();
+        this._haptic(32);
+        if (message) this._showMessage(message, { error: true });
+    }
+
+    _shakeBoard() {
+        const board = this.boardEl || document.getElementById('board');
+        if (!board) return;
+        board.classList.remove('shake');
+        void board.offsetWidth;
+        board.classList.add('shake');
+        setTimeout(() => board.classList.remove('shake'), 360);
     }
 
     // ═══════════════════════════════════════════════════════════

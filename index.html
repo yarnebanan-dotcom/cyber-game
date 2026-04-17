@@ -558,6 +558,30 @@ html, body {
 .node.selected-node { opacity: 0.45; }
 .node:active { transform: scale(0.88); }
 
+/* FIX-07: невалидный тап — красная вспышка на узле + shake поля */
+.node.invalid-tap {
+    animation: node-invalid-flash 0.45s ease-out;
+}
+@keyframes node-invalid-flash {
+    0%   { background: rgba(255,51,85,0.55); outline: 2px solid var(--danger); outline-offset: -2px; }
+    60%  { background: rgba(255,51,85,0.25); outline: 2px solid rgba(255,51,85,0.6); }
+    100% { background: transparent; outline: none; }
+}
+#board.shake {
+    animation: board-shake 0.32s cubic-bezier(.36,.07,.19,.97);
+}
+@keyframes board-shake {
+    10%, 90% { transform: translateX(-2px); }
+    20%, 80% { transform: translateX(3px); }
+    30%, 50%, 70% { transform: translateX(-5px); }
+    40%, 60% { transform: translateX(5px); }
+}
+#toast.toast-error {
+    color: var(--danger);
+    border-color: var(--danger);
+    background: rgba(255,51,85,0.12);
+}
+
 /* ── Action Buttons (KIT Phase 1) ──────────────────────────── */
 #action-bar { display: flex; gap: 6px; flex-shrink: 0; }
 .btn {
