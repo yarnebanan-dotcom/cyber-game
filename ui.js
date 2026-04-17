@@ -1037,6 +1037,13 @@ class GameUI {
                 this.currentPlacements = placements;
                 this.placementIndex = 0;
                 this._showCardSelectedPanel();
+                // FIX-06: подсветить все валидные фишки — объединение chipPositions
+                const allChips = new Set();
+                for (const p of placements) {
+                    for (const [r, c] of p.chipPositions) allChips.add(`${r},${c}`);
+                }
+                const positions = [...allChips].map(s => s.split(',').map(Number));
+                this._highlightNodes(positions);
             }
         }
     }
