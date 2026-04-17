@@ -912,6 +912,11 @@ html, body {
 .card[data-player="p1"] .card-pattern-cell.w { background: var(--p1); }
 .card[data-player="p2"] .card-pattern-cell.w { background: var(--p2); }
 .card[data-player="p3"] .card-pattern-cell.w { background: var(--p3); }
+
+/* FIX-09: унифицированная раскраска заголовков игрока через data-player */
+[data-player="p1"] .player-title, [data-player="p1"] .hl-player { color: var(--p1); }
+[data-player="p2"] .player-title, [data-player="p2"] .hl-player { color: var(--p2); }
+[data-player="p3"] .player-title, [data-player="p3"] .hl-player { color: var(--p3); }
 .card-pattern-cell.empty {
     background: transparent;
     border-color: var(--line-ghost);

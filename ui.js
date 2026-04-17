@@ -1382,15 +1382,16 @@ class GameUI {
         if (this.netMode) return;  // онлайн — handoff не нужен
         const s = this._lastTurnSummary;
         const nextPI = this.state.currentPI;  // already advanced by _endTurn
-        const playerColor = this._playerColor(s.playerIdx);
-        const nextColor = this._playerColor(nextPI);
 
         const prev = s.prevScore ?? s.score;
         const gain = Math.max(0, s.score - prev);
 
+        // FIX-09: data-player на корне — раскрашивает .hl-player
+        this.handoffScreen.dataset.player = `p${s.playerIdx + 1}`;
+
         // Top label: "ИГРОК N · ХОД ЗАВЕРШЁН"
         document.getElementById('handoff-player').innerHTML =
-            `<span class="hl-player" style="color:${playerColor}">ИГРОК ${s.playerIdx + 1}</span> · ХОД ЗАВЕРШЁН`;
+            `<span class="hl-player">ИГРОК ${s.playerIdx + 1}</span> · ХОД ЗАВЕРШЁН`;
 
         // END panel: +gain + {prev}→{score}/win
         const gainEl = document.getElementById('handoff-gain');
@@ -1407,10 +1408,12 @@ class GameUI {
         utilsRow.querySelector('.hsr-val').textContent = s.utilizes || 0;
         utilsRow.classList.toggle('zero', !s.utilizes);
 
-        // Next player prompt
-        document.getElementById('handoff-next').innerHTML =
+        // Next player prompt (свой data-player — следующий игрок)
+        const nextEl0 = document.getElementById('handoff-next');
+        nextEl0.dataset.player = `p${nextPI + 1}`;
+        nextEl0.innerHTML =
             `<span class="hn-prompt">&gt; Передать устройство</span>` +
-            `<span class="hn-player" style="color:${nextColor}">Игрок ${nextPI + 1}</span>`;
+            `<span class="hn-player player-title">Игрок ${nextPI + 1}</span>`;
 
         this.handoffScreen.classList.remove('hidden');
 
@@ -1483,28 +1486,36 @@ class GameUI {
 
     // Показать экран передачи устройства игроку pi, затем вызвать callback
     _showHandoffForChoice(pi, callback, ctx) {
-        const color = this._playerColor(pi);
-        const actorColor = ctx ? this._playerColor(ctx.actorPI) : '#aaccff';
+        // FIX-09: data-player на корне — по целевому игроку
+        this.handoffScreen.dataset.player = `p${pi + 1}`;
 
+        const playerEl = document.getElementById('handoff-player');
         if (ctx?.backToActor) {
             // Возврат устройства активному игроку после выбора противника
-            document.getElementById('handoff-player').innerHTML = 'Выбор сделан';
+            playerEl.innerHTML = 'Выбор сделан';
+            playerEl.dataset.player = `p${ctx.actorPI + 1}`;
             document.getElementById('handoff-summary').innerHTML =
                 `<span style="opacity:0.85">Передайте устройство обратно</span>`;
         } else if (ctx) {
             // Передача противнику для выбора
-            document.getElementById('handoff-player').innerHTML =
-                `<span style="color:${actorColor}">Игрок ${ctx.actorPI + 1}</span> ${ctx.modeLabel}` +
+            playerEl.dataset.player = `p${ctx.actorPI + 1}`;
+            playerEl.innerHTML =
+                `<span class="player-title">Игрок ${ctx.actorPI + 1}</span> ${ctx.modeLabel}` +
                 (ctx.cardName ? ` <span style="color:#c8dcff">«${ctx.cardName}»</span>` : '');
-            document.getElementById('handoff-summary').innerHTML =
-                `<span style="color:${color}">Игроку ${pi + 1}</span> нужно <b>${ctx.actionLabel}</b>`;
+            const summaryEl = document.getElementById('handoff-summary');
+            summaryEl.dataset.player = `p${pi + 1}`;
+            summaryEl.innerHTML =
+                `<span class="player-title">Игроку ${pi + 1}</span> нужно <b>${ctx.actionLabel}</b>`;
         } else {
-            document.getElementById('handoff-player').innerHTML = 'Передайте устройство';
+            playerEl.innerHTML = 'Передайте устройство';
+            playerEl.removeAttribute('data-player');
             document.getElementById('handoff-summary').innerHTML = '&nbsp;';
         }
 
-        document.getElementById('handoff-next').innerHTML =
-            `Передайте устройство<br><span style="color:${color}">Игроку ${pi + 1}</span>`;
+        const nextEl2 = document.getElementById('handoff-next');
+        nextEl2.dataset.player = `p${pi + 1}`;
+        nextEl2.innerHTML =
+            `Передайте устройство<br><span class="player-title">Игроку ${pi + 1}</span>`;
         this._handoffCallback = callback;
         this.handoffScreen.classList.remove('hidden');
 
@@ -1518,18 +1529,21 @@ class GameUI {
 
     _onGameOver(winner) {
         const st = this.state;
-        const winColor = this._playerColor(winner);
         const winScore = st.winScore;
         const winnerScore = st.players[winner].score;
 
-        // Title "ПОБЕДА"
+        // FIX-09: data-player на корне — цвет через CSS-переменные
+        this.gameOverScreen.dataset.player = `p${winner + 1}`;
+
+        // Title "ПОБЕДА" — цвет наследуется через .player-title внутри
         this.gameOverText.textContent = 'ПОБЕДА';
-        this.gameOverText.style.color = winColor;
-        this.gameOverText.style.textShadow = `0 0 30px ${winColor}99`;
+        this.gameOverText.classList.add('player-title');
+        this.gameOverText.style.color = '';
+        this.gameOverText.style.textShadow = '';
 
         // Sub: "P-0N · score/win PTS"
         document.getElementById('gameover-sub').innerHTML =
-            `<span style="color:${winColor}">P-${String(winner+1).padStart(2,'0')}</span> · ${winnerScore}/${winScore} PTS`;
+            `<span class="player-title">P-${String(winner+1).padStart(2,'0')}</span> · ${winnerScore}/${winScore} PTS`;
 
         // Ring ticks (36 ticks, every 9th bolder)
         const ticks = document.getElementById('gameover-ticks');
@@ -1579,22 +1593,24 @@ class GameUI {
 
         // Заголовок: контекст источника + конкретная инструкция + последствие
         if (ctx) {
-            const targetColor = this._playerColor(pi);
-            const actorColor = this._playerColor(ctx.actorPI);
+            // FIX-09: data-player на модалке = цвет целевого игрока (.player-title)
+            this.cardPickModal.dataset.player = `p${pi + 1}`;
             const sourceLine = ctx.cardName
-                ? `<span style="color:${actorColor}">ИГРОК ${ctx.actorPI + 1}</span> <span style="color:var(--text-dim)">${ctx.modeLabel}</span> <span style="color:var(--text);font-family:var(--display);letter-spacing:0.1em">«${ctx.cardName}»</span>`
-                : `<span style="color:${actorColor}">ИГРОК ${ctx.actorPI + 1}</span>`;
+                ? `<span data-player="p${ctx.actorPI + 1}" class="player-title" style="display:inline">ИГРОК ${ctx.actorPI + 1}</span> <span style="color:var(--text-dim)">${ctx.modeLabel}</span> <span style="color:var(--text);font-family:var(--display);letter-spacing:0.1em">«${ctx.cardName}»</span>`
+                : `<span data-player="p${ctx.actorPI + 1}" class="player-title" style="display:inline">ИГРОК ${ctx.actorPI + 1}</span>`;
             const consequenceLine = ctx.consequence
                 ? `<div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:0.15em;margin-top:6px;line-height:1.5;text-transform:uppercase">${ctx.consequence}</div>`
                 : '';
             this.cardPickTitle.innerHTML =
                 `<div style="font-family:var(--mono);font-size:9px;letter-spacing:0.2em;margin-bottom:6px;text-transform:uppercase">${sourceLine}</div>` +
-                `<div style="font-family:var(--display);font-size:15px;color:${targetColor};font-weight:600;letter-spacing:0.1em">${ctx.instruction}</div>` +
+                `<div class="player-title" style="font-family:var(--display);font-size:15px;font-weight:600;letter-spacing:0.1em">${ctx.instruction}</div>` +
                 consequenceLine;
         } else {
+            // FIX-09: data-player по целевому игроку
+            this.cardPickModal.dataset.player = `p${pi + 1}`;
             this.cardPickTitle.innerHTML =
                 `<div style="font-family:var(--mono);font-size:9px;color:var(--accent);letter-spacing:0.2em;margin-bottom:4px">&gt; ВЫБОР КАРТ</div>` +
-                `<div style="font-family:var(--display);font-size:15px;color:var(--text);letter-spacing:0.1em">ИГРОК ${pi + 1} · ВЫБЕРИ ${count}</div>`;
+                `<div style="font-family:var(--display);font-size:15px;letter-spacing:0.1em"><span class="player-title">ИГРОК ${pi + 1}</span> · ВЫБЕРИ ${count}</div>`;
         }
         this.cardPickList.innerHTML = '';
 
@@ -1672,6 +1688,10 @@ class GameUI {
         // Update turn tag
         const turnEl = document.getElementById('pause-turn-tag');
         if (turnEl) turnEl.textContent = 'T' + String(this._turnNumber || 1).padStart(2, '0');
+
+        // FIX-09: data-player на корне паузы — для .player-title внутри
+        const ingameEl = document.getElementById('ingame-menu');
+        if (ingameEl && this.state) ingameEl.dataset.player = `p${this.state.currentPI + 1}`;
 
         // Render HudRings for each player
         const ringsEl = document.getElementById('pause-rings');
