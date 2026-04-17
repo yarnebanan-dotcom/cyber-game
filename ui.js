@@ -585,7 +585,8 @@ class GameUI {
 
     _renderHand() {
         const st = this.state;
-        const pl = st.players[this._viewPI()];
+        const vpi = this._viewPI();
+        const pl = st.players[vpi];
 
         // Compute playable cards (own hand + all revealed)
         const playable = new Set();
@@ -597,7 +598,7 @@ class GameUI {
             });
         }
 
-        this._renderCardRow(this.handEl, pl.hand, playable, true);
+        this._renderCardRow(this.handEl, pl.hand, playable, true, vpi);
     }
 
     _renderRevealed() {
@@ -612,28 +613,35 @@ class GameUI {
                 if (this.tm.getValidPlacements(c).length > 0) playable.add(c);
             });
         }
-        this._renderCardRow(this.ownRevealedEl, vp.revealed, playable, true);
+        // Own revealed: owner = view player
+        this._renderCardRow(this.ownRevealedEl, vp.revealed, playable, true, vpi);
 
-        // Opponent(s) revealed: all opponents combined
-        const oppRevealed = st.players.filter((_, i) => i !== vpi).flatMap(p => p.revealed);
-        this._renderCardRow(this.oppRevealedEl, oppRevealed, playable, false);
+        // Opponent(s) revealed: render each card with its actual owner PI
+        const oppPairs = [];
+        st.players.forEach((p, i) => { if (i !== vpi) p.revealed.forEach(c => oppPairs.push({ card: c, pi: i })); });
+        this.oppRevealedEl.innerHTML = '';
+        oppPairs.forEach(({ card, pi }) => {
+            const el = this._makeCardEl(card, playable.has(card), false, pi);
+            this.oppRevealedEl.appendChild(el);
+        });
 
         // Collapse empty revealed zones
         this.ownRevealedWrap.classList.toggle('collapsed', vp.revealed.length === 0);
-        this.oppRevealedWrap.classList.toggle('collapsed', oppRevealed.length === 0);
+        this.oppRevealedWrap.classList.toggle('collapsed', oppPairs.length === 0);
     }
 
-    _renderCardRow(container, cards, playable, interactive) {
+    _renderCardRow(container, cards, playable, interactive, ownerPI) {
         container.innerHTML = '';
         cards.forEach(card => {
-            const el = this._makeCardEl(card, playable.has(card), interactive);
+            const el = this._makeCardEl(card, playable.has(card), interactive, ownerPI);
             container.appendChild(el);
         });
     }
 
-    _makeCardEl(card, isPlayable, interactive) {
+    _makeCardEl(card, isPlayable, interactive, ownerPI) {
         const el = document.createElement('div');
         el.className = 'card' + (isPlayable ? ' playable' : ' unplayable');
+        if (typeof ownerPI === 'number') el.dataset.player = `p${ownerPI + 1}`;
         if (card === this.pendingCard) el.classList.add('selected');
 
         const storedRot = this._cardRotations.get(card.id) || 0;
@@ -716,6 +724,9 @@ class GameUI {
     }
 
     _showCardPopup(card, anchorEl) {
+        // FIX-02: ownerPI берём с data-player атрибута карты-источника
+        const dp = anchorEl?.dataset?.player;  // "p1" | "p2" | "p3"
+        const ownerPI = dp ? (parseInt(dp.slice(1), 10) - 1) : undefined;
         // Remove existing popup
         document.getElementById('card-popup')?.remove();
 
@@ -724,7 +735,7 @@ class GameUI {
         popup.innerHTML = `
             <div class="card-cost">${card.cost}</div>
             <div class="card-popup-name">${card.name}</div>
-            <div class="card-pattern" style="display:flex;justify-content:center;margin:4px 0">${this._patternSVG(card.pattern, 56)}</div>
+            <div class="card-pattern" style="display:flex;justify-content:center;margin:4px 0">${this._patternSVG(card.pattern, 56, ownerPI)}</div>
             <div class="card-fx" style="display:block">${this._describeEffects(card)}</div>
         `;
         document.body.appendChild(popup);
@@ -763,21 +774,19 @@ class GameUI {
         return html;
     }
 
-    _patternSVG(pattern, size = 48) {
+    _patternSVG(pattern, size = 48, ownerPI) {
         const cell = Math.floor((size - 8) / 3 - 2), gap = 2;
+        // FIX-02: W = цвет владельца, G = нейтральный серый
+        const ownerColor = (typeof ownerPI === 'number') ? this._playerColor(ownerPI) : '#ff6a2b';
+        const enemyColor = '#4a5560'; // --enemy-neutral
         let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`;
         svg += `<rect width="${size}" height="${size}" fill="transparent"/>`;
         for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
             const x = 4 + c * (cell + gap), y = 4 + r * (cell + gap);
             const cell_data = pattern.find(p => p.row === r && p.col === c);
             if (cell_data) {
-                if (cell_data.type === CellType.W) {
-                    // W = своя фишка → accent orange
-                    svg += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="#ff6a2b"/>`;
-                } else {
-                    // G = фишка противника → cyan line
-                    svg += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="#3fd0e6"/>`;
-                }
+                const fill = cell_data.type === CellType.W ? ownerColor : enemyColor;
+                svg += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="${fill}"/>`;
             } else {
                 // empty → dashed ghost outline
                 svg += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="transparent" stroke="#0e3542" stroke-width="0.5" stroke-dasharray="1.5 1.5"/>`;
@@ -1567,7 +1576,7 @@ class GameUI {
             if (card.playEffect.hasEffects) fxLines.push(`▶ ${this._fxText(card.playEffect)}`);
             if (card.utilizeEffect.hasEffects) fxLines.push(`✕ ${this._fxText(card.utilizeEffect)}`);
             item.innerHTML =
-                `<div class="pick-item-pattern">${this._patternSVG(card.pattern)}</div>` +
+                `<div class="pick-item-pattern">${this._patternSVG(card.pattern, 48, pi)}</div>` +
                 `<div class="pick-item-info">` +
                   `<div class="pick-item-header"><strong>${card.name}</strong><span class="pick-cost">[${card.cost}]</span></div>` +
                   (fxLines.length ? `<div class="pick-item-fx">${fxLines.join('<br>')}</div>` : '') +
@@ -1607,11 +1616,11 @@ class GameUI {
         if (svg) svg.style.transform = `rotate(${this._detailRotation}deg)`;
     }
 
-    _showCardDetail(card) {
+    _showCardDetail(card, ownerPI) {
         this._detailRotation = 0;
         document.getElementById('detail-name').textContent = card.name;
         document.getElementById('detail-cost').textContent = `Стоимость: ${card.cost}`;
-        document.getElementById('detail-pattern').innerHTML = this._patternSVG(card.pattern);
+        document.getElementById('detail-pattern').innerHTML = this._patternSVG(card.pattern, 48, ownerPI);
         document.getElementById('detail-effects').innerHTML = [
             card.playEffect.hasEffects ? `<b>Розыгрыш:</b> ${this._fxText(card.playEffect)}` : '',
             card.utilizeEffect.hasEffects ? `<b>Утилизация:</b> ${this._fxText(card.utilizeEffect)}` : '',

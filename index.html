@@ -826,8 +826,12 @@ html, body {
     aspect-ratio: 1 / 1;
     border: 0.5px solid transparent;
 }
+/* FIX-02: W = цвет владельца карты, G = нейтральный серый */
 .card-pattern-cell.w { background: var(--accent); }
-.card-pattern-cell.g { background: var(--line); }
+.card-pattern-cell.g { background: var(--enemy-neutral); }
+.card[data-player="p1"] .card-pattern-cell.w { background: var(--p1); }
+.card[data-player="p2"] .card-pattern-cell.w { background: var(--p2); }
+.card[data-player="p3"] .card-pattern-cell.w { background: var(--p3); }
 .card-pattern-cell.empty {
     background: transparent;
     border-color: var(--line-ghost);
