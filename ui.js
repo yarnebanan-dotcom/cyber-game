@@ -198,17 +198,19 @@ class GameUI {
         this.input = {
             chooseCards(pi, cards, count, done) {
                 if (cards.length <= count) { done(cards); return; }
+                const ctx = self._buildChoiceContext(pi, count);
                 if (pi !== self.state.currentPI) {
                     // Противник выбирает карты — передать устройство ему, затем вернуть
+                    const actorPI = self.state.currentPI;
                     self._showHandoffForChoice(pi, () => {
                         self._showCardPick(pi, cards, count, chosen => {
-                            self._showHandoffForChoice(self.state.currentPI, () => {
+                            self._showHandoffForChoice(actorPI, () => {
                                 done(chosen);
-                            });
-                        });
-                    });
+                            }, { backToActor: true });
+                        }, ctx);
+                    }, ctx);
                 } else {
-                    self._showCardPick(pi, cards, count, done);
+                    self._showCardPick(pi, cards, count, done, ctx);
                 }
             },
             chooseNodes(pi, nodes, count, done) {
@@ -1140,15 +1142,81 @@ class GameUI {
         }
     }
 
+    // Контекст для модала/handoff: кто инициировал, какая карта, какой эффект
+    _buildChoiceContext(targetPI, count) {
+        const inp = this.input;
+        const actorPI = this.state.currentPI;
+        const card = inp.sourceCard;
+        const mode = inp.sourceMode;       // 'play' | 'utilize' | 'synth'
+        const kind = inp.actionKind;       // 'reveal' | 'discard' | 'dig'
+        const targetIsActor = targetPI === actorPI;
+
+        const modeLabel = mode === 'play' ? 'разыграл'
+                        : mode === 'utilize' ? 'утилизировал'
+                        : mode === 'synth' ? 'провёл синтез'
+                        : 'разыграл';
+
+        // Что должен сделать целевой игрок
+        const cnt = count;
+        const cardWord = cnt === 1 ? 'карту' : cnt < 5 ? 'карты' : 'карт';
+        let actionLabel, instruction;
+        if (kind === 'reveal') {
+            actionLabel = `раскрыть ${cnt} ${cardWord}`;
+            instruction = targetIsActor
+                ? `Выбери ${cnt} ${cardWord} из руки чтобы раскрыть`
+                : `Выбери ${cnt} ${cardWord} из своей руки чтобы раскрыть`;
+        } else if (kind === 'discard') {
+            actionLabel = `сбросить ${cnt} ${cardWord}`;
+            instruction = targetIsActor
+                ? `Выбери ${cnt} ${cardWord} чтобы сбросить`
+                : `Выбери ${cnt} ${cardWord} из своей руки чтобы сбросить`;
+        } else if (kind === 'dig') {
+            actionLabel = `выбрать ${cnt} из ${cnt + 2}`;
+            instruction = `Выбери ${cnt} ${cardWord} чтобы оставить себе · остальные уйдут в сброс`;
+        } else {
+            actionLabel = `выбрать ${cnt}`;
+            instruction = `Выбери ${cnt} ${cardWord}`;
+        }
+
+        return {
+            actorPI, targetPI, targetIsActor,
+            cardName: card?.name ?? '',
+            cardCost: card?.cost,
+            modeLabel, actionLabel, instruction, kind, count,
+        };
+    }
+
     // Показать экран передачи устройства игроку pi, затем вызвать callback
-    _showHandoffForChoice(pi, callback) {
+    _showHandoffForChoice(pi, callback, ctx) {
         const color = this._playerColor(pi);
-        document.getElementById('handoff-player').innerHTML = 'Передайте устройство';
-        document.getElementById('handoff-summary').innerHTML = '&nbsp;';
+        const actorColor = ctx ? this._playerColor(ctx.actorPI) : '#aaccff';
+
+        if (ctx?.backToActor) {
+            // Возврат устройства активному игроку после выбора противника
+            document.getElementById('handoff-player').innerHTML = 'Выбор сделан';
+            document.getElementById('handoff-summary').innerHTML =
+                `<span style="opacity:0.85">Передайте устройство обратно</span>`;
+        } else if (ctx) {
+            // Передача противнику для выбора
+            document.getElementById('handoff-player').innerHTML =
+                `<span style="color:${actorColor}">Игрок ${ctx.actorPI + 1}</span> ${ctx.modeLabel}` +
+                (ctx.cardName ? ` <span style="color:#c8dcff">«${ctx.cardName}»</span>` : '');
+            document.getElementById('handoff-summary').innerHTML =
+                `<span style="color:${color}">Игроку ${pi + 1}</span> нужно <b>${ctx.actionLabel}</b>`;
+        } else {
+            document.getElementById('handoff-player').innerHTML = 'Передайте устройство';
+            document.getElementById('handoff-summary').innerHTML = '&nbsp;';
+        }
+
         document.getElementById('handoff-next').innerHTML =
-            `<span style="color:${color}">Игроку ${pi + 1}</span>`;
+            `Передайте устройство<br><span style="color:${color}">Игроку ${pi + 1}</span>`;
         this._handoffCallback = callback;
         this.handoffScreen.classList.remove('hidden');
+
+        const nextEl = document.getElementById('handoff-next');
+        nextEl.classList.remove('glitch');
+        requestAnimationFrame(() => nextEl.classList.add('glitch'));
+        setTimeout(() => nextEl.classList.remove('glitch'), 750);
     }
 
     // ── Game over ──────────────────────────────────────────────
@@ -1167,12 +1235,24 @@ class GameUI {
 
     // ── Card pick modal ────────────────────────────────────────
 
-    _showCardPick(pi, cards, count, done) {
+    _showCardPick(pi, cards, count, done, ctx) {
         this._cardPickDone = done;
         this._cardPickRequired = count;
         this._cardPickSelected = [];
 
-        this.cardPickTitle.textContent = `Игрок ${pi + 1}: выберите ${count} карт${count === 1 ? 'у' : 'ы'}`;
+        // Заголовок: контекст источника + конкретная инструкция
+        if (ctx) {
+            const targetColor = this._playerColor(pi);
+            const actorColor = this._playerColor(ctx.actorPI);
+            const sourceLine = ctx.cardName
+                ? `<span style="color:${actorColor}">Игрок ${ctx.actorPI + 1}</span> ${ctx.modeLabel} <span style="color:#c8dcff">«${ctx.cardName}»</span>`
+                : `<span style="color:${actorColor}">Игрок ${ctx.actorPI + 1}</span>`;
+            this.cardPickTitle.innerHTML =
+                `<div style="font-size:11px;color:#7a8aaa;font-weight:600;margin-bottom:6px;letter-spacing:0.03em">${sourceLine}</div>` +
+                `<div style="font-size:15px;color:${targetColor};font-weight:700">${ctx.instruction}</div>`;
+        } else {
+            this.cardPickTitle.textContent = `Игрок ${pi + 1}: выберите ${count} карт${count === 1 ? 'у' : 'ы'}`;
+        }
         this.cardPickList.innerHTML = '';
 
         cards.forEach(card => {

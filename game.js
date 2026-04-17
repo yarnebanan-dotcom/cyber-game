@@ -114,6 +114,7 @@ class DigCardsEffect {
     execute(st, ap, inp, done) {
         const drawn = st.deck.draw(this.n + 2);
         if (drawn.length <= this.n) { st.players[ap].hand.push(...drawn); done?.(); return; }
+        inp.actionKind = 'dig'; inp.actionCount = this.n; inp.actionTargetSelf = true;
         inp.chooseCards(ap, drawn, this.n, chosen => {
             st.players[ap].hand.push(...chosen);
             drawn.filter(c => !chosen.includes(c)).forEach(c => st.discard.push(c));
@@ -146,6 +147,7 @@ class RevealCardsEffect {
         const tp = st.players[ti];
         const toReveal = this.n === Infinity ? tp.hand.length : Math.min(this.n, tp.hand.length);
         if (toReveal <= 0) { done?.(); return; }
+        inp.actionKind = 'reveal'; inp.actionCount = this.n; inp.actionTargetSelf = (this.target === Target.Self);
         inp.chooseCards(ti, [...tp.hand], toReveal, chosen => {
             chosen.forEach(c => {
                 const i = tp.hand.indexOf(c);
@@ -165,6 +167,7 @@ class DiscardCardsEffect {
         const all = [...tp.hand, ...tp.revealed];
         const toDiscard = this.n === Infinity ? all.length : Math.min(this.n, all.length);
         if (toDiscard <= 0) { done?.(); return; }
+        inp.actionKind = 'discard'; inp.actionCount = this.n; inp.actionTargetSelf = (this.target === Target.Self);
         inp.chooseCards(ti, all, toDiscard, chosen => {
             chosen.forEach(c => {
                 let i = tp.hand.indexOf(c);
@@ -400,6 +403,8 @@ class TurnManager {
         // Правила: +очки → эффект → фишки снимаются → карта в сброс
         pl.score += card.cost;
 
+        this.input.sourceCard = card;
+        this.input.sourceMode = 'play';
         card.playEffect.execute(st, st.currentPI, this.input, () => {
             // Снимаем фишки после выполнения эффекта
             for (const [r, c] of placement.chipPositions) {
@@ -426,6 +431,8 @@ class TurnManager {
         const pl = st.cp;
         if (!pl.hand.includes(card) && !pl.revealed.includes(card)) { onDone?.('invalidAction'); return; }
 
+        this.input.sourceCard = card;
+        this.input.sourceMode = 'utilize';
         card.utilizeEffect.execute(st, st.currentPI, this.input, () => {
             this._removeCardFromOwner(card);
             st.discard.push(card);
@@ -488,7 +495,11 @@ class TurnManager {
             onDone?.('ok');
         };
 
+        this.input.sourceCard = first;
+        this.input.sourceMode = 'synth';
         fxFirst.execute(st, st.currentPI, this.input, () => {
+            this.input.sourceCard = second;
+            this.input.sourceMode = 'synth';
             fxSecond.execute(st, st.currentPI, this.input, finalize);
         });
     }
