@@ -867,25 +867,49 @@ class GameUI {
     }
 
     _fxText(effect) {
+        // Склонения: карта 1 / карты 2-4 / карт 5+
+        const cardsWord = n => n === 1 ? 'карту' : n < 5 ? 'карты' : 'карт';
+        const chipsWord = n => n === 1 ? 'фишку' : n < 5 ? 'фишки' : 'фишек';
+        // Притяжательное «свой» для разных форм (свою фишку / свои фишки / своих фишек)
+        const myOwn = (n, thingSingular) => {
+            if (thingSingular === 'card') return n === 1 ? 'свою' : n < 5 ? 'свои' : 'своих';
+            if (thingSingular === 'chip') return n === 1 ? 'свою' : n < 5 ? 'свои' : 'своих';
+            return '';
+        };
         return effect.effects.map(fx => {
             const self = fx.target === Target.Self || fx.target === undefined;
-            const tgt = self ? 'себе' : 'противнику';
             const n = fx.n;
             const inf = n === Infinity;
             switch (fx.constructor.name) {
-                case 'DrawCardsEffect':    return `взять ${n}`;
-                case 'DigCardsEffect':     return `раскопать ${n}`;
-                case 'PlaceChipsEffect':   return `поставить ${n} фишк${n===1?'у':n<5?'и':'ек'}`;
-                case 'RevealCardsEffect':  return inf ? `раскрыть все (${tgt})` : `раскрыть ${n} (${tgt})`;
-                case 'DiscardCardsEffect': return inf ? `сбросить все (${tgt})` : `сбросить ${n} (${tgt})`;
-                case 'StealCardsEffect':   return `украсть ${n}`;
-                case 'ModifySupplyEffect': return `${fx.delta > 0 ? '+' : ''}${fx.delta} запас (${tgt})`;
-                case 'SetSupplyEffect':    return `запас = ${fx.val} (${tgt})`;
-                case 'CopyOpponentSupplyEffect': return 'запас = запас противника';
-                case 'ResetFieldEffect':   return 'сбросить стол';
+                case 'DrawCardsEffect':
+                    return `возьми ${n} ${cardsWord(n)} из колоды`;
+                case 'DigCardsEffect':
+                    return `раскопай ${n} ${cardsWord(n)} (+2 в сброс)`;
+                case 'PlaceChipsEffect':
+                    return `поставь ${n} ${myOwn(n,'chip')} ${chipsWord(n)} на поле`;
+                case 'RevealCardsEffect':
+                    if (inf) return self ? 'раскрой ВСЮ свою руку' : 'противник раскроет ВСЮ руку';
+                    return self ? `раскрой ${n} ${myOwn(n,'card')} ${cardsWord(n)}`
+                                : `противник раскроет ${n} ${cardsWord(n)}`;
+                case 'DiscardCardsEffect':
+                    if (inf) return self ? 'сбрось ВСЮ свою руку' : 'противник сбросит ВСЮ руку';
+                    return self ? `сбрось ${n} ${myOwn(n,'card')} ${cardsWord(n)}`
+                                : `противник сбросит ${n} ${cardsWord(n)}`;
+                case 'StealCardsEffect':
+                    return `укради ${n} ${cardsWord(n)} у противника`;
+                case 'ModifySupplyEffect': {
+                    const sign = fx.delta > 0 ? '+' : '';
+                    return self ? `${sign}${fx.delta} к своему запасу` : `${sign}${fx.delta} к запасу противника`;
+                }
+                case 'SetSupplyEffect':
+                    return self ? `твой запас = ${fx.val}` : `запас противника = ${fx.val}`;
+                case 'CopyOpponentSupplyEffect':
+                    return 'твой запас = запасу противника';
+                case 'ResetFieldEffect':
+                    return 'убери все фишки с поля';
                 default: return fx.constructor.name;
             }
-        }).join(', ');
+        }).join(' · ');
     }
 
     // Развёрнутые описания — для peek-окна
