@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HUD Mockups</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+    background: #060810;
+    color: #d8e4ff;
+    font-family: ui-monospace, 'SF Mono', Consolas, monospace;
+    min-height: 100%;
+    padding: 16px 8px;
+}
+
+h2 { font-size: 11px; color: #556; letter-spacing: 0.12em; text-transform: uppercase; margin-bottom: 10px; padding-left: 4px; }
+
+.mockup {
+    margin-bottom: 28px;
+    max-width: 390px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* ── Shared board mock ─────────── */
+.board-mock {
+    background: linear-gradient(145deg, #08101e, #0b1326);
+    border-radius: 12px;
+    border: 1px solid rgba(255,255,255,0.04);
+    display: grid;
+    gap: 8px;
+    padding: 12px;
+    aspect-ratio: 1;
+}
+.board-mock.grid5 { grid-template-columns: repeat(5, 1fr); }
+.board-mock.grid4 { grid-template-columns: repeat(4, 1fr); }
+.node {
+    border-radius: 50%;
+    aspect-ratio: 1;
+    background: radial-gradient(circle at 42% 35%, #1b294a, #0f1a32);
+    border: 1px solid rgba(44,70,140,0.5);
+}
+.node.p1 { background: radial-gradient(circle at 35% 30%, #88aaff, #2255cc); border-color: rgba(100,160,255,0.75); box-shadow: 0 0 8px #4488ffaa; }
+.node.p2 { background: radial-gradient(circle at 35% 30%, #ff9988, #cc3322); border-color: rgba(255,130,110,0.75); box-shadow: 0 0 8px #ff5544aa; }
+.node.p3 { background: radial-gradient(circle at 35% 30%, #88ffcc, #118844); border-color: rgba(80,240,160,0.75); box-shadow: 0 0 8px #44dd88aa; }
+
+/* ── ВАРИАНТ 1: три панели в строку ─────── */
+.v1-hud {
+    display: flex;
+    gap: 5px;
+    padding: 6px 7px;
+    background: rgba(8,14,32,0.85);
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 6px;
+}
+.v1-panel {
+    flex: 1;
+    padding: 4px 6px;
+    border-radius: 7px;
+    background: rgba(20,32,68,0.6);
+    border: 1px solid rgba(255,255,255,0.06);
+}
+.v1-panel.active { border-color: rgba(68,136,255,0.6); }
+.v1-panel.active-2 { border-color: rgba(255,85,68,0.6); }
+.v1-panel.active-3 { border-color: rgba(44,220,120,0.6); }
+.v1-label { font-size: 9px; font-weight: 700; letter-spacing: 0.08em; margin-bottom: 1px; }
+.v1-score { font-size: 18px; font-weight: 800; line-height: 1; }
+.v1-stats { font-size: 9px; color: #4a5a7a; margin-top: 2px; }
+.v1-bar { height: 2px; border-radius: 1px; margin-top: 3px; }
+.c1 { color: #6699ff; } .c2 { color: #ff6655; } .c3 { color: #44dd88; }
+.b1 { background: #4488ff; } .b2 { background: #ff5544; } .b3 { background: #44dd88; }
+
+/* ── ВАРИАНТ 2: скорборд-полоска ─────── */
+.v2-hud {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 5px 12px;
+    background: rgba(8,14,32,0.85);
+    border-radius: 8px;
+    border: 1px solid rgba(255,255,255,0.06);
+    margin-bottom: 6px;
+    height: 28px;
+}
+.v2-player { display: flex; align-items: center; gap: 5px; padding: 0 10px; font-size: 12px; }
+.v2-player + .v2-player { border-left: 1px solid rgba(255,255,255,0.07); }
+.v2-player.active .v2-name { font-weight: 800; }
+.v2-player.active .v2-pts { font-size: 14px; }
+.v2-name { font-size: 10px; font-weight: 500; opacity: 0.6; }
+.v2-player.active .v2-name { opacity: 1; }
+.v2-pts { font-weight: 800; font-variant-numeric: tabular-nums; }
+.v2-dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+
+/* ── ВАРИАНТ 3: пилюли по бокам ─────── */
+.v3-wrap {
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+    margin-bottom: 6px;
+}
+.v3-side {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+    justify-content: center;
+    width: 48px;
+    flex-shrink: 0;
+}
+.v3-pill {
+    padding: 5px 5px;
+    border-radius: 8px;
+    background: rgba(20,32,68,0.7);
+    border: 1px solid rgba(255,255,255,0.07);
+    text-align: center;
+}
+.v3-pill.active { border-color: rgba(68,136,255,0.7); box-shadow: 0 0 12px rgba(68,136,255,0.2); }
+.v3-pill.active-2 { border-color: rgba(255,85,68,0.7); box-shadow: 0 0 12px rgba(255,85,68,0.2); }
+.v3-pill.active-3 { border-color: rgba(44,220,120,0.7); box-shadow: 0 0 12px rgba(44,220,120,0.2); }
+.v3-label { font-size: 8px; font-weight: 700; letter-spacing: 0.06em; margin-bottom: 2px; }
+.v3-score { font-size: 16px; font-weight: 800; line-height: 1; }
+.v3-meta { font-size: 8px; color: #4a5a7a; margin-top: 2px; }
+.v3-board { flex: 1; }
+
+/* ── ВАРИАНТ 4: оверлей поверх поля ─────── */
+.v4-wrap {
+    position: relative;
+    margin-bottom: 6px;
+}
+.v4-board { width: 100%; }
+.v4-badge {
+    position: absolute;
+    padding: 4px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 800;
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    background: rgba(8,14,32,0.82);
+    border: 1px solid rgba(255,255,255,0.1);
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    pointer-events: none;
+}
+.v4-badge.b-p1 { top: 6px; left: 6px; border-color: rgba(68,136,255,0.5); box-shadow: 0 0 14px rgba(68,136,255,0.25); }
+.v4-badge.b-p2 { top: 6px; right: 6px; border-color: rgba(255,85,68,0.5); box-shadow: 0 0 14px rgba(255,85,68,0.25); }
+.v4-badge.b-p3 { bottom: 6px; left: 50%; transform: translateX(-50%); border-color: rgba(44,220,120,0.5); box-shadow: 0 0 14px rgba(44,220,120,0.25); }
+.v4-dot { width: 7px; height: 7px; border-radius: 50%; }
+.v4-badge.active-badge { border-width: 1.5px; }
+.v4-badge.b-p1.active-badge { border-color: rgba(68,136,255,0.9); }
+.v4-name { font-size: 9px; opacity: 0.7; font-weight: 600; }
+.v4-pts { font-size: 13px; font-weight: 800; }
+
+/* ── Phase hint (shared) ─────────── */
+.hint-bar {
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #25C8F3;
+    padding: 5px 0;
+    letter-spacing: 0.05em;
+    border-top: 1px solid rgba(255,255,255,0.04);
+    margin-top: 5px;
+}
+.cards-row {
+    height: 32px;
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+    margin-top: 5px;
+}
+.card-mock {
+    width: 22px;
+    border-radius: 4px;
+    background: rgba(20,30,60,0.8);
+    border: 1px solid rgba(60,90,180,0.4);
+}
+</style>
+</head>
+<body>
+
+<!-- ── ВАРИАНТ 1 ───────────────────────────────────────────── -->
+<div class="mockup">
+<h2>1 — Три панели в строку</h2>
+<div style="background:rgba(8,14,32,0.82);border-radius:12px;border:1px solid rgba(255,255,255,0.06);padding:7px 8px 6px;">
+    <div class="v1-hud" style="padding:0;background:none;border:none;margin:0;">
+        <div class="v1-panel active">
+            <div class="v1-label c1">ИГ. 1</div>
+            <div class="v1-score c1">7</div>
+            <div class="v1-stats">запас 3 · фишки 4</div>
+            <div class="v1-bar b1" style="width:47%;"></div>
+        </div>
+        <div class="v1-panel">
+            <div class="v1-label c2">ИГ. 2</div>
+            <div class="v1-score c2">11</div>
+            <div class="v1-stats">запас 4 · фишки 3</div>
+            <div class="v1-bar b2" style="width:73%;"></div>
+        </div>
+        <div class="v1-panel">
+            <div class="v1-label c3">ИГ. 3</div>
+            <div class="v1-score c3">4</div>
+            <div class="v1-stats">запас 2 · фишки 2</div>
+            <div class="v1-bar b3" style="width:27%;"></div>
+        </div>
+    </div>
+    <div style="height:5px;"></div>
+    <div class="board-mock grid5">
+        <div class="node"></div><div class="node p1"></div><div class="node"></div><div class="node p2"></div><div class="node"></div>
+        <div class="node p3"></div><div class="node"></div><div class="node p1"></div><div class="node"></div><div class="node p3"></div>
+        <div class="node"></div><div class="node p2"></div><div class="node"></div><div class="node p1"></div><div class="node"></div>
+        <div class="node p3"></div><div class="node"></div><div class="node p2"></div><div class="node"></div><div class="node p1"></div>
+        <div class="node"></div><div class="node"></div><div class="node p3"></div><div class="node"></div><div class="node p2"></div>
+    </div>
+    <div class="hint-bar">↓ Разместите фишки (1/2)</div>
+    <div class="cards-row">
+        <div class="card-mock"></div><div class="card-mock"></div><div class="card-mock"></div><div class="card-mock"></div>
+    </div>
+</div>
+</div>
+
+<!-- ── ВАРИАНТ 2 ───────────────────────────────────────────── -->
+<div class="mockup">
+<h2>2 — Скорборд-полоска</h2>
+<div style="background:rgba(8,14,32,0.82);border-radius:12px;border:1px solid rgba(255,255,255,0.06);padding:7px 8px 6px;">
+    <div class="v2-hud">
+        <div class="v2-player active">
+            <div class="v2-dot b1"></div>
+            <span class="v2-name c1">ИГ. 1</span>
+            <span class="v2-pts c1">7</span>
+        </div>
+        <div class="v2-player">
+            <div class="v2-dot b2"></div>
+            <span class="v2-name c2">ИГ. 2</span>
+            <span class="v2-pts c2">11</span>
+        </div>
+        <div class="v2-player">
+            <div class="v2-dot b3"></div>
+            <span class="v2-name c3">ИГ. 3</span>
+            <span class="v2-pts c3">4</span>
+        </div>
+        <div class="v2-player" style="margin-left:auto; padding-right:0;">
+            <span style="font-size:9px;color:#556;">Д×2 У×1</span>
+        </div>
+    </div>
+    <div style="height:5px;"></div>
+    <div class="board-mock grid5">
+        <div class="node"></div><div class="node p1"></div><div class="node"></div><div class="node p2"></div><div class="node"></div>
+        <div class="node p3"></div><div class="node"></div><div class="node p1"></div><div class="node"></div><div class="node p3"></div>
+        <div class="node"></div><div class="node p2"></div><div class="node"></div><div class="node p1"></div><div class="node"></div>
+        <div class="node p3"></div><div class="node"></div><div class="node p2"></div><div class="node"></div><div class="node p1"></div>
+        <div class="node"></div><div class="node"></div><div class="node p3"></div><div class="node"></div><div class="node p2"></div>
+    </div>
+    <div class="hint-bar">↓ Разместите фишки (1/2)</div>
+    <div class="cards-row">
+        <div class="card-mock"></div><div class="card-mock"></div><div class="card-mock"></div><div class="card-mock"></div>
+    </div>
+</div>
+</div>
+
+<!-- ── ВАРИАНТ 3 ───────────────────────────────────────────── -->
+<div class="mockup">
+<h2>3 — Пилюли по бокам поля</h2>
+<div style="background:rgba(8,14,32,0.82);border-radius:12px;border:1px solid rgba(255,255,255,0.06);padding:7px 8px 6px;">
+    <div class="v3-wrap">
+        <div class="v3-side">
+            <div class="v3-pill active">
+                <div class="v3-label c1">ИГ.1</div>
+                <div class="v3-score c1">7</div>
+                <div class="v3-meta">з:3 ф:4</div>
+            </div>
+            <div class="v3-pill">
+                <div class="v3-label c3">ИГ.3</div>
+                <div class="v3-score c3">4</div>
+                <div class="v3-meta">з:2 ф:2</div>
+            </div>
+        </div>
+        <div class="v3-board">
+            <div class="board-mock grid5" style="width:100%;aspect-ratio:1;">
+                <div class="node"></div><div class="node p1"></div><div class="node"></div><div class="node p2"></div><div class="node"></div>
+                <div class="node p3"></div><div class="node"></div><div class="node p1"></div><div class="node"></div><div class="node p3"></div>
+                <div class="node"></div><div class="node p2"></div><div class="node"></div><div class="node p1"></div><div class="node"></div>
+                <div class="node p3"></div><div class="node"></div><div class="node p2"></div><div class="node"></div><div class="node p1"></div>
+                <div class="node"></div><div class="node"></div><div class="node p3"></div><div class="node"></div><div class="node p2"></div>
+            </div>
+        </div>
+        <div class="v3-side">
+            <div class="v3-pill" style="visibility:hidden;"></div>
+            <div class="v3-pill active-2">
+                <div class="v3-label c2">ИГ.2</div>
+                <div class="v3-score c2">11</div>
+                <div class="v3-meta">з:4 ф:3</div>
+            </div>
+        </div>
+    </div>
+    <div class="hint-bar">↓ Разместите фишки (1/2)</div>
+    <div class="cards-row">
+        <div class="card-mock"></div><div class="card-mock"></div><div class="card-mock"></div><div class="card-mock"></div>
+    </div>
+</div>
+</div>
+
+<!-- ── ВАРИАНТ 4 ───────────────────────────────────────────── -->
+<div class="mockup">
+<h2>4 — Бейджи поверх поля</h2>
+<div style="background:rgba(8,14,32,0.82);border-radius:12px;border:1px solid rgba(255,255,255,0.06);padding:7px 8px 6px;">
+    <div class="v4-wrap">
+        <div class="board-mock v4-board grid5" style="width:100%;">
+            <div class="node"></div><div class="node p1"></div><div class="node"></div><div class="node p2"></div><div class="node"></div>
+            <div class="node p3"></div><div class="node"></div><div class="node p1"></div><div class="node"></div><div class="node p3"></div>
+            <div class="node"></div><div class="node p2"></div><div class="node"></div><div class="node p1"></div><div class="node"></div>
+            <div class="node p3"></div><div class="node"></div><div class="node p2"></div><div class="node"></div><div class="node p1"></div>
+            <div class="node"></div><div class="node"></div><div class="node p3"></div><div class="node"></div><div class="node p2"></div>
+        </div>
+        <div class="v4-badge b-p1 active-badge">
+            <div class="v4-dot" style="background:#4488ff;box-shadow:0 0 6px #4488ff;"></div>
+            <div>
+                <div class="v4-name c1">ИГ. 1 ★</div>
+                <div class="v4-pts c1">7</div>
+            </div>
+        </div>
+        <div class="v4-badge b-p2">
+            <div class="v4-dot" style="background:#ff5544;box-shadow:0 0 6px #ff5544;"></div>
+            <div>
+                <div class="v4-name c2">ИГ. 2</div>
+                <div class="v4-pts c2">11</div>
+            </div>
+        </div>
+        <div class="v4-badge b-p3">
+            <div class="v4-dot" style="background:#44dd88;box-shadow:0 0 6px #44dd88;"></div>
+            <div>
+                <div class="v4-name c3">ИГ. 3</div>
+                <div class="v4-pts c3">4</div>
+            </div>
+        </div>
+    </div>
+    <div class="hint-bar">↓ Разместите фишки (1/2)</div>
+    <div class="cards-row">
+        <div class="card-mock"></div><div class="card-mock"></div><div class="card-mock"></div><div class="card-mock"></div>
+    </div>
+</div>
+</div>
+
+</body>
+</html>

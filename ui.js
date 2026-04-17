@@ -197,7 +197,18 @@ class GameUI {
         this.input = {
             chooseCards(pi, cards, count, done) {
                 if (cards.length <= count) { done(cards); return; }
-                self._showCardPick(pi, cards, count, done);
+                if (pi !== self.state.currentPI) {
+                    // Противник выбирает карты — передать устройство ему, затем вернуть
+                    self._showHandoffForChoice(pi, () => {
+                        self._showCardPick(pi, cards, count, chosen => {
+                            self._showHandoffForChoice(self.state.currentPI, () => {
+                                done(chosen);
+                            });
+                        });
+                    });
+                } else {
+                    self._showCardPick(pi, cards, count, done);
+                }
             },
             chooseNodes(pi, nodes, count, done) {
                 if (nodes.length <= count) { done(nodes); return; }
@@ -294,9 +305,10 @@ class GameUI {
         const inAction = st.phase === Phase.Action;
         const inTask = st.phase === Phase.Task;
         const inSynth = !!this.synth;
+        const inNodePick = !!this.nodePickDone;
         document.getElementById('btn-end-action').style.display = inAction ? '' : 'none';
-        document.getElementById('btn-utilize').style.display = (inTask && !inSynth) ? '' : 'none';
-        document.getElementById('btn-skip').style.display = (inTask && !inSynth) ? '' : 'none';
+        document.getElementById('btn-utilize').style.display = (inTask && !inSynth && !inNodePick) ? '' : 'none';
+        document.getElementById('btn-skip').style.display = (inTask && !inSynth && !inNodePick) ? '' : 'none';
 
         // Dynamic revealed labels
         const oppNums = st.players.map((_, i) => i + 1).filter(n => n !== st.currentPI + 1);
@@ -443,8 +455,7 @@ class GameUI {
         el.innerHTML = `
             <div class="card-cost" style="background:${costColor}">${card.cost}</div>
             <div class="card-name">${card.name}</div>
-            <div class="card-pattern">${this._patternSVG(card.pattern)}</div>
-            <div class="card-fx">${this._describeEffects(card)}</div>
+            <div class="card-pattern">${this._patternSVG(card.pattern, 40)}</div>
         `;
 
         // Apply stored rotation
@@ -480,8 +491,8 @@ class GameUI {
         return el;
     }
 
-    _patternSVG(pattern) {
-        const size = 48, cell = 14, gap = 2;
+    _patternSVG(pattern, size = 48) {
+        const cell = Math.floor((size - 8) / 3 - 2), gap = 2;
         let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`;
         svg += `<rect width="${size}" height="${size}" rx="5" fill="#07101e" stroke="rgba(40,60,120,0.5)" stroke-width="1"/>`;
         for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
@@ -691,6 +702,7 @@ class GameUI {
     }
 
     _onUtilize() {
+        if (this.nodePickDone) return;
         if (!this.pendingCard) {
             this._showMessage('Сначала выберите карту');
             return;
@@ -751,6 +763,7 @@ class GameUI {
     }
 
     _onEndTurn() {
+        if (this.nodePickDone) return;
         const st = this.state;
         // Сохраняем итог хода до endTurn()
         const summary = {
@@ -903,7 +916,7 @@ class GameUI {
         this.nodePickResult = [];
         this.nodePickDone = done;
         this._highlightNodes(this.nodePickAllowed);
-        this._updatePhaseHint();
+        this._render();
     }
 
     _handleNodePick(r, c) {
@@ -962,7 +975,24 @@ class GameUI {
 
     _onHandoffOk() {
         this.handoffScreen.classList.add('hidden');
-        this.tm.replenish();
+        if (this._handoffCallback) {
+            const cb = this._handoffCallback;
+            this._handoffCallback = null;
+            cb();
+        } else {
+            this.tm.replenish();
+        }
+    }
+
+    // Показать экран передачи устройства игроку pi, затем вызвать callback
+    _showHandoffForChoice(pi, callback) {
+        const color = this._playerColor(pi);
+        document.getElementById('handoff-player').innerHTML = 'Передайте устройство';
+        document.getElementById('handoff-summary').innerHTML = '&nbsp;';
+        document.getElementById('handoff-next').innerHTML =
+            `<span style="color:${color}">Игроку ${pi + 1}</span>`;
+        this._handoffCallback = callback;
+        this.handoffScreen.classList.remove('hidden');
     }
 
     // ── Game over ──────────────────────────────────────────────

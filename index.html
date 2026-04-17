@@ -117,7 +117,8 @@ html, body {
 }
 .revealed-zone::-webkit-scrollbar { display: none; }
 .zone-label { font-size: 9px; color: #2e3a4e; margin-bottom: 1px; padding-left: 2px; letter-spacing: 0.06em; }
-.revealed-wrap { flex-shrink: 0; }
+.zone-hint { font-size: 8px; color: #1e2a3a; float: right; padding-right: 2px; }
+.revealed-wrap { flex-shrink: 0; max-height: 110px; overflow: hidden; }
 .revealed-wrap.collapsed { display: none; }
 
 /* ── Keyframe Animations ─────────────────────────────────── */
@@ -150,6 +151,7 @@ html, body {
 /* ── Board ───────────────────────────────────────────────── */
 #board-wrap {
     flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0;
+    overflow: hidden;
 }
 #board {
     display: grid;
@@ -164,6 +166,7 @@ html, body {
         inset 0 0 100px rgba(8,16,50,0.4),
         0 12px 44px rgba(0,0,0,0.75);
     width: min(100%, calc(100dvh * 0.38));
+    max-height: 100%;
     aspect-ratio: 1;
 }
 .node {
@@ -308,7 +311,7 @@ html, body {
 .synth-order-arrow { color: #7755cc; }
 
 /* ── Hand ────────────────────────────────────────────────── */
-#hand-wrap { flex-shrink: 0; max-height: 160px; overflow: hidden; }
+#hand-wrap { flex-shrink: 0; max-height: 110px; overflow: hidden; }
 #hand-cards, .revealed-zone {
     display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px; scrollbar-width: none;
 }
@@ -317,7 +320,7 @@ html, body {
 /* ── Card ────────────────────────────────────────────────── */
 .card {
     flex-shrink: 0;
-    width: 120px;
+    width: 80px;
     background: linear-gradient(155deg, #192248 0%, #0d1432 100%);
     border: 1px solid rgba(55,85,165,0.5);
     border-radius: 10px;
@@ -346,9 +349,10 @@ html, body {
     box-shadow: 0 2px 6px rgba(0,0,0,0.55);
 }
 .card-name {
-    font-size: 10px; font-weight: 700; margin-bottom: 3px;
-    color: #ccd8ff; line-height: 1.2; min-height: 24px;
-    padding-right: 16px; letter-spacing: 0.03em; overflow-wrap: anywhere;
+    font-size: 9px; font-weight: 700; margin-bottom: 3px;
+    color: #ccd8ff; line-height: 1.2;
+    padding-right: 16px; letter-spacing: 0.02em;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .card-pattern { display: flex; justify-content: center; margin: 3px 0; }
 .card-pattern svg { transition: transform 0.22s cubic-bezier(0.34, 1.2, 0.64, 1); }
@@ -700,7 +704,7 @@ html, body {
 
     <!-- Hand -->
     <div id="hand-wrap">
-        <div class="zone-label" id="hand-label">Рука Игрока 1</div>
+        <div class="zone-label" id="hand-label">Рука Игрока 1 <span class="zone-hint">удержать = детали</span></div>
         <div id="hand-cards"></div>
     </div>
 
