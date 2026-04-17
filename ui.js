@@ -33,6 +33,14 @@ class GameUI {
         this._prevScores = [0, 0, 0];
         this._playerCount = 2;
 
+        // ── Online / network mode ──
+        this.netMode = null;     // null | 'host' | 'guest'
+        this.localPI = 0;        // host → 0 (P1), guest → 1 (P2)
+        this.net = null;         // Net instance
+        this.cardsById = null;   // Map<id, cardObj> — для восстановления state на госте
+        this._netGameOverShown = false;
+        this._netPendingInputs = new Map(); // guest: reqId → контекст активного модала
+
         this._bindElements();
         this._initAudio();
     }
@@ -103,6 +111,32 @@ class GameUI {
         this.menuScreen = document.getElementById('menu-screen');
         document.getElementById('btn-mode-2p').onclick = () => this._startGame(2);
         document.getElementById('btn-mode-3p').onclick = () => this._startGame(3);
+        document.getElementById('btn-mode-online').onclick = () => this._showOnlineMenu();
+
+        // Online screens
+        this.onlineScreen = document.getElementById('online-screen');
+        this.onlineHostScreen = document.getElementById('online-host-screen');
+        this.onlineJoinScreen = document.getElementById('online-join-screen');
+        this.netOverlay = document.getElementById('net-overlay');
+        this.netTurnIndicator = document.getElementById('net-turn-indicator');
+
+        document.getElementById('btn-online-back').onclick = () => this._hideOnlineScreens();
+        document.getElementById('btn-online-host').onclick = () => this._onHostClick();
+        document.getElementById('btn-online-join').onclick = () => this._onJoinClick();
+        document.getElementById('btn-online-host-cancel').onclick = () => this._cancelOnline();
+        document.getElementById('btn-online-join-cancel').onclick = () => this._cancelOnline();
+        document.getElementById('btn-online-join-confirm').onclick = () => this._onJoinConfirm();
+        document.getElementById('btn-net-overlay-exit').onclick = () => this._exitOnlineGame();
+
+        const joinInput = document.getElementById('online-join-input');
+        joinInput.addEventListener('input', () => {
+            const val = joinInput.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 4);
+            joinInput.value = val;
+            document.getElementById('btn-online-join-confirm').disabled = val.length !== 4;
+        });
+        joinInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && joinInput.value.length === 4) this._onJoinConfirm();
+        });
 
         // Card pick modal
         this.cardPickModal = document.getElementById('card-pick-modal');
@@ -185,7 +219,7 @@ class GameUI {
         this.handoffScreen.classList.add('hidden');
     }
 
-    _startGame(playerCount = 2) {
+    _startGame(playerCount = 2, netOpts = null) {
         this._playerCount = playerCount;
         const boardSize = playerCount === 3 ? 5 : 4;
         const winScore  = playerCount === 3 ? 20 : 15;
@@ -193,14 +227,48 @@ class GameUI {
         // 3-player mode class on #app
         document.getElementById('app').classList.toggle('mode-3p', playerCount === 3);
 
+        // Сетевой режим
+        this.netMode = netOpts?.role ?? null;
+        this.localPI = netOpts?.localPI ?? 0;
+        this._netGameOverShown = false;
+
+        // Guest: только оболочка UI, состояние придёт snapshot'ом
+        if (this.netMode === 'guest') {
+            this.cardsById = buildCardsById(playerCount);
+            this._resetUiState();
+            this.menuScreen.classList.add('hidden');
+            this._hideOnlineScreens();
+            this._buildBoard(boardSize);
+            this._updateNetTurnIndicator();
+            return;
+        }
+
         this.state = new GameState(boardSize, winScore, playerCount);
+        this.cardsById = buildCardsById(playerCount);
         const self = this;
         this.input = {
             chooseCards(pi, cards, count, done) {
                 if (cards.length <= count) { done(cards); return; }
                 const ctx = self._buildChoiceContext(pi, count);
+
+                // Онлайн: всё определяется тем, кто target
+                if (self.netMode === 'host') {
+                    if (pi === self.localPI) {
+                        self._showCardPick(pi, cards, count, done, ctx);
+                    } else {
+                        self.net.request('chooseCards', pi, ctx, {
+                            cardIds: cards.map(c => c.id), count
+                        }).then(chosenIds => {
+                            const arr = Array.isArray(chosenIds) ? chosenIds : [];
+                            const chosen = arr.map(id => cards.find(c => c.id === id)).filter(Boolean);
+                            done(chosen.length === count ? chosen : cards.slice(0, count));
+                        });
+                    }
+                    return;
+                }
+
                 if (pi !== self.state.currentPI) {
-                    // Противник выбирает карты — передать устройство ему, затем вернуть
+                    // Hot-seat: противник выбирает карты — передать устройство ему, затем вернуть
                     const actorPI = self.state.currentPI;
                     self._showHandoffForChoice(pi, () => {
                         self._showCardPick(pi, cards, count, chosen => {
@@ -215,15 +283,43 @@ class GameUI {
             },
             chooseNodes(pi, nodes, count, done) {
                 if (nodes.length <= count) { done(nodes); return; }
+                if (self.netMode === 'host') {
+                    if (pi === self.localPI) {
+                        self._startNodePick(nodes, count, done);
+                    } else {
+                        self.net.request('chooseNodes', pi, null, {
+                            nodes: nodes.map(([r, c]) => [r, c]), count
+                        }).then(chosen => {
+                            done(Array.isArray(chosen) ? chosen : nodes.slice(0, count));
+                        });
+                    }
+                    return;
+                }
                 self._startNodePick(nodes, count, done);
             }
         };
         this.tm = new TurnManager(this.state, this.input);
-        this.tm.onStateChanged = () => this._render();
+        this.tm.onStateChanged = () => {
+            this._render();
+            if (this.netMode === 'host') this._hostSendState();
+        };
         this.tm.onPhaseChanged = p => this._onPhaseChanged(p);
-        this.tm.onGameOver = w => this._onGameOver(w);
+        this.tm.onGameOver = w => {
+            this._onGameOver(w);
+            if (this.netMode === 'host') this._hostSendGameOver(w);
+        };
 
         // Reset UI state
+        this._resetUiState();
+        this.menuScreen.classList.add('hidden');
+        this._hideOnlineScreens();
+
+        this._buildBoard(boardSize);
+        this._updateNetTurnIndicator();
+        this.tm.replenish();
+    }
+
+    _resetUiState() {
         this._prevScores = [0, 0, 0];
         this._cardRotations = new Map();
         this.pendingCard = null;
@@ -232,15 +328,15 @@ class GameUI {
         this.nodePickDone = null;
         this.synth = null;
         this._lastTurnSummary = null;
-        this.menuScreen.classList.add('hidden');
         this.handoffScreen.classList.add('hidden');
         this.gameOverScreen.classList.add('hidden');
         this.placementPanel.classList.add('hidden');
         this.cardPickModal.classList.add('hidden');
         this.synthOrderPanel.classList.add('hidden');
+    }
 
-        this._buildBoard(boardSize);
-        this.tm.replenish();
+    _viewPI() {
+        return this.netMode ? this.localPI : this.state.currentPI;
     }
 
     // ── Rendering ─────────────────────────────────────────────
@@ -297,8 +393,11 @@ class GameUI {
         }
 
         // Hand label with player color
-        const playerColor = this._playerColor(st.currentPI);
-        this.handLabelEl.textContent = `Рука Игрока ${st.currentPI + 1}`;
+        const viewPI = this._viewPI();
+        const playerColor = this._playerColor(viewPI);
+        this.handLabelEl.textContent = this.netMode
+            ? `Моя рука (Игрок ${viewPI + 1})`
+            : `Рука Игрока ${st.currentPI + 1}`;
         this.handLabelEl.style.color = playerColor;
 
         // Phase hint
@@ -322,9 +421,10 @@ class GameUI {
             endActionBtn.classList.toggle('btn-ghost', chipsLeft > 0);
         }
         if (inTask && !inSynth && !inNodePick) {
-            const allCards = [...st.cp.hand, ...st.players.flatMap(p => p.revealed)];
+            const vp = st.players[this._viewPI()];
+            const allCards = [...vp.hand, ...st.players.flatMap(p => p.revealed)];
             const hasPlayable = allCards.some(c => this.tm.getValidPlacements(c).length > 0);
-            const hasHand = st.cp.hand.length > 0 || st.cp.revealed.length > 0;
+            const hasHand = vp.hand.length > 0 || vp.revealed.length > 0;
             if (!hasHand)          skipBtn.textContent = '⏭ Завершить ход (нет карт)';
             else if (!hasPlayable) skipBtn.textContent = '⏭ Завершить ход (нет розыгрышей)';
             else                   skipBtn.textContent = '⏭ Завершить ход';
@@ -334,15 +434,17 @@ class GameUI {
         }
 
         // Dynamic revealed labels
-        const oppNums = st.players.map((_, i) => i + 1).filter(n => n !== st.currentPI + 1);
+        const vpi = this._viewPI();
+        const oppNums = st.players.map((_, i) => i + 1).filter(n => n !== vpi + 1);
         document.getElementById('opp-revealed-label').textContent =
             `Раскрытые Игрок${oppNums.length > 1 ? 'и' : ''} ${oppNums.join(' & ')}`;
         document.getElementById('own-revealed-label').textContent =
-            `Мои раскрытые (Игрок ${st.currentPI + 1})`;
+            `Мои раскрытые (Игрок ${vpi + 1})`;
 
         this._renderBoard();
         this._renderHand();
         this._renderRevealed();
+        this._updateNetTurnIndicator();
     }
 
     _updatePhaseHint() {
@@ -444,33 +546,41 @@ class GameUI {
 
     _renderHand() {
         const st = this.state;
-        const pl = st.cp;
+        const pl = st.players[this._viewPI()];
 
         // Compute playable cards (own hand + all revealed)
         const playable = new Set();
         const allRevealed = st.players.flatMap(p => p.revealed);
-        [...pl.hand, ...allRevealed].forEach(c => {
-            if (this.tm.getValidPlacements(c).length > 0) playable.add(c);
-        });
+        const canAct = !this.netMode || st.currentPI === this.localPI;
+        if (canAct) {
+            [...pl.hand, ...allRevealed].forEach(c => {
+                if (this.tm.getValidPlacements(c).length > 0) playable.add(c);
+            });
+        }
 
         this._renderCardRow(this.handEl, pl.hand, playable, true);
     }
 
     _renderRevealed() {
         const st = this.state;
+        const vpi = this._viewPI();
+        const vp = st.players[vpi];
         const allRevealed = st.players.flatMap(p => p.revealed);
         const playable = new Set();
-        [...st.cp.hand, ...allRevealed].forEach(c => {
-            if (this.tm.getValidPlacements(c).length > 0) playable.add(c);
-        });
-        this._renderCardRow(this.ownRevealedEl, st.cp.revealed, playable, true);
+        const canAct = !this.netMode || st.currentPI === this.localPI;
+        if (canAct) {
+            [...vp.hand, ...allRevealed].forEach(c => {
+                if (this.tm.getValidPlacements(c).length > 0) playable.add(c);
+            });
+        }
+        this._renderCardRow(this.ownRevealedEl, vp.revealed, playable, true);
 
         // Opponent(s) revealed: all opponents combined
-        const oppRevealed = st.players.filter((_, i) => i !== st.currentPI).flatMap(p => p.revealed);
+        const oppRevealed = st.players.filter((_, i) => i !== vpi).flatMap(p => p.revealed);
         this._renderCardRow(this.oppRevealedEl, oppRevealed, playable, false);
 
         // Collapse empty revealed zones
-        this.ownRevealedWrap.classList.toggle('collapsed', st.cp.revealed.length === 0);
+        this.ownRevealedWrap.classList.toggle('collapsed', vp.revealed.length === 0);
         this.oppRevealedWrap.classList.toggle('collapsed', oppRevealed.length === 0);
     }
 
@@ -719,6 +829,9 @@ class GameUI {
             return;
         }
 
+        // Онлайн: блокируем действия, когда ход соперника
+        if (this.netMode && this.state.currentPI !== this.localPI) return;
+
         // Task phase: накапливаем тапы по фишкам паттерна
         if (this.state.phase === Phase.Task) {
             if (this.pendingCard || this.synth?.step === 'placeA' || this.synth?.step === 'placeB') {
@@ -773,6 +886,7 @@ class GameUI {
 
     _onCardTap(card, isPlayable) {
         if (this.state.phase !== Phase.Task) return;
+        if (this.netMode && this.state.currentPI !== this.localPI) return;
 
         // ── Синтез: выбор второй карты ──────────────────────────
         if (this.synth?.step === 'selectB') {
@@ -830,6 +944,7 @@ class GameUI {
     }
 
     _onEndAction() {
+        if (this.netMode && this.state.currentPI !== this.localPI) return;
         const st = this.state;
         const chipsLeft = st.chipsAllowed - st.chipsPlaced;
         const btn = document.getElementById('btn-end-action');
@@ -860,6 +975,7 @@ class GameUI {
 
     _onUtilize() {
         if (this.nodePickDone) return;
+        if (this.netMode && this.state.currentPI !== this.localPI) return;
         if (!this.pendingCard) {
             this._showMessage('Сначала выберите карту');
             return;
@@ -879,6 +995,7 @@ class GameUI {
     // ── Синтез ─────────────────────────────────────────────────
 
     _onSynthNext() {
+        if (this.netMode && this.state.currentPI !== this.localPI) return;
         this.synth = { step: 'placeA', cardA: this.pendingCard, placementsA: this.currentPlacements };
         this.pendingCard = null;
         this.placementPanel.classList.add('hidden');
@@ -908,6 +1025,7 @@ class GameUI {
     }
 
     _onSynthOrderChoose(aFirst) {
+        if (this.netMode && this.state.currentPI !== this.localPI) return;
         this.synthOrderPanel.classList.add('hidden');
         const { cardA, cardB, matchA, matchB } = this.synth;
         this.synth = null;
@@ -921,6 +1039,7 @@ class GameUI {
 
     _onEndTurn() {
         if (this.nodePickDone) return;
+        if (this.netMode && this.state.currentPI !== this.localPI) return;
         const st = this.state;
         // Сохраняем итог хода до endTurn()
         const summary = {
@@ -930,7 +1049,7 @@ class GameUI {
             score: st.cp.score,
         };
         const ok = this.tm.endTurn();
-        if (ok) {
+        if (ok === true || ok === 'ok' || this.netMode === 'guest') {
             this._haptic([12, 8, 32]);
             this._playSound('turn');
             this._lastTurnSummary = summary;
@@ -938,7 +1057,14 @@ class GameUI {
             this.placementPanel.classList.add('hidden');
             this._clearHighlights();
             this._render();
-            this._showHandoff();
+            if (this.netMode === 'host') {
+                // Онлайн: без handoff, авто-восполнение для следующего игрока
+                if (this.state.phase === Phase.Replenish) this.tm.replenish();
+            } else if (this.netMode === 'guest') {
+                // На guest ничего — ждём snapshot от host
+            } else {
+                this._showHandoff();
+            }
         }
     }
 
@@ -1129,6 +1255,7 @@ class GameUI {
     // ── Handoff screen ─────────────────────────────────────────
 
     _showHandoff() {
+        if (this.netMode) return;  // онлайн — handoff не нужен
         const s = this._lastTurnSummary;
         const nextPI = this.state.currentPI;  // already advanced by _endTurn
         const playerColor = this._playerColor(s.playerIdx);
@@ -1364,10 +1491,329 @@ class GameUI {
         clearTimeout(this._toastTimer);
         this._toastTimer = setTimeout(() => el.classList.add('hidden'), 2000);
     }
+
+    // ═══════════════════════════════════════════════════════════
+    //  ONLINE / NETWORK
+    // ═══════════════════════════════════════════════════════════
+
+    _showOnlineMenu() {
+        this.menuScreen.classList.add('hidden');
+        this.onlineScreen.classList.remove('hidden');
+    }
+
+    _hideOnlineScreens() {
+        this.onlineScreen?.classList.add('hidden');
+        this.onlineHostScreen?.classList.add('hidden');
+        this.onlineJoinScreen?.classList.add('hidden');
+    }
+
+    _showOnlineScreen(id) {
+        this._hideOnlineScreens();
+        document.getElementById(id).classList.remove('hidden');
+    }
+
+    async _onHostClick() {
+        this._showOnlineScreen('online-host-screen');
+        const codeEl = document.getElementById('online-host-code');
+        const statusEl = document.getElementById('online-host-status');
+        codeEl.textContent = '————';
+        statusEl.innerHTML = '<div class="net-spinner" style="margin:0 auto 8px"></div>Инициализация...';
+
+        this.net = new Net();
+        this._wireNetCallbacks();
+
+        try {
+            const code = await this.net.hostGame();
+            codeEl.textContent = code;
+            statusEl.innerHTML = '<div class="net-spinner" style="margin:0 auto 8px"></div>Ожидаем соперника...';
+        } catch (e) {
+            statusEl.classList.add('error');
+            statusEl.textContent = e.message || 'Ошибка создания игры';
+            this.net?.disconnect();
+            this.net = null;
+        }
+    }
+
+    _onJoinClick() {
+        this._showOnlineScreen('online-join-screen');
+        const input = document.getElementById('online-join-input');
+        const statusEl = document.getElementById('online-join-status');
+        input.value = '';
+        statusEl.textContent = '';
+        statusEl.classList.remove('error');
+        document.getElementById('btn-online-join-confirm').disabled = true;
+        setTimeout(() => input.focus(), 100);
+    }
+
+    async _onJoinConfirm() {
+        const input = document.getElementById('online-join-input');
+        const statusEl = document.getElementById('online-join-status');
+        const confirmBtn = document.getElementById('btn-online-join-confirm');
+        const code = input.value.trim().toUpperCase();
+        if (code.length !== 4) return;
+
+        statusEl.classList.remove('error');
+        statusEl.innerHTML = '<div class="net-spinner" style="margin:0 auto 8px"></div>Подключение...';
+        confirmBtn.disabled = true;
+
+        this.net = new Net();
+        this._wireNetCallbacks();
+
+        try {
+            await this.net.joinGame(code);
+            // Подключились — старт гостевой оболочки, ждём snapshot
+            this._startGame(2, { role: 'guest', localPI: 1 });
+            statusEl.textContent = 'Синхронизация...';
+        } catch (e) {
+            statusEl.classList.add('error');
+            statusEl.textContent = e.message || 'Не удалось подключиться';
+            confirmBtn.disabled = false;
+            this.net?.disconnect();
+            this.net = null;
+        }
+    }
+
+    _cancelOnline() {
+        if (this.net) { this.net.disconnect(); this.net = null; }
+        this._hideOnlineScreens();
+        this._showMenu();
+    }
+
+    _exitOnlineGame() {
+        if (this.net) { this.net.disconnect(); this.net = null; }
+        document.getElementById('net-overlay').classList.add('hidden');
+        document.getElementById('net-turn-indicator').classList.add('hidden');
+        this.netMode = null;
+        this._showMenu();
+    }
+
+    _wireNetCallbacks() {
+        const net = this.net;
+
+        net.onPeerConnected = () => {
+            if (net.role === 'host') {
+                // Гость подключился — стартуем игру
+                this._startGame(2, { role: 'host', localPI: 0 });
+                // Первый snapshot отправится через onStateChanged после replenish()
+            }
+        };
+
+        net.onReconnect = () => {
+            document.getElementById('net-overlay').classList.add('hidden');
+            if (net.role === 'host' && this.state) {
+                this._hostSendState();  // пере-синк
+            }
+        };
+
+        net.onDisconnect = () => {
+            const overlay = document.getElementById('net-overlay');
+            document.getElementById('net-overlay-title').textContent = 'Связь потеряна';
+            document.getElementById('net-overlay-text').textContent = 'Пытаемся переподключиться...';
+            overlay.classList.remove('hidden');
+        };
+
+        net.onError = (e) => {
+            console.warn('[Net] error:', e);
+        };
+
+        net.onMessage = (msg) => {
+            if (net.role === 'host') this._hostHandleMessage(msg);
+            else this._guestHandleMessage(msg);
+        };
+    }
+
+    // ── HOST side ──────────────────────────────────────────────
+
+    _hostSendState() {
+        if (!this.net || this.net.role !== 'host') return;
+        // Маскируем руку хоста от гостя (localPI=0)
+        const snap = serializeGameState(this.state, this.localPI);
+        this.net.send({ type: 'state', snapshot: snap });
+    }
+
+    _hostSendGameOver(winner) {
+        if (!this.net || this.net.role !== 'host') return;
+        this._hostSendState();
+        this.net.send({ type: 'game-over', winner });
+    }
+
+    _hostHandleMessage(msg) {
+        if (msg.type === 'hello') {
+            // Гость представился. Если есть state — отправим свежий snapshot
+            if (this.state) this._hostSendState();
+            return;
+        }
+        if (msg.type === 'action') {
+            this._hostHandleAction(msg);
+            return;
+        }
+        // input-res обрабатывается внутри Net через _pendingRequests
+    }
+
+    _hostHandleAction(msg) {
+        if (!this.tm) return;
+        const { name, args = [] } = msg;
+        // В онлайне разрешаем действие только если currentPI совпадает с ролью отправителя.
+        // Гость = pi 1. (Защита от мухлежа и рассинхрона.)
+        const allowedPI = 1;
+        if (this.state.currentPI !== allowedPI &&
+            !['playCard', 'utilizeCard', 'synthesis'].includes(name)) {
+            // Разрешаем только если ход гостя. Карточные действия на открытых картах
+            // в будущем могут происходить в чужой ход, но сейчас — строго.
+            if (this.state.currentPI !== allowedPI) return;
+        }
+        const cardsById = this.cardsById;
+        try {
+            switch (name) {
+                case 'placeChip':   this.tm.placeChip(args[0], args[1]); break;
+                case 'returnPiece': this.tm.returnPiece(args[0], args[1]); break;
+                case 'undoChip':    this.tm.undoChip(args[0], args[1]); break;
+                case 'endAction':   this.tm.endAction(); break;
+                case 'endTurn':
+                    if (this.tm.endTurn() && this.state.phase === Phase.Replenish) {
+                        this.tm.replenish();
+                    }
+                    break;
+                case 'replenish':   this.tm.replenish(); break;
+                case 'playCard': {
+                    const card = cardsById.get(args[0]);
+                    if (card) this.tm.playCard(card, { chipPositions: args[1] });
+                    break;
+                }
+                case 'utilizeCard': {
+                    const card = cardsById.get(args[0]);
+                    if (card) this.tm.utilizeCard(card);
+                    break;
+                }
+                case 'synthesis': {
+                    const cardA = cardsById.get(args[0]);
+                    const cardB = cardsById.get(args[1]);
+                    if (cardA && cardB) {
+                        this.tm.synthesis(cardA, cardB,
+                            { chipPositions: args[2] },
+                            { chipPositions: args[3] },
+                            args[4]);
+                    }
+                    break;
+                }
+                default: console.warn('[Host] unknown action:', name);
+            }
+        } catch (e) {
+            console.warn('[Host] action error:', e);
+        }
+    }
+
+    // ── GUEST side ─────────────────────────────────────────────
+
+    _guestHandleMessage(msg) {
+        if (msg.type === 'state') {
+            this._guestApplyState(msg.snapshot);
+            return;
+        }
+        if (msg.type === 'input-req') {
+            this._guestHandleInputReq(msg);
+            return;
+        }
+        if (msg.type === 'game-over') {
+            this._netGameOverShown = true;
+            this._onGameOver(msg.winner);
+            return;
+        }
+    }
+
+    _guestApplyState(snap) {
+        const firstTime = !this.state;
+        if (firstTime) {
+            this.state = buildShadowStateFromSnapshot(snap, this.cardsById);
+            this.tm = this._createGuestTM();
+            // Привязываем input для случая когда гость сам инициирует эффекты
+            // (фактически input не используется на guest — только для совместимости)
+            this.input = { sourceCard: null, sourceMode: null, actionKind: null };
+        } else {
+            applySnapshotTo(this.state, snap, this.cardsById);
+        }
+        this._render();
+        this._updatePhaseHint();
+        if (snap.phase === Phase.Action && snap.currentPI === this.localPI) {
+            this._highlightEmptyNodes();
+        } else {
+            this._clearHighlights();
+        }
+        this._updateNetTurnIndicator();
+    }
+
+    _guestHandleInputReq(msg) {
+        const { reqId, kind, pi, ctx, payload } = msg;
+        if (kind === 'chooseCards') {
+            const cards = (payload.cardIds || []).map(id => this.cardsById.get(id)).filter(Boolean);
+            this._showCardPick(pi, cards, payload.count, chosen => {
+                this.net.respondToRequest(reqId, chosen.map(c => c.id));
+            }, ctx);
+        } else if (kind === 'chooseNodes') {
+            this._startNodePick(payload.nodes || [], payload.count, chosen => {
+                this.net.respondToRequest(reqId, chosen);
+            });
+        }
+    }
+
+    // Прокси над TurnManager для гостя: мутации уходят в сеть,
+    // read-only (getValidPlacements) работает локально против shadow state.
+    _createGuestTM() {
+        const realTM = new TurnManager(this.state, null);
+        const sendAction = (name, args) => {
+            this.net?.send({ type: 'action', name, args });
+        };
+        const mutations = {
+            placeChip:   (r, c) => { sendAction('placeChip',   [r, c]); return 'ok'; },
+            returnPiece: (r, c) => { sendAction('returnPiece', [r, c]); return 'ok'; },
+            undoChip:    (r, c) => { sendAction('undoChip',    [r, c]); return 'ok'; },
+            endAction:   ()     => { sendAction('endAction',   []); return true; },
+            endTurn:     ()     => { sendAction('endTurn',     []); return true; },
+            replenish:   ()     => { sendAction('replenish',   []); return true; },
+            playCard:    (card, placement, onDone) => {
+                sendAction('playCard', [card.id, placement.chipPositions]);
+                onDone?.('ok');
+            },
+            utilizeCard: (card, onDone) => {
+                sendAction('utilizeCard', [card.id]);
+                onDone?.('ok');
+            },
+            synthesis: (cardA, cardB, matchA, matchB, aFirst, onDone) => {
+                sendAction('synthesis',
+                    [cardA.id, cardB.id, matchA.chipPositions, matchB.chipPositions, aFirst]);
+                onDone?.('ok');
+            },
+        };
+        return new Proxy(realTM, {
+            get: (t, prop) => {
+                if (prop in mutations) return mutations[prop];
+                const val = t[prop];
+                return typeof val === 'function' ? val.bind(t) : val;
+            }
+        });
+    }
+
+    _updateNetTurnIndicator() {
+        const ind = this.netTurnIndicator;
+        if (!ind) return;
+        if (!this.netMode || !this.state) {
+            ind.classList.add('hidden');
+            return;
+        }
+        const myTurn = this.state.currentPI === this.localPI;
+        if (myTurn) {
+            ind.classList.add('hidden');
+        } else {
+            const phaseNames = { Replenish: 'восполнение', Action: 'действия', Task: 'задача' };
+            const phase = phaseNames[this.state.phase] || this.state.phase;
+            ind.textContent = `⏳ Ход соперника · ${phase}`;
+            ind.classList.remove('hidden');
+        }
+    }
 }
 
 // ── Bootstrap ──────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
-    const ui = new GameUI();
+    window.ui = new GameUI();
     // Show menu on first load; _startGame() called by menu buttons
 });

@@ -642,6 +642,94 @@ html, body {
 .btn-mode-2p:hover, .btn-mode-2p:focus { border-color: rgba(68,136,255,0.7); box-shadow: 0 4px 28px rgba(68,136,255,0.22), inset 0 1px 0 rgba(255,255,255,0.08); }
 .btn-mode-3p { border-color: rgba(44,220,120,0.35); }
 .btn-mode-3p:hover, .btn-mode-3p:focus { border-color: rgba(44,220,120,0.7); box-shadow: 0 4px 28px rgba(44,220,120,0.22), inset 0 1px 0 rgba(255,255,255,0.08); }
+.btn-mode-online { border-color: rgba(255,204,68,0.35); }
+.btn-mode-online:hover, .btn-mode-online:focus { border-color: rgba(255,204,68,0.7); box-shadow: 0 4px 28px rgba(255,204,68,0.22), inset 0 1px 0 rgba(255,255,255,0.08); }
+
+/* ── Online screens ──────────────────────────────────────── */
+#online-screen, #online-host-screen, #online-join-screen, #online-wait-screen {
+    background: radial-gradient(ellipse at 50% 20%, #0c1a3a 0%, #030508 70%);
+    z-index: 155;
+}
+.online-title { font-size: 28px; font-weight: 800; color: #25C8F3; letter-spacing: 0.08em; text-shadow: 0 0 30px rgba(37,200,243,0.45); }
+.online-subtitle { font-size: 12px; color: #5a6a8a; letter-spacing: 0.08em; margin-top: -6px; margin-bottom: 8px; }
+.online-actions { display: flex; flex-direction: column; gap: 14px; width: 100%; max-width: 320px; }
+.online-code-display {
+    font-family: ui-monospace, 'SF Mono', monospace;
+    font-size: 52px; font-weight: 900; letter-spacing: 0.22em;
+    color: #ffdd88; text-align: center;
+    padding: 20px 16px;
+    background: linear-gradient(155deg, rgba(24,18,8,0.9), rgba(14,10,4,0.95));
+    border: 1px solid rgba(255,204,68,0.35);
+    border-radius: 14px;
+    box-shadow: 0 0 40px rgba(255,204,68,0.15), inset 0 1px 0 rgba(255,255,255,0.07);
+    text-shadow: 0 0 20px rgba(255,204,68,0.4);
+    user-select: all; -webkit-user-select: all;
+}
+.online-code-input {
+    font-family: ui-monospace, 'SF Mono', monospace;
+    font-size: 32px; font-weight: 800; letter-spacing: 0.2em;
+    color: #c8dcff; text-align: center;
+    padding: 16px;
+    background: linear-gradient(155deg, rgba(8,14,32,0.95), rgba(4,8,20,0.98));
+    border: 1px solid rgba(70,110,210,0.45);
+    border-radius: 12px;
+    width: 100%; max-width: 280px;
+    text-transform: uppercase;
+    outline: none;
+}
+.online-code-input:focus { border-color: rgba(68,136,255,0.85); box-shadow: 0 0 20px rgba(68,136,255,0.25); }
+.online-status { font-size: 13px; color: #7a8eaa; text-align: center; line-height: 1.6; min-height: 36px; }
+.online-status.error { color: #ff8877; }
+.online-back {
+    padding: 10px 20px;
+    background: transparent;
+    border: 1px solid rgba(120,140,180,0.3);
+    border-radius: 10px; color: #7a8eb5;
+    font-size: 13px; font-weight: 600; cursor: pointer; font-family: inherit;
+    margin-top: 6px;
+}
+.online-back:active { background: rgba(30,40,60,0.5); transform: scale(0.97); }
+.online-primary {
+    padding: 14px 24px;
+    background: linear-gradient(155deg, #2c6ee0, #1844a8);
+    border: none; border-radius: 12px; color: #fff;
+    font-size: 15px; font-weight: 700; cursor: pointer; font-family: inherit;
+    box-shadow: 0 4px 20px rgba(34,90,200,0.5), inset 0 1px 0 rgba(255,255,255,0.15);
+}
+.online-primary:disabled { opacity: 0.35; cursor: default; }
+
+/* Reconnect overlay — полупрозрачный поверх игры */
+#net-overlay {
+    position: fixed; inset: 0;
+    background: rgba(3, 5, 12, 0.82);
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; z-index: 180;
+    text-align: center; padding: 24px;
+}
+#net-overlay.hidden { display: none; }
+#net-overlay-title { font-size: 20px; font-weight: 800; color: #ffcc55; letter-spacing: 0.04em; }
+#net-overlay-text { font-size: 13px; color: #7a8eaa; line-height: 1.6; max-width: 320px; }
+.net-spinner {
+    width: 36px; height: 36px; border-radius: 50%;
+    border: 3px solid rgba(68,136,255,0.15);
+    border-top-color: rgba(68,136,255,0.85);
+    animation: net-spin 0.9s linear infinite;
+}
+@keyframes net-spin { to { transform: rotate(360deg); } }
+
+/* Indicator who's turn — compact strip under hand when waiting opponent */
+#net-turn-indicator {
+    position: fixed; bottom: 6px; left: 50%; transform: translateX(-50%);
+    padding: 5px 14px;
+    background: rgba(14, 22, 48, 0.9);
+    border: 1px solid rgba(70,100,180,0.35);
+    border-radius: 16px;
+    font-size: 11px; color: #8899bb; letter-spacing: 0.05em;
+    z-index: 90; pointer-events: none;
+    backdrop-filter: blur(10px);
+}
+#net-turn-indicator.hidden { display: none; }
 .btn-mode-label { display: flex; align-items: center; gap: 10px; }
 .btn-mode-icon { font-size: 22px; }
 .btn-mode-title { font-size: 17px; }
@@ -881,9 +969,74 @@ html, body {
             </div>
             <div class="btn-mode-desc">Поле 5×5 · 54 карты · 20 очков</div>
         </button>
+        <button class="btn-mode btn-mode-online" id="btn-mode-online">
+            <div class="btn-mode-label">
+                <span class="btn-mode-icon">📡</span>
+                <span class="btn-mode-title">Онлайн 2 игрока</span>
+            </div>
+            <div class="btn-mode-desc">С двух телефонов по коду · P2P соединение</div>
+        </button>
     </div>
     <button class="btn-rules-link" id="btn-show-rules">📖 Правила игры</button>
 </div>
+
+<!-- Online — выбор host/join -->
+<div class="overlay hidden" id="online-screen">
+    <div class="online-title">ОНЛАЙН</div>
+    <div class="online-subtitle">ИГРА НА 2 УСТРОЙСТВАХ</div>
+    <div class="online-actions">
+        <button class="btn-mode btn-mode-2p" id="btn-online-host">
+            <div class="btn-mode-label">
+                <span class="btn-mode-icon">⊕</span>
+                <span class="btn-mode-title">Создать игру</span>
+            </div>
+            <div class="btn-mode-desc">Получишь код · скажи его сопернику</div>
+        </button>
+        <button class="btn-mode btn-mode-3p" id="btn-online-join">
+            <div class="btn-mode-label">
+                <span class="btn-mode-icon">⌘</span>
+                <span class="btn-mode-title">Подключиться</span>
+            </div>
+            <div class="btn-mode-desc">Введи код от соперника</div>
+        </button>
+    </div>
+    <button class="online-back" id="btn-online-back">← Назад</button>
+</div>
+
+<!-- Online host — ждём соперника -->
+<div class="overlay hidden" id="online-host-screen">
+    <div class="online-title">ТВОЙ КОД</div>
+    <div class="online-subtitle">ПЕРЕДАЙ ЕГО СОПЕРНИКУ</div>
+    <div class="online-code-display" id="online-host-code">————</div>
+    <div class="online-status" id="online-host-status">
+        <div class="net-spinner" style="margin:0 auto 8px"></div>
+        Ожидаем подключение...
+    </div>
+    <button class="online-back" id="btn-online-host-cancel">Отмена</button>
+</div>
+
+<!-- Online join — ввод кода -->
+<div class="overlay hidden" id="online-join-screen">
+    <div class="online-title">ПОДКЛЮЧЕНИЕ</div>
+    <div class="online-subtitle">ВВЕДИ КОД СОПЕРНИКА</div>
+    <input type="text" class="online-code-input" id="online-join-input"
+           placeholder="XXXX" maxlength="4" autocomplete="off"
+           autocapitalize="characters" spellcheck="false">
+    <div class="online-status" id="online-join-status">&nbsp;</div>
+    <button class="online-primary" id="btn-online-join-confirm" disabled>Подключиться</button>
+    <button class="online-back" id="btn-online-join-cancel">Отмена</button>
+</div>
+
+<!-- Net overlay — оверлей поверх игры при disconnect/reconnect -->
+<div id="net-overlay" class="hidden">
+    <div class="net-spinner"></div>
+    <div id="net-overlay-title">Связь потеряна</div>
+    <div id="net-overlay-text">Пытаемся переподключиться...</div>
+    <button class="online-back" id="btn-net-overlay-exit">Выйти в меню</button>
+</div>
+
+<!-- Net turn indicator — показывается только когда ход не твой -->
+<div id="net-turn-indicator" class="hidden"></div>
 
 <!-- Rules screen -->
 <div id="rules-screen" class="hidden">
@@ -987,7 +1140,9 @@ html, body {
 <!-- Toast -->
 <div id="toast" class="hidden"></div>
 
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
 <script src="game.js"></script>
+<script src="net.js"></script>
 <script src="ui.js"></script>
 </body>
 </html>
