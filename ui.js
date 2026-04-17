@@ -354,8 +354,11 @@ class GameUI {
             if (this._lastRenderCurrentPI !== undefined) this._turnNumber = (this._turnNumber || 1) + 1;
             else this._turnNumber = this._turnNumber || 1;
             this._lastRenderCurrentPI = st.currentPI;
+            // Snapshot all players' scores at turn start (for END summary gain calc)
+            this._turnStartScores = st.players.map(p => p.score);
         }
         if (!this._turnNumber) this._turnNumber = 1;
+        if (!this._turnStartScores) this._turnStartScores = st.players.map(p => p.score);
 
         // Compact header — turn tag + player tag + opp scores + current score
         if (this.turnTagEl) this.turnTagEl.textContent = 'T' + String(this._turnNumber).padStart(2, '0');
@@ -1091,6 +1094,7 @@ class GameUI {
             tasks: st.tasksThisTurn,
             utilizes: st.utilizesThisTurn,
             score: st.cp.score,
+            prevScore: this._turnStartScores?.[st.currentPI] ?? st.cp.score,
         };
         const ok = this.tm.endTurn();
         if (ok === true || ok === 'ok' || this.netMode === 'guest') {
@@ -1305,22 +1309,36 @@ class GameUI {
         const playerColor = this._playerColor(s.playerIdx);
         const nextColor = this._playerColor(nextPI);
 
-        // Итог хода
-        const parts = [];
-        if (s.tasks > 0) parts.push(`сыграно карт: ${s.tasks}`);
-        if (s.utilizes > 0) parts.push(`утилизировано: ${s.utilizes}`);
-        if (parts.length === 0) parts.push('ход завершён без задач');
+        const prev = s.prevScore ?? s.score;
+        const gain = Math.max(0, s.score - prev);
 
+        // Top label: "ИГРОК N · ХОД ЗАВЕРШЁН"
         document.getElementById('handoff-player').innerHTML =
-            `<span style="color:${playerColor}">Игрок ${s.playerIdx + 1}</span> завершил ход`;
-        document.getElementById('handoff-summary').innerHTML =
-            `${parts.join(' · ')}<br>Счёт: <span style="color:${playerColor}">${s.score}</span> / ${this.state.winScore}`;
+            `<span class="hl-player" style="color:${playerColor}">ИГРОК ${s.playerIdx + 1}</span> · ХОД ЗАВЕРШЁН`;
+
+        // END panel: +gain + {prev}→{score}/win
+        const gainEl = document.getElementById('handoff-gain');
+        gainEl.textContent = gain > 0 ? `+${gain}` : `—`;
+        gainEl.classList.toggle('zero', gain === 0);
+        document.getElementById('handoff-delta').innerHTML =
+            `<strong>${prev}</strong> → <strong>${s.score}</strong> / ${this.state.winScore}`;
+
+        // Stats rows
+        const tasksRow = document.getElementById('handoff-stat-tasks');
+        const utilsRow = document.getElementById('handoff-stat-utils');
+        tasksRow.querySelector('.hsr-val').textContent = s.tasks || 0;
+        tasksRow.classList.toggle('zero', !s.tasks);
+        utilsRow.querySelector('.hsr-val').textContent = s.utilizes || 0;
+        utilsRow.classList.toggle('zero', !s.utilizes);
+
+        // Next player prompt
         document.getElementById('handoff-next').innerHTML =
-            `Передайте устройство<br><span style="color:${nextColor}">Игроку ${nextPI + 1}</span>`;
+            `<span class="hn-prompt">&gt; Передать устройство</span>` +
+            `<span class="hn-player" style="color:${nextColor}">Игрок ${nextPI + 1}</span>`;
 
         this.handoffScreen.classList.remove('hidden');
 
-        // Glitch entrance on "Передайте устройство" text
+        // Glitch entrance on next-player line
         const nextEl = document.getElementById('handoff-next');
         nextEl.classList.remove('glitch');
         requestAnimationFrame(() => nextEl.classList.add('glitch'));

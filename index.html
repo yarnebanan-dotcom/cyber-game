@@ -822,21 +822,86 @@ html, body {
 }
 .overlay.hidden { display: none; }
 
-/* Handoff */
-#handoff-screen { background: rgba(3, 5, 12, 0.97); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
-#handoff-content { display: flex; flex-direction: column; gap: 10px; align-items: center; }
-#handoff-player { font-size: 14px; font-weight: 700; letter-spacing: 0.05em; }
-#handoff-summary { font-size: 13px; color: #556688; line-height: 1.7; }
-#handoff-next { font-size: 24px; font-weight: 800; color: #c8dcff; margin-top: 14px; line-height: 1.35; letter-spacing: -0.3px; }
-#handoff-next.glitch { animation: glitch-text 0.65s steps(1); }
-#btn-handoff-ok {
-    padding: 16px 52px;
-    background: linear-gradient(155deg, #2c6ee0, #1844a8);
-    border: none; border-radius: 14px; color: #fff;
-    font-size: 18px; font-weight: 700; cursor: pointer; font-family: inherit;
-    box-shadow: 0 6px 26px rgba(34,90,200,0.55), inset 0 1px 0 rgba(255,255,255,0.16);
-    letter-spacing: 0.03em;
+/* Handoff — HUD Kit END summary */
+#handoff-screen {
+    background: rgba(2, 6, 10, 0.98);
+    backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px);
+    gap: 16px; padding: 20px;
 }
+#handoff-content {
+    display: flex; flex-direction: column; gap: 14px; align-items: stretch;
+    width: 100%; max-width: 360px;
+}
+.handoff-label {
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.25em; text-transform: uppercase;
+    color: var(--text-dim); text-align: center;
+}
+.handoff-label .hl-player { font-weight: 700; }
+#handoff-end-panel {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 14px;
+    background: var(--bg-1);
+    border: 1px solid var(--accent);
+    box-shadow: 0 0 12px rgba(255,106,43,0.2);
+}
+.end-gain {
+    font-family: var(--display); font-size: 26px; font-weight: 700;
+    color: var(--accent);
+    text-shadow: 0 0 10px rgba(255,106,43,0.5);
+    letter-spacing: 0.04em;
+}
+.end-gain.zero { color: var(--text-dim); text-shadow: none; }
+.end-delta {
+    flex: 1;
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.18em; color: var(--text-dim);
+    text-align: left;
+}
+.end-delta strong { color: var(--text); font-weight: 400; }
+#handoff-stats {
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 8px 12px;
+    border: 1px solid var(--line-ghost);
+    background: rgba(10,22,32,0.5);
+}
+.handoff-stat-row {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 9px;
+    letter-spacing: 0.18em; color: var(--text-dim);
+}
+.handoff-stat-row .hsr-label { text-transform: uppercase; }
+.handoff-stat-row .hsr-sep { flex: 1; height: 1px; background: var(--line-ghost); }
+.handoff-stat-row .hsr-val { color: var(--text); font-weight: 400; }
+.handoff-stat-row.zero .hsr-val { color: var(--text-ghost); }
+#handoff-next {
+    padding: 10px 12px;
+    border: 1px dashed var(--line-dim);
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.2em; text-transform: uppercase;
+    color: var(--text-dim); text-align: center;
+    line-height: 1.6;
+}
+#handoff-next .hn-prompt { color: var(--text-dim); }
+#handoff-next .hn-player {
+    display: block; margin-top: 6px;
+    font-family: var(--display); font-size: 18px;
+    letter-spacing: 0.12em; font-weight: 700;
+}
+#handoff-next.glitch .hn-player { animation: glitch-text 0.65s steps(1); }
+#btn-handoff-ok {
+    padding: 12px 28px;
+    background: var(--accent);
+    border: 1px solid var(--accent);
+    color: var(--bg-0);
+    font-family: var(--mono); font-size: 11px;
+    font-weight: 700; cursor: pointer;
+    letter-spacing: 0.25em; text-transform: uppercase;
+    clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+    transition: background 0.15s;
+}
+#btn-handoff-ok:hover { background: #ff8b55; }
+#btn-handoff-ok:active { background: var(--accent-dim); }
 
 /* Game Over */
 #gameover-screen { background: rgba(3, 5, 12, 0.97); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); }
@@ -1284,11 +1349,26 @@ html, body {
 <!-- Handoff screen -->
 <div class="overlay hidden" id="handoff-screen">
     <div id="handoff-content">
-        <div id="handoff-player"></div>
-        <div id="handoff-summary"></div>
+        <div class="handoff-label" id="handoff-player"></div>
+        <div id="handoff-end-panel">
+            <div class="end-gain" id="handoff-gain">+0</div>
+            <div class="end-delta" id="handoff-delta"></div>
+        </div>
+        <div id="handoff-stats">
+            <div class="handoff-stat-row" id="handoff-stat-tasks">
+                <span class="hsr-label">Разыграно</span>
+                <span class="hsr-sep"></span>
+                <span class="hsr-val">0</span>
+            </div>
+            <div class="handoff-stat-row" id="handoff-stat-utils">
+                <span class="hsr-label">Утилизировано</span>
+                <span class="hsr-sep"></span>
+                <span class="hsr-val">0</span>
+            </div>
+        </div>
         <div id="handoff-next"></div>
     </div>
-    <button id="btn-handoff-ok">Готов! ✓</button>
+    <button id="btn-handoff-ok">ПЕРЕДАТЬ →</button>
 </div>
 
 <!-- Game over screen -->

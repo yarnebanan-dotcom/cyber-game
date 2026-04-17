@@ -6,6 +6,21 @@
 
 ---
 
+## 2026-04-17 — HUD Kit: этап 3.2a — END summary на handoff экране
+
+- **`HEAD`** Feat: переработан экран передачи устройства под стиль HUD Kit `proto.jsx` §END
+  - `#handoff-player` — mono-лейбл `ИГРОК N · ХОД ЗАВЕРШЁН` с цветом игрока
+  - `#handoff-end-panel` — панель `bg-1` с accent бордером и свечением `0 0 12px rgba(255,106,43,0.2)`:
+    - `.end-gain` — Orbitron 26px orange `+{gain}` с text-shadow; при нулевом приросте `—` приглушённым цветом
+    - `.end-delta` — mono `{prev} → {score} / {winScore}`
+  - `#handoff-stats` — блок со строками `РАЗЫГРАНО` и `УТИЛИЗИРОВАНО` (mono 9px, dotted row через `.hsr-sep`)
+    - класс `.zero` приглушает строки без активности
+  - `#handoff-next` — dashed border-блок с `> ПЕРЕДАТЬ УСТРОЙСТВО` + `ИГРОК N` (Orbitron 18px цветом следующего игрока)
+    - glitch-анимация переноса на заголовок `.hn-player`
+  - `#btn-handoff-ok` — accent-filled HUD кнопка `ПЕРЕДАТЬ →` (mono, beveled clip-path)
+- **Данные:** `_showHandoff` читает `s.prevScore` (снимок очков на старте хода в `_render` через `_turnStartScores`), считает gain = `max(0, score - prevScore)`
+- **Изменено:** `Web/index.html` (CSS `#handoff-*`, HTML `#handoff-screen`), `Web/ui.js` (`_showHandoff` полностью переписан, сохранение `_turnStartScores` при смене `currentPI`)
+
 ## 2026-04-17 — HUD Kit: этап 3.1 — compact header + phase stepper + hint-bar
 
 - **`HEAD`** Feat: замена верхнего HUD на компактную шапку из `Дизайн/_/proto.jsx`
