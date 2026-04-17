@@ -86,6 +86,13 @@ class GameUI {
         // Handoff screen
         this.handoffScreen = document.getElementById('handoff-screen');
         document.getElementById('btn-handoff-ok').onclick = () => this._onHandoffOk();
+        // FIX-16: skip glitch animation on any tap — reveal next player instantly
+        this.handoffScreen.addEventListener('pointerdown', () => {
+            const nextEl = document.getElementById('handoff-next');
+            if (nextEl && nextEl.classList.contains('glitch')) {
+                nextEl.classList.remove('glitch');
+            }
+        }, { capture: true });
 
         // Game over screen
         this.gameOverScreen = document.getElementById('gameover-screen');
@@ -1458,7 +1465,7 @@ class GameUI {
         const nextEl = document.getElementById('handoff-next');
         nextEl.classList.remove('glitch');
         requestAnimationFrame(() => nextEl.classList.add('glitch'));
-        setTimeout(() => nextEl.classList.remove('glitch'), 750);
+        setTimeout(() => nextEl.classList.remove('glitch'), 450);
     }
 
     _onHandoffOk() {
@@ -1559,7 +1566,7 @@ class GameUI {
         const nextEl = document.getElementById('handoff-next');
         nextEl.classList.remove('glitch');
         requestAnimationFrame(() => nextEl.classList.add('glitch'));
-        setTimeout(() => nextEl.classList.remove('glitch'), 750);
+        setTimeout(() => nextEl.classList.remove('glitch'), 450);
     }
 
     // ── Game over ──────────────────────────────────────────────
