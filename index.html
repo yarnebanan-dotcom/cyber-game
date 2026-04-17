@@ -198,35 +198,80 @@ html, body {
     border-bottom: 1px solid var(--line-dim);
     background: transparent;
 }
-.hud-compact {
+/* FIX-04: двухэтажный HUD */
+/* Tier 1 — крупный: диамант цвета активного игрока + имя + счёт + меню */
+.hud-tier-1 {
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 0 2px;
+    gap: 10px;
+    padding: 2px 4px 4px;
+    min-height: 34px;
 }
-.hud-turn-tag {
-    font-family: var(--mono);
-    font-size: 9px;
-    font-weight: 700;
-    letter-spacing: 0.2em;
-    padding: 3px 7px;
+.hud-diamond {
+    width: 18px; height: 18px;
+    transform: rotate(45deg);
     background: var(--accent);
-    color: var(--bg-0);
-    border: 1px solid var(--accent);
-    text-transform: uppercase;
+    box-shadow: 0 0 10px var(--accent);
     flex-shrink: 0;
+    transition: background 0.25s, box-shadow 0.25s;
 }
-.hud-player-tag {
-    font-family: var(--mono);
-    font-size: 9px;
-    letter-spacing: 0.2em;
+#hud[data-player="p1"] .hud-diamond { background: var(--p1); box-shadow: 0 0 10px var(--p1-glow); }
+#hud[data-player="p2"] .hud-diamond { background: var(--p2); box-shadow: 0 0 10px var(--p2-glow); }
+#hud[data-player="p3"] .hud-diamond { background: var(--p3); box-shadow: 0 0 10px var(--p3-glow); }
+
+.hud-player-name {
+    font-family: var(--display);
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--accent);
     flex-shrink: 0;
 }
-.hud-player-tag.p1 { color: var(--p1); }
-.hud-player-tag.p2 { color: var(--p2); }
-.hud-player-tag.p3 { color: var(--p3); }
+#hud[data-player="p1"] .hud-player-name { color: var(--p1); }
+#hud[data-player="p2"] .hud-player-name { color: var(--p2); }
+#hud[data-player="p3"] .hud-player-name { color: var(--p3); }
+
+/* Tier 2 — мелкий: ход, фаза-счётчик, opp-badges, колода/сброс */
+.hud-tier-2 {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 4px;
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--text-dim);
+    overflow: hidden;
+    white-space: nowrap;
+}
+.t2-label { color: var(--text-ghost); }
+.t2-dot { color: var(--line-ghost); }
+.hud-turn-tag {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.15em;
+    color: var(--text);
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+.hud-phase-info {
+    color: var(--accent);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+.hud-meta-inline {
+    font-size: 8px;
+    letter-spacing: 0.15em;
+    color: var(--text-dim);
+    flex-shrink: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.hud-meta-inline strong { color: var(--text); font-weight: 500; }
 
 .hud-opp-scores {
     display: flex;
@@ -252,19 +297,21 @@ html, body {
 
 .hud-score {
     font-family: var(--display);
-    font-size: 16px;
+    font-size: 20px;
     font-weight: 700;
-    color: var(--accent);
+    color: var(--text);
     letter-spacing: 0.04em;
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
+    line-height: 1;
 }
 .hud-score-max {
     font-family: var(--mono);
-    font-size: 9px;
+    font-size: 11px;
     color: var(--text-dim);
-    letter-spacing: 0.15em;
-    margin-left: 1px;
+    letter-spacing: 0.1em;
+    margin-left: 2px;
+    font-weight: 500;
 }
 
 .hud-menu-btn {
@@ -1674,25 +1721,31 @@ html, body {
 <body>
 <div id="app">
 
-    <!-- HUD: compact header + phase stepper (KIT Phase 3) -->
-    <div id="hud">
-        <div class="hud-compact">
-            <div class="hud-turn-tag" id="turn-tag">T01</div>
-            <div class="hud-player-tag" id="player-tag">P-01</div>
-            <div class="hud-opp-scores" id="opp-scores"></div>
+    <!-- HUD: tier-1 (big) + tier-2 (meta) + phase stepper · FIX-04 -->
+    <div id="hud" data-player="p1">
+        <!-- Tier 1: active player chip + name + own score + menu -->
+        <div class="hud-tier-1">
+            <div class="hud-diamond" id="hud-diamond"></div>
+            <div class="hud-player-name" id="player-tag">ИГРОК 1</div>
             <div class="hud-spacer"></div>
             <div class="hud-score"><span id="cur-score">0</span><span class="hud-score-max" id="cur-score-max">/15</span></div>
-            <button class="hud-menu-btn" id="btn-ingame-menu">≡</button>
+            <button class="hud-menu-btn" id="btn-ingame-menu" aria-label="Меню">≡</button>
+        </div>
+        <!-- Tier 2: turn + phase counter + opp badges + deck/discard -->
+        <div class="hud-tier-2">
+            <span class="t2-label">ХОД</span><span class="hud-turn-tag" id="turn-tag">T01</span>
+            <span class="t2-dot">·</span>
+            <span class="t2-label">ФАЗА</span><span class="hud-phase-info" id="hud-phase-info">—</span>
+            <div class="hud-spacer"></div>
+            <div class="hud-opp-scores" id="opp-scores"></div>
+            <span class="t2-dot">·</span>
+            <span class="hud-meta-inline">КОЛОДА <strong id="deck-count">54</strong> / СБРОС <strong id="discard-count">0</strong></span>
         </div>
         <div class="phase-stepper" id="phase-stepper">
             <div class="ps-cell" data-phase="0">01·ВОСПОЛН</div>
             <div class="ps-cell" data-phase="1">02·ДЕЙСТВ</div>
             <div class="ps-cell" data-phase="2">03·ЗАДАЧА</div>
             <div class="ps-cell" data-phase="3">04·КОНЕЦ</div>
-        </div>
-        <div class="hud-meta">
-            <span>КОЛОДА <strong id="deck-count">54</strong></span>
-            <span>СБРОС <strong id="discard-count">0</strong></span>
         </div>
     </div>
 

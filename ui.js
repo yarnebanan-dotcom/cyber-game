@@ -401,10 +401,21 @@ class GameUI {
         // Compact header — turn tag + player tag + opp scores + current score
         if (this.turnTagEl) this.turnTagEl.textContent = 'T' + String(this._turnNumber).padStart(2, '0');
         const activePI = st.currentPI;
+        // FIX-04: HUD data-player красит tier-1 через CSS
+        const hudEl = document.getElementById('hud');
+        if (hudEl) hudEl.dataset.player = `p${activePI + 1}`;
         if (this.playerTagEl) {
-            this.playerTagEl.textContent = `P-${String(activePI + 1).padStart(2, '0')}`;
-            this.playerTagEl.classList.remove('p1', 'p2', 'p3');
-            this.playerTagEl.classList.add('p' + (activePI + 1));
+            // FIX-04: «ИГРОК N» вместо «P-0N»
+            this.playerTagEl.textContent = `ИГРОК ${activePI + 1}`;
+        }
+        // FIX-04: tier-2 phase counter "ДЕЙСТВ 1/2" / "ЗАДАЧА 0/2"
+        const phaseInfoEl = document.getElementById('hud-phase-info');
+        if (phaseInfoEl) {
+            const phaseName = st.phase === Phase.Replenish ? 'ВОСПОЛН'
+                : st.phase === Phase.Action ? `ДЕЙСТВ ${st.chipsPlaced}/${st.chipsAllowed}`
+                : st.phase === Phase.Task ? `ЗАДАЧА ${(st.tasksThisTurn || 0) + (st.utilizesThisTurn || 0)}/2`
+                : 'КОНЕЦ';
+            phaseInfoEl.textContent = phaseName;
         }
         // Opponent score chips
         if (this.oppScoresEl) {
