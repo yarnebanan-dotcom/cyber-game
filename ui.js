@@ -395,6 +395,14 @@ class GameUI {
             this._lastRenderCurrentPI = st.currentPI;
             // Snapshot all players' scores at turn start (for END summary gain calc)
             this._turnStartScores = st.players.map(p => p.score);
+            // FIX-11: полный снимок для отчёта в end-turn
+            this._turnStartSnapshot = {
+                pi: st.currentPI,
+                handSize: st.players[st.currentPI].hand.length,
+                supply: st.players[st.currentPI].supply,
+                chipsOnBoard: st.players[st.currentPI].chipsOnBoard,
+                deckSize: st.deck?.cards?.length ?? 0,
+            };
         }
         if (!this._turnNumber) this._turnNumber = 1;
         if (!this._turnStartScores) this._turnStartScores = st.players.map(p => p.score);
@@ -1154,13 +1162,23 @@ class GameUI {
         if (this.nodePickDone) return;
         if (this.netMode && this.state.currentPI !== this.localPI) return;
         const st = this.state;
-        // Сохраняем итог хода до endTurn()
+        // FIX-11: полный снимок итога хода
+        const snap = this._turnStartSnapshot;
+        const p = st.cp;
         const summary = {
             playerIdx: st.currentPI,
             tasks: st.tasksThisTurn,
             utilizes: st.utilizesThisTurn,
-            score: st.cp.score,
-            prevScore: this._turnStartScores?.[st.currentPI] ?? st.cp.score,
+            score: p.score,
+            prevScore: this._turnStartScores?.[st.currentPI] ?? p.score,
+            chipsPlaced: st.chipsPlaced,
+            chipsOnBoard: p.chipsOnBoard,
+            handSize: p.hand.length,
+            handDelta: (snap && snap.pi === st.currentPI) ? (p.hand.length - snap.handSize) : null,
+            supply: p.supply,
+            supplyDelta: (snap && snap.pi === st.currentPI) ? (p.supply - snap.supply) : null,
+            deckSize: st.deck?.cards?.length ?? 0,
+            discardSize: st.deck?.discard?.length ?? 0,
         };
         const ok = this.tm.endTurn();
         if (ok === true || ok === 'ok' || this.netMode === 'guest') {
@@ -1408,6 +1426,24 @@ class GameUI {
         tasksRow.classList.toggle('zero', !s.tasks);
         utilsRow.querySelector('.hsr-val').textContent = s.utilizes || 0;
         utilsRow.classList.toggle('zero', !s.utilizes);
+
+        // FIX-11: расширенные метрики с дельтами
+        const setStatRow = (id, val, isZero) => {
+            const row = document.getElementById(id);
+            if (!row) return;
+            row.querySelector('.hsr-val').innerHTML = val;
+            row.classList.toggle('zero', !!isZero);
+        };
+        const fmtDelta = d => {
+            if (d == null || d === 0) return '';
+            const sign = d > 0 ? '+' : '';
+            const color = d > 0 ? 'var(--ok)' : 'var(--danger)';
+            return ` <span style="color:${color};font-weight:500">${sign}${d}</span>`;
+        };
+        setStatRow('handoff-stat-chips', `${s.chipsOnBoard ?? 0}`, !s.chipsOnBoard);
+        setStatRow('handoff-stat-hand', `${s.handSize ?? 0}${fmtDelta(s.handDelta)}`, false);
+        setStatRow('handoff-stat-supply', `${s.supply ?? '—'}${fmtDelta(s.supplyDelta)}`, false);
+        setStatRow('handoff-stat-deck', `${s.deckSize ?? 0} / ${s.discardSize ?? 0}`, false);
 
         // Next player prompt (свой data-player — следующий игрок)
         const nextEl0 = document.getElementById('handoff-next');
