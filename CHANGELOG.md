@@ -6,6 +6,17 @@
 
 ---
 
+## 2026-04-18 — HUD Kit: аудит + CardPick title fix
+
+- **`HEAD`** Fix: заголовок `#card-pick-title` переведён в HUD Kit палитру
+  - Источник действия: `ИГРОК N` accent цветом, mode `var(--text-dim)`, имя карты Orbitron display
+  - Instruction: `var(--display)` 15px с цветом target игрока
+  - Consequence: mono 9px `var(--text-dim)` uppercase (вместо зелёного/оранжевого)
+  - Fallback (ctx=null): `&gt; ВЫБОР КАРТ` mono accent + display title `ИГРОК N · ВЫБЕРИ К`
+- Визуальный аудит: Menu / Game / Handoff / Rules (4 таба) / Pause / Victory / CardPick / Synth / Revealed — все экраны в kit палитре
+
+---
+
 ## 2026-04-17 — HUD Kit: этап 5 — synth-order + revealed zones
 
 - **`HEAD`** Feat: завершающий рестайл оставшихся UI-поверхностей под HUD Kit

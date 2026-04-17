@@ -1514,18 +1514,19 @@ class GameUI {
             const targetColor = this._playerColor(pi);
             const actorColor = this._playerColor(ctx.actorPI);
             const sourceLine = ctx.cardName
-                ? `<span style="color:${actorColor}">Игрок ${ctx.actorPI + 1}</span> ${ctx.modeLabel} <span style="color:#c8dcff">«${ctx.cardName}»</span>`
-                : `<span style="color:${actorColor}">Игрок ${ctx.actorPI + 1}</span>`;
-            const consequenceColor = ctx.kind === 'dig' ? '#88cc99' : '#e0a860';
+                ? `<span style="color:${actorColor}">ИГРОК ${ctx.actorPI + 1}</span> <span style="color:var(--text-dim)">${ctx.modeLabel}</span> <span style="color:var(--text);font-family:var(--display);letter-spacing:0.1em">«${ctx.cardName}»</span>`
+                : `<span style="color:${actorColor}">ИГРОК ${ctx.actorPI + 1}</span>`;
             const consequenceLine = ctx.consequence
-                ? `<div style="font-size:10.5px;color:${consequenceColor};font-weight:500;margin-top:6px;line-height:1.4;letter-spacing:0.01em">${ctx.consequence}</div>`
+                ? `<div style="font-family:var(--mono);font-size:9px;color:var(--text-dim);letter-spacing:0.15em;margin-top:6px;line-height:1.5;text-transform:uppercase">${ctx.consequence}</div>`
                 : '';
             this.cardPickTitle.innerHTML =
-                `<div style="font-size:11px;color:#7a8aaa;font-weight:600;margin-bottom:6px;letter-spacing:0.03em">${sourceLine}</div>` +
-                `<div style="font-size:15px;color:${targetColor};font-weight:700">${ctx.instruction}</div>` +
+                `<div style="font-family:var(--mono);font-size:9px;letter-spacing:0.2em;margin-bottom:6px;text-transform:uppercase">${sourceLine}</div>` +
+                `<div style="font-family:var(--display);font-size:15px;color:${targetColor};font-weight:600;letter-spacing:0.1em">${ctx.instruction}</div>` +
                 consequenceLine;
         } else {
-            this.cardPickTitle.textContent = `Игрок ${pi + 1}: выберите ${count} карт${count === 1 ? 'у' : 'ы'}`;
+            this.cardPickTitle.innerHTML =
+                `<div style="font-family:var(--mono);font-size:9px;color:var(--accent);letter-spacing:0.2em;margin-bottom:4px">&gt; ВЫБОР КАРТ</div>` +
+                `<div style="font-family:var(--display);font-size:15px;color:var(--text);letter-spacing:0.1em">ИГРОК ${pi + 1} · ВЫБЕРИ ${count}</div>`;
         }
         this.cardPickList.innerHTML = '';
 
