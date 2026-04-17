@@ -1319,6 +1319,22 @@ html, body {
     color: var(--text);
 }
 .hud-ring.active .ring-val { color: var(--accent); }
+/* FIX-10: snapshot блок — табличный layout */
+.pause-snapshot {
+    display: flex; flex-direction: column; gap: 4px;
+    padding: 10px 2px 4px;
+    border-top: 1px solid var(--line-ghost);
+    margin-top: 4px;
+}
+.pause-snap-row {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 10px;
+    letter-spacing: 0.15em; text-transform: uppercase;
+}
+.pause-snap-row .ps-k { color: var(--text-dim); min-width: 92px; }
+.pause-snap-row .ps-sep { flex: 1; height: 1px; background: var(--line-ghost); }
+.pause-snap-row .ps-v { color: var(--text); font-weight: 500; }
+
 .pause-btns { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .pause-btn {
     padding: 11px 14px;
@@ -2166,6 +2182,15 @@ html, body {
         <div class="pause-state">
             <div class="pause-state-label">STATE</div>
             <div class="pause-rings" id="pause-rings"></div>
+        </div>
+        <!-- FIX-10: снимок матча -->
+        <div class="pause-snapshot" id="pause-snapshot">
+            <div class="pause-snap-row"><span class="ps-k">PHASE</span><span class="ps-sep"></span><span class="ps-v" id="ps-phase">—</span></div>
+            <div class="pause-snap-row"><span class="ps-k">TURN</span><span class="ps-sep"></span><span class="ps-v" id="ps-turn">—</span></div>
+            <div class="pause-snap-row"><span class="ps-k">ACTIVE</span><span class="ps-sep"></span><span class="ps-v player-title" id="ps-active">—</span></div>
+            <div class="pause-snap-row"><span class="ps-k">ELAPSED</span><span class="ps-sep"></span><span class="ps-v" id="ps-elapsed">00:00</span></div>
+            <div class="pause-snap-row"><span class="ps-k">DECK / DISCARD</span><span class="ps-sep"></span><span class="ps-v" id="ps-deck">—</span></div>
+            <div class="pause-snap-row"><span class="ps-k">HAND</span><span class="ps-sep"></span><span class="ps-v" id="ps-hand">—</span></div>
         </div>
         <div class="pause-btns">
             <button class="pause-btn hot" id="btn-close-ingame-menu">▶ ПРОДОЛЖИТЬ</button>

@@ -358,6 +358,7 @@ class GameUI {
     _resetUiState() {
         this._prevScores = [0, 0, 0];
         this._turnNumber = 1;
+        this._matchStartTime = Date.now();
         this._lastRenderCurrentPI = undefined;
         this._cardRotations = new Map();
         this.pendingCard = null;
@@ -1692,6 +1693,29 @@ class GameUI {
         // FIX-09: data-player на корне паузы — для .player-title внутри
         const ingameEl = document.getElementById('ingame-menu');
         if (ingameEl && this.state) ingameEl.dataset.player = `p${this.state.currentPI + 1}`;
+
+        // FIX-10: снимок матча
+        if (this.state) {
+            const st = this.state;
+            const phaseName = st.phase === Phase.Replenish ? 'ВОСПОЛНЕНИЕ'
+                : st.phase === Phase.Action ? `ДЕЙСТВИЯ ${st.chipsPlaced}/${st.chipsAllowed}`
+                : st.phase === Phase.Task ? `ЗАДАЧА ${(st.tasksThisTurn || 0) + (st.utilizesThisTurn || 0)}/2`
+                : 'КОНЕЦ ХОДА';
+            const elapsedMs = Date.now() - (this._matchStartTime || Date.now());
+            const mm = Math.floor(elapsedMs / 60000);
+            const ss = Math.floor((elapsedMs % 60000) / 1000);
+            const active = st.players[st.currentPI];
+            const setEl = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+            setEl('ps-phase', phaseName);
+            setEl('ps-turn', `T${String(this._turnNumber || 1).padStart(2, '0')} / ИГРОК ${st.currentPI + 1}`);
+            setEl('ps-active', `ИГРОК ${st.currentPI + 1} · ${active.score}/${st.winScore}`);
+            setEl('ps-elapsed', `${String(mm).padStart(2, '0')}:${String(ss).padStart(2, '0')}`);
+            const deckLen = st.deck?.cards?.length ?? st.deck?.length ?? 0;
+            const discardLen = st.deck?.discard?.length ?? st.discard?.length ?? 0;
+            setEl('ps-deck', `${deckLen} / ${discardLen}`);
+            const supply = active.supply ?? '—';
+            setEl('ps-hand', `${active.hand.length} карт · запас ${supply}`);
+        }
 
         // Render HudRings for each player
         const ringsEl = document.getElementById('pause-rings');
