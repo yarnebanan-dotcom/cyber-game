@@ -1193,38 +1193,126 @@ html, body {
     color: var(--text-ghost); cursor: default;
 }
 
-/* Card Detail */
-#card-detail { background: rgba(3, 5, 12, 0.95); backdrop-filter: blur(20px); }
+/* Card Detail — HUD Kit redesign */
+#card-detail { background: rgba(2, 6, 10, 0.92); backdrop-filter: blur(16px); }
 #card-detail.hidden { display: none; }
 .detail-box {
-    background: linear-gradient(155deg, #0e1a38 0%, #090e22 100%);
-    border: 1px solid rgba(70,110,210,0.28);
-    border-radius: 18px; padding: 22px; width: 100%; max-width: 320px;
-    text-align: center; display: flex; flex-direction: column; gap: 12px;
-    box-shadow: 0 24px 64px rgba(0,0,0,0.85), inset 0 1px 0 rgba(255,255,255,0.07);
+    width: 100%; max-width: 340px;
+    display: flex; flex-direction: column; gap: 10px;
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    padding: 14px 14px 12px;
+    clip-path: polygon(
+        12px 0, calc(100% - 6px) 0, 100% 6px,
+        100% calc(100% - 12px), calc(100% - 12px) 100%, 6px 100%,
+        0 calc(100% - 6px), 0 12px
+    );
+    box-shadow: 0 24px 64px rgba(0,0,0,0.85), inset 0 1px 0 rgba(63,208,230,0.08);
 }
-#detail-name { font-size: 20px; font-weight: 800; color: #d4e2ff; letter-spacing: 0.04em; }
-#detail-cost { color: #4a5a80; font-size: 12px; }
-#detail-pattern { display: flex; justify-content: center; }
-#detail-pattern svg { width: 96px; height: 96px; transition: transform 0.22s cubic-bezier(0.34,1.2,0.64,1); }
-#detail-rotate-row { display: flex; gap: 10px; justify-content: center; margin-top: 6px; }
+.detail-head {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 8px; border-bottom: 1px solid var(--line-ghost);
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.2em;
+}
+.detail-head .dh-tag {
+    background: var(--accent); color: var(--bg-0);
+    padding: 3px 7px; font-weight: 700;
+}
+.detail-head .dh-cost {
+    border: 1px solid var(--line-dim); color: var(--text-dim);
+    padding: 3px 7px;
+}
+.detail-head .dh-cost strong { color: var(--text); font-weight: 700; }
+#detail-name {
+    font-family: var(--display); font-weight: 700;
+    font-size: 20px; letter-spacing: 0.1em; line-height: 1.1;
+    text-transform: uppercase;
+    color: var(--text);
+    text-shadow: 0 0 16px rgba(63,208,230,0.25);
+    text-align: center;
+    padding: 6px 4px 2px;
+}
+#detail-pattern {
+    display: flex; justify-content: center;
+    padding: 6px 0 4px;
+}
+#detail-pattern svg {
+    width: 110px; height: 110px;
+    transition: transform 0.22s cubic-bezier(0.34,1.2,0.64,1);
+    filter: drop-shadow(0 0 10px rgba(63,208,230,0.14));
+}
+#detail-rotate-row {
+    display: flex; gap: 8px; justify-content: center; align-items: center;
+    font-family: var(--mono); font-size: 8px; letter-spacing: 0.2em;
+    color: var(--text-ghost);
+    padding-bottom: 6px;
+}
+#detail-rotate-row::before, #detail-rotate-row::after {
+    content: ''; flex: 1; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--line-ghost), transparent);
+}
 .btn-rotate {
     background: transparent;
     border: 1px solid var(--line-dim);
     color: var(--text-dim);
-    font-size: 20px; line-height: 1;
-    padding: 4px 18px; cursor: pointer; font-family: var(--mono);
+    font-size: 14px; line-height: 1;
+    padding: 3px 14px; cursor: pointer; font-family: var(--mono);
     clip-path: polygon(
-        0 0, calc(100% - 6px) 0, 100% 6px,
-        100% 100%, 6px 100%, 0 calc(100% - 6px)
+        0 0, calc(100% - 5px) 0, 100% 5px,
+        100% 100%, 5px 100%, 0 calc(100% - 5px)
     );
     transition: color 0.12s, border-color 0.12s, background 0.12s, transform 0.1s;
 }
 .btn-rotate:hover { color: var(--text); border-color: var(--line); background: var(--bg-2); }
 .btn-rotate:active { transform: scale(0.92); }
-#detail-effects { font-size: 13px; line-height: 1.9; color: var(--text-dim); font-family: var(--sans); }
+#detail-effects {
+    display: flex; flex-direction: column; gap: 8px;
+    font-family: var(--sans);
+}
+.detail-fx {
+    border: 1px solid var(--line-ghost);
+    background: rgba(10,22,32,0.4);
+    padding: 8px 10px;
+    display: flex; flex-direction: column; gap: 3px;
+}
+.detail-fx-head {
+    display: flex; align-items: center; gap: 8px;
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.22em;
+    text-transform: uppercase;
+    font-weight: 700;
+}
+.detail-fx-head .dfh-icon {
+    width: 18px; height: 18px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; line-height: 1;
+    border: 1px solid currentColor;
+    flex-shrink: 0;
+}
+.detail-fx.fx-play .detail-fx-head { color: var(--ok); }
+.detail-fx.fx-util .detail-fx-head { color: var(--accent); }
+.detail-fx.fx-synth .detail-fx-head { color: #b76cff; }
+.detail-fx.fx-play { border-left: 3px solid var(--ok); }
+.detail-fx.fx-util { border-left: 3px solid var(--accent); }
+.detail-fx.fx-synth { border-left: 3px solid #b76cff; }
+.detail-fx-short {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.08em;
+    color: var(--text); margin-top: 2px;
+}
+.detail-fx-long {
+    font-size: 11px; line-height: 1.45;
+    color: var(--text-dim);
+    margin-top: 2px;
+}
+.detail-fx-empty {
+    border: 1px dashed var(--line-ghost);
+    background: transparent;
+    padding: 8px 10px;
+    text-align: center;
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.2em;
+    color: var(--text-ghost); text-transform: uppercase;
+}
 #card-detail-close {
-    padding: 12px;
+    padding: 11px;
     background: transparent;
     border: 1px solid var(--line);
     color: var(--text);
@@ -1236,6 +1324,7 @@ html, body {
         100% 100%, 8px 100%, 0 calc(100% - 8px)
     );
     transition: background 0.15s, color 0.15s;
+    margin-top: 2px;
 }
 #card-detail-close:hover { background: var(--bg-3); color: #fff; border-color: #6fe4f5; }
 
@@ -1951,15 +2040,19 @@ html, body {
 <!-- Card detail overlay -->
 <div class="overlay hidden" id="card-detail">
     <div class="detail-box">
+        <div class="detail-head">
+            <span class="dh-tag">◆ КАРТА</span>
+            <span class="dh-cost">СТ · <strong id="detail-cost">0</strong></span>
+        </div>
         <div id="detail-name">БАЙТ</div>
-        <div id="detail-cost">Стоимость: 0</div>
         <div id="detail-pattern"></div>
         <div id="detail-rotate-row">
             <button class="btn-rotate" id="btn-rotate-ccw">↺</button>
+            <span>ПОВОРОТ</span>
             <button class="btn-rotate" id="btn-rotate-cw">↻</button>
         </div>
         <div id="detail-effects"></div>
-        <button id="card-detail-close">Закрыть</button>
+        <button id="card-detail-close">✕ ЗАКРЫТЬ</button>
     </div>
 </div>
 

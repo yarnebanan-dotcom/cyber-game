@@ -888,6 +888,45 @@ class GameUI {
         }).join(', ');
     }
 
+    // Развёрнутые описания — для peek-окна
+    _fxLongText(effect) {
+        return effect.effects.map(fx => {
+            const self = fx.target === Target.Self || fx.target === undefined;
+            const n = fx.n;
+            const inf = n === Infinity;
+            const tgtWho = self ? 'Ты' : 'Противник';
+            const tgtWhose = self ? 'свою' : 'чужую';
+            const tgtWhom = self ? 'тебе' : 'противнику';
+            switch (fx.constructor.name) {
+                case 'DrawCardsEffect':
+                    return `${tgtWho} ${self?'берёшь':'берёт'} ${n} карт${n===1?'у':n<5?'ы':''} из колоды в руку.`;
+                case 'DigCardsEffect':
+                    return `Возьми ${n + 2} верхних карт колоды, выбери ${n} себе в руку, остальные уйдут в сброс.`;
+                case 'PlaceChipsEffect':
+                    return `Поставь ${n} сво${n===1?'ю':'их'} фишк${n===1?'у':n<5?'и':'ек'} на любые свободные узлы поля.`;
+                case 'RevealCardsEffect':
+                    if (inf) return `${tgtWho} выклад${self?'ываешь':'ывает'} ВСЮ руку лицом вверх в зону раскрытых. Любой игрок может разыграть их в свой ход.`;
+                    return `${tgtWho} выбира${self?'ешь':'ет'} ${n} карт${n===1?'у':n<5?'ы':''} из руки и клад${self?'ёшь':'ёт'} лицом вверх в зону раскрытых. Раскрытые не считаются в руке при восполнении, но их может разыграть любой игрок.`;
+                case 'DiscardCardsEffect':
+                    if (inf) return `${tgtWho} сбрасыва${self?'ешь':'ет'} ВСЮ свою руку (включая раскрытые карты) в сброс.`;
+                    return `${tgtWho} выбира${self?'ешь':'ет'} ${n} карт${n===1?'у':n<5?'ы':''} из руки и отправля${self?'ешь':'ет'} в сброс. Можно выбирать и раскрытые карты.`;
+                case 'StealCardsEffect':
+                    return `Возьми ${n} случайн${n===1?'ую':'ых'} карт${n===1?'у':n<5?'ы':''} из руки противника вслепую — они станут твоими.`;
+                case 'ModifySupplyEffect': {
+                    const sign = fx.delta > 0 ? '+' : '';
+                    return `Измени запас ${tgtWhose === 'свою' ? 'себе' : 'противнику'} на ${sign}${fx.delta} (итог в диапазоне 2..6). Запас = на сколько карт добираешь до руки на фазе Восполнения.`;
+                }
+                case 'SetSupplyEffect':
+                    return `Установи запас ${tgtWhom} равным ${fx.val} (диапазон 2..6). Запас = на сколько карт добирает игрок в фазе Восполнения.`;
+                case 'CopyOpponentSupplyEffect':
+                    return `Твой запас становится равен запасу противника (диапазон 2..6).`;
+                case 'ResetFieldEffect':
+                    return `Все фишки уходят с поля — каждый игрок забирает свои обратно в пул.`;
+                default: return '';
+            }
+        }).filter(Boolean).join(' ');
+    }
+
     // ── Board building ─────────────────────────────────────────
 
     _buildBoard(size = 4) {
@@ -1712,13 +1751,32 @@ class GameUI {
     _showCardDetail(card, ownerPI) {
         this._detailRotation = 0;
         document.getElementById('detail-name').textContent = card.name;
-        document.getElementById('detail-cost').textContent = `Стоимость: ${card.cost}`;
+        document.getElementById('detail-cost').textContent = String(card.cost);
         document.getElementById('detail-pattern').innerHTML = this._patternSVG(card.pattern, 48, ownerPI);
-        document.getElementById('detail-effects').innerHTML = [
-            card.playEffect.hasEffects ? `<b>Розыгрыш:</b> ${this._fxText(card.playEffect)}` : '',
-            card.utilizeEffect.hasEffects ? `<b>Утилизация:</b> ${this._fxText(card.utilizeEffect)}` : '',
-            card.synthesisEffect.hasEffects ? `<b>Синтез:</b> ${this._fxText(card.synthesisEffect)}` : '',
-        ].filter(Boolean).join('<br>') || '—';
+
+        const renderFx = (type, icon, label, effect) => {
+            if (!effect || !effect.hasEffects) return '';
+            const short = this._fxText(effect);
+            const long = this._fxLongText(effect);
+            return `<div class="detail-fx fx-${type}">
+                <div class="detail-fx-head">
+                    <span class="dfh-icon">${icon}</span>
+                    <span>${label}</span>
+                </div>
+                <div class="detail-fx-short">${short}</div>
+                <div class="detail-fx-long">${long}</div>
+            </div>`;
+        };
+        const blocks = [
+            renderFx('play',  '▶', 'Розыгрыш',   card.playEffect),
+            renderFx('util',  '✦', 'Утилизация', card.utilizeEffect),
+            renderFx('synth', '⊕', 'Синтез',     card.synthesisEffect),
+        ].filter(Boolean);
+        const html = blocks.length
+            ? blocks.join('')
+            : `<div class="detail-fx-empty">◦ БЕЗ ЭФФЕКТОВ · ТОЛЬКО ОЧКИ ◦</div>`;
+        document.getElementById('detail-effects').innerHTML = html;
+
         // FIX-08: portal в body
         if (this.cardDetail.parentElement !== document.body) {
             document.body.appendChild(this.cardDetail);
