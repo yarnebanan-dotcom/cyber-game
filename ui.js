@@ -484,6 +484,10 @@ class GameUI {
             this._onCardTap(card, isPlayable);
         });
 
+        // Prevent text selection and context menu on long press
+        el.addEventListener('selectstart', e => e.preventDefault());
+        el.addEventListener('contextmenu', e => e.preventDefault());
+
         // Long press → floating popup above card
         let pressTimer;
         const zoomIn = (e) => {
