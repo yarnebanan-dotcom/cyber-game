@@ -1272,21 +1272,81 @@ class GameUI {
 
     // ── Placement panel ────────────────────────────────────────
 
-    // Показывает панель без ‹›/счётчика/подтверждения — только Синтез и Отмена
+    // FIX-20: HUD-стиль panel — карта, шапка, рот-нав, primary-кнопка
     _showCardSelectedPanel() {
         const inSynthB = this.synth?.step === 'placeB';
-        ['btn-prev', 'btn-next', 'placement-count', 'btn-confirm'].forEach(id => {
-            document.getElementById(id).style.display = 'none';
-        });
-        // Показываем Синтез только если возможна вторая карта-партнёр
+        const card = this.pendingCard;
+        const placements = this.currentPlacements || [];
+        const total = placements.length;
+        const idx = this.placementIndex || 0;
+
+        // Card preview (left side)
+        const preview = document.getElementById('pp-card-preview');
+        if (preview && card) {
+            const ownerPI = this.state.currentPI;
+            const color = this._playerColor(ownerPI);
+            const rot = this._cardRotations.get(card.id) || 0;
+            const rotTxt = rot ? `↻${rot}°` : '0°';
+            let patternCells = '';
+            for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
+                const cd = card.pattern.find(p => p.row === r && p.col === c);
+                const cls = cd ? (cd.type === CellType.W ? 'w' : 'g') : '';
+                patternCells += `<span class="${cls}"></span>`;
+            }
+            preview.style.color = color;
+            preview.innerHTML = `
+                <div class="pp-card-top">
+                    <span class="pp-card-cost">${card.cost}</span>
+                    <span class="pp-card-rot">${rotTxt}</span>
+                </div>
+                <div class="pp-card-pattern">${patternCells}</div>
+                <div class="pp-card-name">${card.name}</div>
+            `;
+        }
+
+        // Hint — описание эффекта розыгрыша
+        const hintEl = document.getElementById('pp-hint');
+        if (hintEl && card) {
+            const fx = card.playEffect;
+            if (fx && fx.hasEffects) {
+                hintEl.classList.remove('empty');
+                hintEl.innerHTML = `▶ ${this._fxText(fx)}`;
+            } else {
+                hintEl.classList.add('empty');
+                hintEl.textContent = '▶ эффекта розыгрыша нет';
+            }
+        }
+
+        // Header counter + rotnav
+        const headerCount = document.getElementById('pp-count-header');
+        if (headerCount) headerCount.textContent = `${Math.min(idx + 1, total)}/${total}`;
+        const rotLbl = document.getElementById('placement-count');
+        if (rotLbl) rotLbl.textContent = `ВАРИАНТ ${Math.min(idx + 1, total)} / ${total}`;
+        const rotNav = document.getElementById('pp-rotnav');
+        if (rotNav) rotNav.classList.toggle('hidden', total <= 1);
+
+        // Primary "▶ РАЗЫГРАТЬ" — в SynthB он не работает (там auto-confirm по фишкам)
+        const confirmBtn = document.getElementById('btn-confirm');
+        if (confirmBtn) {
+            confirmBtn.style.display = total > 0 ? '' : 'none';
+            confirmBtn.disabled = total === 0;
+        }
+
+        // Synth — только если возможна вторая карта-партнёр
         const canSynth = !inSynthB
             && this.state.tasksThisTurn < 2
             && this.pendingCard
             && this._hasSynthPartner(this.pendingCard);
-        document.getElementById('btn-synth').style.display = canSynth ? '' : 'none';
+        const synthBtn = document.getElementById('btn-synth');
+        if (synthBtn) synthBtn.style.display = canSynth ? '' : 'none';
+
+        // Cancel — unified: всегда "✕ ОТМЕНА" в шапке (синтез-отмена тоже через неё)
         const cancelBtn = document.getElementById('btn-synth-cancel');
-        cancelBtn.textContent = inSynthB ? '✕ Отмена синтеза' : '✕ Отменить выбор';
-        cancelBtn.style.display = '';
+        if (cancelBtn) {
+            cancelBtn.textContent = inSynthB ? '✕ ОТМЕНА СИНТЕЗА' : '✕ ОТМЕНА';
+            cancelBtn.style.display = '';
+        }
+
         this.placementPanel.classList.remove('hidden');
     }
 
@@ -1398,13 +1458,29 @@ class GameUI {
     }
 
     _prevPlacement() {
+        if (!this.currentPlacements?.length) return;
         this.placementIndex = (this.placementIndex - 1 + this.currentPlacements.length) % this.currentPlacements.length;
         this._updatePlacementHighlight();
     }
 
     _nextPlacement() {
+        if (!this.currentPlacements?.length) return;
         this.placementIndex = (this.placementIndex + 1) % this.currentPlacements.length;
         this._updatePlacementHighlight();
+    }
+
+    // FIX-20: обновить подсветку текущего варианта и счётчики в panel
+    _updatePlacementHighlight() {
+        const total = this.currentPlacements?.length || 0;
+        const idx = this.placementIndex || 0;
+        const headerCount = document.getElementById('pp-count-header');
+        if (headerCount) headerCount.textContent = `${Math.min(idx + 1, total)}/${total}`;
+        const rotLbl = document.getElementById('placement-count');
+        if (rotLbl) rotLbl.textContent = `ВАРИАНТ ${Math.min(idx + 1, total)} / ${total}`;
+        // Подсветка конкретного варианта
+        this._clearHighlights();
+        const cur = this.currentPlacements?.[idx];
+        if (cur) this._highlightNodes(cur.chipPositions);
     }
 
     _confirmPlacement() {
