@@ -606,6 +606,29 @@ html, body {
     0%, 100% { outline-color: rgba(255,106,43,0.55); background: rgba(255,106,43,0.08); }
     50%      { outline-color: rgba(255,106,43,1); background: rgba(255,106,43,0.22); }
 }
+/* FIX-26: крест-accent на уже тапнутых фишках паттерна (V3) */
+.node.tapped {
+    outline: 1.5px solid var(--accent);
+    outline-offset: -2px;
+    background: rgba(255,106,43,0.18);
+}
+.node.tapped::after {
+    content: '';
+    position: absolute; inset: 4px;
+    background:
+        linear-gradient(45deg,  transparent calc(50% - 1.25px), var(--accent) 50%, transparent calc(50% + 1.25px)),
+        linear-gradient(-45deg, transparent calc(50% - 1.25px), var(--accent) 50%, transparent calc(50% + 1.25px));
+    opacity: 0.95;
+    pointer-events: none;
+    z-index: 3;
+    filter: drop-shadow(0 0 3px rgba(255,106,43,0.9));
+    animation: node-tap-in 0.18s ease-out;
+}
+.node.tapped::before { animation: none; }
+@keyframes node-tap-in {
+    from { opacity: 0; transform: scale(0.4); }
+    to   { opacity: 0.95; transform: scale(1); }
+}
 .node.selected-node { opacity: 0.45; }
 .node:active { transform: scale(0.88); }
 
@@ -970,6 +993,157 @@ html, body {
 }
 #hand-cards::-webkit-scrollbar { display: none; }
 
+/* ── FIX-26: V3 Focus-Card layout ──────────────────
+   Когда выбрана карта (pendingCard) рука переходит в focus-mode:
+   остаётся только выбранная карта и info-блок с паттерном/счётчиком/кнопками.
+   Лейбл руки и ряды раскрытых карт коллапсируются, чтобы доска была
+   максимально видна и игрок мог найти паттерн на поле. */
+#hand-cards.focus-mode {
+    gap: 8px;
+    align-items: stretch;
+    overflow: visible;
+}
+#hand-cards.focus-mode .card.hiding {
+    width: 0; min-width: 0;
+    padding: 0; margin: 0;
+    border-width: 0;
+    opacity: 0;
+    pointer-events: none;
+    overflow: hidden;
+    transform: scale(0.85);
+    transition: width 0.22s ease, opacity 0.18s ease, transform 0.22s ease, padding 0.22s ease, border-width 0.22s ease;
+}
+#hand-cards.focus-mode .card.selected {
+    transform: translateY(0);
+    flex-shrink: 0;
+}
+
+.focus-info {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    background: linear-gradient(180deg, rgba(255,106,43,0.06), rgba(255,106,43,0.01)), var(--bg-1);
+    border: 1px solid var(--accent);
+    padding: 8px 28px 8px 10px;
+    min-width: 0;
+    position: relative;
+    clip-path: polygon(
+        0 0, calc(100% - 8px) 0, 100% 8px,
+        100% 100%, 8px 100%, 0 calc(100% - 8px)
+    );
+    animation: focus-info-in 0.22s ease-out;
+}
+@keyframes focus-info-in {
+    from { opacity: 0; transform: translateX(-12px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+.focus-info .fi-name {
+    font-family: var(--display);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    color: var(--accent);
+    text-transform: uppercase;
+    line-height: 1.2;
+}
+.focus-info .fi-eff {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--text-dim);
+    line-height: 1.35;
+    margin-top: 4px;
+    letter-spacing: 0.04em;
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+}
+.focus-info .fi-eff.empty { color: var(--text-ghost); opacity: 0.6; }
+.focus-info .fi-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px dashed var(--line-ghost);
+}
+.focus-info .fi-cnt {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--line);
+    letter-spacing: 0.08em;
+    transition: color 0.2s;
+}
+.focus-info .fi-cnt.full {
+    color: var(--accent);
+    animation: fi-cnt-full 0.3s ease-out;
+}
+@keyframes fi-cnt-full {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.25); }
+    100% { transform: scale(1); }
+}
+.focus-info .fi-actions {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+.focus-info .fi-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-dim);
+    background: transparent;
+    border: 1px solid var(--line-dim);
+    padding: 4px 8px;
+    cursor: pointer;
+    letter-spacing: 0.06em;
+    clip-path: polygon(
+        3px 0, 100% 0,
+        100% calc(100% - 3px), calc(100% - 3px) 100%,
+        0 100%, 0 3px
+    );
+}
+.focus-info .fi-btn:active { transform: scale(0.92); }
+.focus-info .fi-btn.synth {
+    color: #b76cff;
+    border-color: rgba(183,108,255,0.6);
+    background: rgba(183,108,255,0.05);
+}
+.focus-info .fi-cancel {
+    position: absolute;
+    right: 0; top: 0;
+    width: 24px; height: 24px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono);
+    font-size: 12px; font-weight: 700;
+    color: var(--accent);
+    background: transparent;
+    border: none;
+    border-left: 1px solid var(--accent);
+    border-bottom: 1px solid var(--accent);
+    cursor: pointer;
+    letter-spacing: 0;
+}
+.focus-info .fi-cancel:active { transform: scale(0.9); }
+
+/* Скрыть лейбл руки и лейны раскрытых карт при focus-mode */
+.focus-hidden {
+    max-height: 0 !important;
+    min-height: 0 !important;
+    opacity: 0 !important;
+    overflow: hidden !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border-width: 0 !important;
+    transition: max-height 0.2s ease, opacity 0.15s ease, padding 0.2s ease, margin 0.2s ease;
+}
+
 /* ── Card (KIT Phase 2 — strict kit layout) ───────────────── */
 .card {
     flex-shrink: 0;
@@ -997,13 +1171,18 @@ html, body {
 #card-popup {
     position: fixed;
     width: 160px;
-    background: linear-gradient(155deg, #1a2650 0%, #0d1432 100%);
-    border: 1px solid rgba(255,204,68,0.7);
-    border-radius: 12px;
+    background: var(--bg-1);
+    border: 1px solid var(--line);
+    border-radius: 0;
     padding: 8px;
     z-index: var(--z-card-detail);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.85), 0 0 20px rgba(255,204,68,0.18);
+    box-shadow: 0 12px 40px rgba(0,0,0,0.85), 0 0 18px rgba(63,208,230,0.22);
     pointer-events: none;
+    clip-path: polygon(
+        8px 0, 100% 0,
+        100% calc(100% - 8px), calc(100% - 8px) 100%,
+        0 100%, 0 8px
+    );
     animation: popup-in 0.15s cubic-bezier(0.34,1.4,0.64,1);
 }
 @keyframes popup-in {
@@ -1011,8 +1190,22 @@ html, body {
     to   { opacity: 1; transform: scale(1); }
 }
 .card-popup-name {
-    font-size: 11px; font-weight: 700; color: #ccd8ff;
-    margin-bottom: 2px; padding-right: 22px; line-height: 1.3;
+    font-family: var(--display);
+    font-size: 11px; font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 4px; padding-right: 22px; line-height: 1.3;
+    border-bottom: 1px solid var(--line-ghost);
+    padding-bottom: 4px;
+}
+.zone-hint {
+    font-family: var(--mono);
+    font-size: 9px;
+    color: var(--line);
+    letter-spacing: 0.08em;
+    margin-left: 6px;
+    opacity: 0.85;
 }
 .card.playable {}
 .card.unplayable {}

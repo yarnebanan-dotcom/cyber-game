@@ -554,8 +554,8 @@ class GameUI {
         } else if (st.phase === Phase.Task) {
             const t = st.tasksThisTurn, u = st.utilizesThisTurn;
             if (this.pendingCard) {
-                // FIX-24: единый хинт — игрок сам тапает всю комбинацию на поле
-                text = `Нажми на все фишки паттерна · или ✦ Утилизировать`;
+                // FIX-26: имя карты и счётчик теперь в focus-info; хинт направляет на доску
+                text = `Найди паттерн на поле · тапай фишки`;
                 tone = 'action';
             } else {
                 const allCards = [...st.cp.hand, ...st.players.flatMap(p => p.revealed)];
@@ -585,10 +585,14 @@ class GameUI {
         const st = this.state;
         const occClass = ['empty', 'p1', 'p2', 'p3'];
         const cells = this.boardEl.querySelectorAll('.node');
+        // FIX-26: сохраняем .tapped из pendingNodes, чтобы крест-accent переживал ре-рендер
+        const tappedSet = new Set((this.pendingNodes || []).map(([r, c]) => `${r},${c}`));
         cells.forEach(cell => {
             const r = parseInt(cell.dataset.r), c = parseInt(cell.dataset.c);
             const occ = st.board.nodes[r][c];
-            cell.className = 'node ' + (occClass[occ] ?? 'empty');
+            let cn = 'node ' + (occClass[occ] ?? 'empty');
+            if (tappedSet.has(`${r},${c}`)) cn += ' tapped';
+            cell.className = cn;
         });
     }
 
@@ -602,6 +606,24 @@ class GameUI {
 
     _clearHighlights() {
         this.boardEl.querySelectorAll('.node').forEach(n => n.classList.remove('highlighted'));
+    }
+
+    // FIX-26: .tapped — крест-accent на тапнутых фишках паттерна (V3 focus-mode)
+    _applyTapped(positions) {
+        this._clearTapped();
+        for (const [r, c] of positions) {
+            const cell = this.boardEl.querySelector(`[data-r="${r}"][data-c="${c}"]`);
+            if (cell) cell.classList.add('tapped');
+        }
+    }
+    _clearTapped() {
+        this.boardEl.querySelectorAll('.node.tapped').forEach(n => n.classList.remove('tapped'));
+    }
+    _updateFocusCount(tapped, total) {
+        const cnt = this.handEl?.querySelector('.focus-info .fi-cnt');
+        if (!cnt) return;
+        cnt.textContent = `${tapped}/${total}`;
+        cnt.classList.toggle('full', tapped === total && total > 0);
     }
 
     _renderHand() {
@@ -620,6 +642,92 @@ class GameUI {
         }
 
         this._renderCardRow(this.handEl, pl.hand, playable, true, vpi);
+        this._syncFocusMode();
+    }
+
+    // FIX-26: V3 focus-mode — если pendingCard в руке, прячем остальные карты,
+    // лейбл руки, ряды раскрытых карт; добавляем focus-info блок с паттерном.
+    _syncFocusMode() {
+        const pc = this.pendingCard;
+        const vpi = this._viewPI();
+        const inHand = pc && this.state.players[vpi].hand.includes(pc);
+        const placeBSynth = this.synth?.step === 'placeB' && pc;
+        // FIX-26: focus-mode активен только если карта имеет валидные позиции
+        // (иначе нет смысла искать паттерн — игрок только утилизирует)
+        const hasPlacements = pc && this.tm.getValidPlacements(pc).length > 0;
+        const active = !!((inHand || placeBSynth) && this.state.phase === Phase.Task && hasPlacements);
+
+        if (!active) {
+            this.handEl.classList.remove('focus-mode');
+            this.handEl.querySelectorAll('.card.hiding').forEach(el => el.classList.remove('hiding'));
+            const fi = this.handEl.querySelector('.focus-info');
+            if (fi) fi.remove();
+            this.handLabelEl.classList.remove('focus-hidden');
+            this.oppRevealedWrap.classList.remove('focus-hidden');
+            this.ownRevealedWrap.classList.remove('focus-hidden');
+            return;
+        }
+
+        this.handEl.classList.add('focus-mode');
+        this.handEl.querySelectorAll('.card').forEach(el => {
+            if (!el.classList.contains('selected')) el.classList.add('hiding');
+            else el.classList.remove('hiding');
+        });
+        this.handLabelEl.classList.add('focus-hidden');
+        this.oppRevealedWrap.classList.add('focus-hidden');
+        this.ownRevealedWrap.classList.add('focus-hidden');
+
+        let fi = this.handEl.querySelector('.focus-info');
+        if (!fi) {
+            fi = document.createElement('div');
+            fi.className = 'focus-info';
+            this.handEl.appendChild(fi);
+        }
+        this._fillFocusInfo(fi);
+    }
+
+    _fillFocusInfo(fi) {
+        const card = this.pendingCard;
+        if (!card) return;
+        const patternLen = card.pattern.length;
+        const tapped = this.pendingNodes.length;
+        const fx = card.playEffect;
+        const hasFx = fx && fx.hasEffects;
+        const fxText = hasFx ? `▶ ${this._fxText(fx)}` : '▶ эффекта розыгрыша нет';
+
+        const inSynthB = this.synth?.step === 'placeB';
+        const canSynth = !inSynthB
+            && !this.synth
+            && this.state.tasksThisTurn < 2
+            && this._hasSynthPartner(card);
+
+        fi.innerHTML = `
+            <div class="fi-name">${card.name}</div>
+            <div class="fi-eff${hasFx ? '' : ' empty'}">${fxText}</div>
+            <div class="fi-bottom">
+                <span class="fi-cnt${tapped === patternLen && patternLen > 0 ? ' full' : ''}">${tapped}/${patternLen}</span>
+                <div class="fi-actions">
+                    ${canSynth ? '<button class="fi-btn synth" id="fi-synth">⊕ СИНТ</button>' : ''}
+                </div>
+            </div>
+            <button class="fi-cancel" id="fi-cancel" aria-label="Отменить выбор">✕</button>
+        `;
+        const cancelBtn = fi.querySelector('#fi-cancel');
+        if (cancelBtn) cancelBtn.onclick = () => {
+            if (this.synth) this._cancelSynth();
+            else this._cancelPendingCard();
+        };
+        const synthBtn = fi.querySelector('#fi-synth');
+        if (synthBtn) synthBtn.onclick = () => this._onSynthNext();
+    }
+
+    _cancelPendingCard() {
+        this.pendingCard = null;
+        this.pendingNodes = [];
+        this.placementPanel.classList.add('hidden');
+        this._clearHighlights();
+        this._clearTapped();
+        this._render();
     }
 
     _renderRevealed() {
@@ -1141,6 +1249,7 @@ class GameUI {
             this.pendingNodes = [];
             this.placementPanel.classList.add('hidden');
             this._clearHighlights();
+            this._clearTapped();
             this._render();
             return;
         }
@@ -1149,6 +1258,7 @@ class GameUI {
         this.pendingNodes = [];
         this.placementPanel.classList.add('hidden');
         this._clearHighlights();
+        this._clearTapped();
         this._render();
 
         if (isPlayable) {
@@ -1309,8 +1419,12 @@ class GameUI {
 
     // ── Placement panel ────────────────────────────────────────
 
-    // FIX-20: HUD-стиль panel — карта, шапка, рот-нав, primary-кнопка
+    // FIX-26: placement-panel заменён V3 focus-mode (см. _syncFocusMode).
+    // Функция сохранена для совместимости вызовов из _onCardTap / synth placeB —
+    // теперь просто гарантирует скрытый placement-panel и перерендер (focus-info
+    // инжектится через _syncFocusMode внутри _renderHand).
     _showCardSelectedPanel() {
+        this.placementPanel.classList.add('hidden');
         const inSynthB = this.synth?.step === 'placeB';
         const card = this.pendingCard;
         const placements = this.currentPlacements || [];
@@ -1372,14 +1486,9 @@ class GameUI {
         const synthBtn = document.getElementById('btn-synth');
         if (synthBtn) synthBtn.style.display = canSynth ? '' : 'none';
 
-        // Cancel — unified: всегда "✕ ОТМЕНА" в шапке (синтез-отмена тоже через неё)
-        const cancelBtn = document.getElementById('btn-synth-cancel');
-        if (cancelBtn) {
-            cancelBtn.textContent = inSynthB ? '✕ ОТМЕНА СИНТЕЗА' : '✕ ОТМЕНА';
-            cancelBtn.style.display = '';
-        }
-
-        this.placementPanel.classList.remove('hidden');
+        // FIX-26: cancel теперь в .fi-cancel внутри focus-info (рендерится в _fillFocusInfo).
+        // placement-panel в DOM оставлен, но скрыт — может удаляться в следующем коммите после тестов.
+        this._render();
     }
 
     // Есть ли среди других карт (рука + раскрытые) хотя бы одна, с которой возможен синтез
@@ -1427,9 +1536,9 @@ class GameUI {
             this.pendingNodes.push([r, c]);
         }
 
-        // Подсветка накопленных узлов
-        this._clearHighlights();
-        if (this.pendingNodes.length) this._highlightNodes(this.pendingNodes);
+        // FIX-26: крест-accent на тапнутых фишках (вместо dashed-рамки), обновить счётчик в focus-info
+        this._applyTapped(this.pendingNodes);
+        this._updateFocusCount(this.pendingNodes.length, patternLen);
 
         // Ещё не набрали все — ждём
         if (this.pendingNodes.length < patternLen) return;
@@ -1441,12 +1550,12 @@ class GameUI {
             return pos.size === selSet.size && [...pos].every(k => selSet.has(k));
         });
 
-        const reset = () => { this.pendingNodes = []; this._clearHighlights(); };
+        const reset = () => { this.pendingNodes = []; this._clearTapped(); this._updateFocusCount(0, patternLen); };
         // FIX-07: вместо тихого сброса — откат последнего тапа + shake + toast
         const rollbackLast = () => {
             const last = this.pendingNodes.pop();
-            this._clearHighlights();
-            if (this.pendingNodes.length) this._highlightNodes(this.pendingNodes);
+            this._applyTapped(this.pendingNodes);
+            this._updateFocusCount(this.pendingNodes.length, patternLen);
             if (last) this._feedbackInvalidTap(last[0], last[1], 'Паттерн не совпадает');
             else { this._shakeBoard(); this._showMessage('Паттерн не совпадает', { error: true }); }
         };
@@ -1471,6 +1580,8 @@ class GameUI {
             this.synth.step = 'chooseOrder';
             reset();
             this.placementPanel.classList.add('hidden');
+            // FIX-26: focus-mode off перед показом synth-order-panel
+            this._syncFocusMode();
             this._showSynthOrderPanel();
             return;
         }
@@ -1482,6 +1593,9 @@ class GameUI {
         this.placementPanel.classList.add('hidden');
         const card = this.pendingCard;
         this.pendingCard = null;
+        // FIX-26: убрать focus-mode сразу (иначе если у карты модальный эффект
+        // вроде «раскопать», focus-info останется до закрытия модала)
+        this._syncFocusMode();
         this.tm.playCard(card, match, result => {
             if (!result) { this._haptic(26); this._playSound('play'); }
             this._render();
