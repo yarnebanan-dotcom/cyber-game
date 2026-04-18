@@ -923,12 +923,12 @@ class GameUI {
         return parts.join('<br>') || '<span class="fx-none">—</span>';
     }
 
-    // Компактный формат для карт в руке: иконки + цифры
+    // Компактный формат для карт в руке и рев-зоне: заголовок-слово + действия словами
     _describeEffectsCompact(card) {
         const rows = [];
-        if (card.playEffect.hasEffects)      rows.push(`<span class="fx-row fx-play"><span class="fx-kind">▶</span>${this._fxCompact(card.playEffect)}</span>`);
-        if (card.utilizeEffect.hasEffects)   rows.push(`<span class="fx-row fx-util"><span class="fx-kind">✦</span>${this._fxCompact(card.utilizeEffect)}</span>`);
-        if (card.synthesisEffect.hasEffects) rows.push(`<span class="fx-row fx-synth"><span class="fx-kind">⊕</span>${this._fxCompact(card.synthesisEffect)}</span>`);
+        if (card.playEffect.hasEffects)      rows.push(`<span class="fx-row fx-play"><span class="fx-kind">РОЗЫГРЫШ</span>${this._fxCompact(card.playEffect)}</span>`);
+        if (card.utilizeEffect.hasEffects)   rows.push(`<span class="fx-row fx-util"><span class="fx-kind">УТИЛИЗАЦИЯ</span>${this._fxCompact(card.utilizeEffect)}</span>`);
+        if (card.synthesisEffect.hasEffects) rows.push(`<span class="fx-row fx-synth"><span class="fx-kind">СИНТЕЗ</span>${this._fxCompact(card.synthesisEffect)}</span>`);
         return rows.join('') || '';
     }
 

@@ -460,8 +460,8 @@ html, body {
 
 /* Compact card in lane (те же компоненты что и на руке, просто мельче) */
 .rev-lane .card {
-    width: 92px;
-    height: 132px;
+    width: 96px;
+    height: 146px;
     padding: 4px;
     border-radius: 4px;
     flex-shrink: 0;
@@ -1148,7 +1148,7 @@ html, body {
 .card {
     flex-shrink: 0;
     width: 108px;
-    height: 152px;
+    height: 168px;
     background: var(--bg-1);
     border: 1px solid var(--line-dim);
     padding: 6px;
@@ -1284,11 +1284,11 @@ html, body {
 .card-fx-compact {
     font-family: var(--mono);
     font-size: 7.5px;
-    line-height: 1.2;
+    line-height: 1.15;
     display: flex;
     flex-direction: column;
-    gap: 0;
-    padding: 2px 1px 1px;
+    gap: 1px;
+    padding: 3px 1px 1px;
     text-align: left;
     min-height: 0;
     flex: 1 1 auto;
@@ -1302,23 +1302,24 @@ html, body {
 .card-fx-compact .fx-row.fx-play  { color: var(--ok); }
 .card-fx-compact .fx-row.fx-util  { color: var(--accent); }
 .card-fx-compact .fx-row.fx-synth { color: #b88aff; }
+/* Заголовок типа эффекта — отдельная строка, жирным */
 .card-fx-compact .fx-kind {
+    display: block;
     font-weight: 700;
-    display: inline-block;
-    width: 8px;
-    text-align: center;
+    font-size: 0.92em;
+    letter-spacing: 0.06em;
+    line-height: 1.15;
+    text-transform: uppercase;
+    opacity: 0.95;
 }
-/* Каждое действие — отдельной строкой; у первого слева иконка типа, у следующих — отступ под неё */
+/* Действия — отдельной строкой под заголовком, с небольшим отступом */
 .card-fx-compact .fx-act {
     display: block;
     white-space: nowrap;
-    padding-left: 10px;
-    text-indent: -10px;
-}
-.card-fx-compact .fx-kind + .fx-act {
-    padding-left: 0;
-    text-indent: 0;
-    display: inline-block;
+    padding-left: 6px;
+    color: var(--text);
+    font-weight: 400;
+    letter-spacing: 0;
 }
 /* Действия на противника — красные с суффиксом "опп" */
 .card-fx-compact .fx-act.fx-opp {
