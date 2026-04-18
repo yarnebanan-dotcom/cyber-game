@@ -4,7 +4,9 @@
 
 // ── Enums ────────────────────────────────────────────────────
 const Occ = { Empty: 0, P1: 1, P2: 2, P3: 3 };
-const Phase = { Replenish: 'Replenish', Action: 'Action', Task: 'Task' };
+// Phase.Action/Task оставлены как алиасы Turn на случай старых сохранений/внешних кодов.
+// Новый код должен использовать только Phase.Replenish и Phase.Turn.
+const Phase = { Replenish: 'Replenish', Turn: 'Turn', Action: 'Turn', Task: 'Turn' };
 const CellType = { W: 'W', G: 'G' };
 const Target = { Self: 'Self', Opp: 'Opp' };
 
@@ -61,7 +63,7 @@ class BoardState {
 
 // ── GameState ─────────────────────────────────────────────────
 class GameState {
-    constructor(boardSize = 4, winScore = 15, playerCount = 2) {
+    constructor(boardSize = 4, winScore = 15, playerCount = 2, hardMode = false) {
         this.board = new BoardState(boardSize);
         this.playerCount = playerCount;
         this.players = Array.from({ length: playerCount }, (_, i) => new PlayerState(i));
@@ -69,11 +71,12 @@ class GameState {
         this.currentPI = 0;
         this.phase = Phase.Replenish;
         this.winScore = winScore;
+        this.hardMode = hardMode;                 // расширенный режим: включает синтез + альтернативы фишкам
         this.chipsPlaced = 0;
         this.chipsAllowed = 2;
+        this.placedThisTurn = [];
         this.tasksThisTurn = 0;
         this.utilizesThisTurn = 0;
-        this.mainActionDone = false;
         const cards = CardDatabase.create3();
         this.deck = new Deck(cards, this.discard);
     }
@@ -117,14 +120,24 @@ class DrawCardsEffect {
 class DigCardsEffect {
     constructor(n) { this.n = n; }
     execute(st, ap, inp, done) {
-        const drawn = st.deck.draw(this.n + 2);
-        if (drawn.length <= this.n) { st.players[ap].hand.push(...drawn); done?.(); return; }
-        inp.actionKind = 'dig'; inp.actionCount = this.n; inp.actionTargetSelf = true;
-        inp.chooseCards(ap, drawn, this.n, chosen => {
-            st.players[ap].hand.push(...chosen);
-            drawn.filter(c => !chosen.includes(c)).forEach(c => st.discard.push(c));
-            done?.();
-        });
+        const digOne = (remaining) => {
+            if (remaining <= 0) { done?.(); return; }
+            const drawn = st.deck.draw(2);
+            if (drawn.length === 0) { done?.(); return; }
+            if (drawn.length === 1) {
+                st.players[ap].hand.push(drawn[0]);
+                digOne(remaining - 1);
+                return;
+            }
+            inp.actionKind = 'dig'; inp.actionCount = 1; inp.actionTargetSelf = true;
+            inp.digStep = { current: this.n - remaining + 1, total: this.n };
+            inp.chooseCards(ap, drawn, 1, chosen => {
+                st.players[ap].hand.push(...chosen);
+                drawn.filter(c => !chosen.includes(c)).forEach(c => st.discard.push(c));
+                digOne(remaining - 1);
+            });
+        };
+        digOne(this.n);
     }
 }
 
@@ -208,13 +221,36 @@ class DiscardCardsEffect {
 class StealCardsEffect {
     constructor(n) { this.n = n; }
     execute(st, ap, inp, done) {
-        const opp = st.players[(ap + 1) % st.players.length], actor = st.players[ap];
-        const toSteal = Math.min(this.n, opp.hand.length);
-        for (let i = 0; i < toSteal; i++) {
-            const idx = Math.floor(Math.random() * opp.hand.length);
-            actor.hand.push(opp.hand.splice(idx, 1)[0]);
-        }
-        done?.();
+        const actor = st.players[ap];
+        const stealOne = (remaining) => {
+            if (remaining <= 0) { done?.(); return; }
+            // Пул: все раскрытые (включая свои) + все противники с непустой рукой
+            const revealedPool = [];
+            st.players.forEach((p, i) => {
+                p.revealed.forEach(c => revealedPool.push({ card: c, ownerPI: i }));
+            });
+            const opponents = st.players
+                .map((p, i) => ({ pi: i, handCount: p.hand.length }))
+                .filter(x => x.pi !== ap && x.handCount > 0);
+            if (revealedPool.length === 0 && opponents.length === 0) {
+                done?.(); return;
+            }
+            inp.chooseStealSource(ap, { revealedPool, opponents, remaining, total: this.n }, sel => {
+                if (sel && sel.type === 'revealed') {
+                    const tp = st.players[sel.ownerPI];
+                    const idx = tp.revealed.indexOf(sel.card);
+                    if (idx >= 0) { tp.revealed.splice(idx, 1); actor.hand.push(sel.card); }
+                } else if (sel && sel.type === 'blind') {
+                    const oppHand = st.players[sel.ownerPI].hand;
+                    if (oppHand.length > 0) {
+                        const idx = Math.floor(Math.random() * oppHand.length);
+                        actor.hand.push(oppHand.splice(idx, 1)[0]);
+                    }
+                }
+                stealOne(remaining - 1);
+            });
+        };
+        stealOne(this.n);
     }
 }
 
@@ -365,14 +401,14 @@ class TurnManager {
         const pl = this.state.cp;
         const toDraw = Math.max(0, pl.supply - pl.hand.length);
         pl.hand.push(...this.state.deck.draw(toDraw));
-        this._toAction();
+        this._toTurn();
         return true;
     }
 
-    // Действия
+    // Размещение фишки (действие игрока, лимит 2 за ход — не учитывает бонусные Place(N) из карт)
     placeChip(r, c) {
         const st = this.state;
-        if (st.phase !== Phase.Action) return 'invalidPhase';
+        if (st.phase !== Phase.Turn) return 'invalidPhase';
         if (!st.board.isEmpty(r, c)) return 'invalidAction';
         if (st.chipsPlaced >= st.chipsAllowed) return 'invalidAction';
         if (st.cp.reserve <= 0) return 'invalidAction';
@@ -384,29 +420,8 @@ class TurnManager {
         return 'ok';
     }
 
-    // Вернуть свою фишку с доски (вместо размещения 2-х)
-    returnPiece(r, c) {
-        const st = this.state;
-        if (st.phase !== Phase.Action) return 'invalidPhase';
-        if (st.chipsPlaced > 0) return 'invalidAction';  // уже начал ставить фишки
-        if (st.board.nodes[r][c] !== st.board.occOf(st.currentPI)) return 'invalidAction';
-        st.board.nodes[r][c] = Occ.Empty;
-        st.cp.chipsOnBoard--;
-        st.mainActionDone = true;
-        this._notify();
-        this._toTask();
-        return 'ok';
-    }
-
-    endAction() {
-        if (this.state.phase !== Phase.Action) return false;
-        this.state.mainActionDone = true;
-        this._toTask();
-        return true;
-    }
-
     endTurn() {
-        if (this.state.phase !== Phase.Task) return false;
+        if (this.state.phase !== Phase.Turn) return false;
         this._endTurn();
         return true;
     }
@@ -415,7 +430,7 @@ class TurnManager {
     playCard(card, placement, onDone) {
         const st = this.state;
         if (this.isGameOver) { onDone?.('gameOver'); return; }
-        if (st.phase !== Phase.Task) { onDone?.('invalidPhase'); return; }
+        if (st.phase !== Phase.Turn) { onDone?.('invalidPhase'); return; }
         if (st.tasksThisTurn >= 2) { onDone?.('limitReached'); return; }
 
         const pl = st.cp;
@@ -450,11 +465,12 @@ class TurnManager {
     utilizeCard(card, onDone) {
         const st = this.state;
         if (this.isGameOver) { onDone?.('gameOver'); return; }
-        if (st.phase !== Phase.Task) { onDone?.('invalidPhase'); return; }
+        if (st.phase !== Phase.Turn) { onDone?.('invalidPhase'); return; }
         if (st.utilizesThisTurn >= 2) { onDone?.('limitReached'); return; }
 
         const pl = st.cp;
-        if (!pl.hand.includes(card) && !pl.revealed.includes(card)) { onDone?.('invalidAction'); return; }
+        // Утилизация — только из руки. Раскрытые карты — общая зона, утилизации не подлежат.
+        if (!pl.hand.includes(card)) { onDone?.('invalidAction'); return; }
 
         this.input.sourceCard = card;
         this.input.sourceMode = 'utilize';
@@ -468,11 +484,12 @@ class TurnManager {
         });
     }
 
-    // Синтез — два паттерна одновременно, хотя бы одна общая фишка
+    // Синтез — два паттерна одновременно, хотя бы одна общая фишка (только в hard mode)
     synthesis(cardA, cardB, matchA, matchB, orderAFirst, onDone) {
         const st = this.state;
         if (this.isGameOver) { onDone?.('gameOver'); return; }
-        if (st.phase !== Phase.Task) { onDone?.('invalidPhase'); return; }
+        if (!st.hardMode) { onDone?.('invalidAction'); return; }
+        if (st.phase !== Phase.Turn) { onDone?.('invalidPhase'); return; }
         if (st.tasksThisTurn >= 2) { onDone?.('limitReached'); return; }
         if (cardA === cardB) { onDone?.('invalidAction'); return; }
 
@@ -536,7 +553,7 @@ class TurnManager {
     // ── Internals ──
     undoChip(r, c) {
         const st = this.state;
-        if (st.phase !== Phase.Action) return 'invalidPhase';
+        if (st.phase !== Phase.Turn) return 'invalidPhase';
         const idx = st.placedThisTurn?.findIndex(([pr, pc]) => pr === r && pc === c);
         if (idx < 0) return 'invalidAction';
         st.placedThisTurn.splice(idx, 1);
@@ -547,21 +564,15 @@ class TurnManager {
         return 'ok';
     }
 
-    _toAction() {
+    _toTurn() {
         const st = this.state;
-        st.phase = Phase.Action;
+        st.phase = Phase.Turn;
         st.chipsPlaced = 0;
         st.chipsAllowed = 2;
         st.placedThisTurn = [];
         st.tasksThisTurn = 0;
         st.utilizesThisTurn = 0;
-        st.mainActionDone = false;
-        this.onPhaseChanged?.(Phase.Action);
-        this._notify();
-    }
-    _toTask() {
-        this.state.phase = Phase.Task;
-        this.onPhaseChanged?.(Phase.Task);
+        this.onPhaseChanged?.(Phase.Turn);
         this._notify();
     }
     _endTurn() {

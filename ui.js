@@ -59,11 +59,9 @@ class GameUI {
         this.phaseHintEl = document.getElementById('phase-hint');
         this.handEl = document.getElementById('hand-cards');
         this.handLabelEl = document.getElementById('hand-label');
-        this.ownRevealedWrap = document.getElementById('own-revealed-wrap');
-        this.oppRevealedWrap = document.getElementById('opp-revealed-wrap');
+        this.revealedWrap = document.getElementById('revealed-wrap');
 
         // Buttons
-        document.getElementById('btn-end-action').onclick = () => this._onEndAction();
         document.getElementById('btn-utilize').onclick = () => this._onUtilize();
         document.getElementById('btn-skip').onclick = () => this._onEndTurn();
 
@@ -120,6 +118,7 @@ class GameUI {
         // Menu screen
         this.menuScreen = document.getElementById('menu-screen');
         this._menuMode = 2;
+        this._menuHard = false;
         const btn2p = document.getElementById('btn-mode-2p');
         const btn3p = document.getElementById('btn-mode-3p');
         const setMenuMode = (n) => {
@@ -129,7 +128,16 @@ class GameUI {
         };
         btn2p.onclick = () => setMenuMode(2);
         btn3p.onclick = () => setMenuMode(3);
-        document.getElementById('btn-initiate').onclick = () => this._startGame(this._menuMode);
+        const btnHard = document.getElementById('btn-hard-mode');
+        if (btnHard) {
+            const checkEl = btnHard.querySelector('.hm-check');
+            btnHard.onclick = () => {
+                this._menuHard = !this._menuHard;
+                btnHard.classList.toggle('active', this._menuHard);
+                if (checkEl) checkEl.textContent = this._menuHard ? '[x]' : '[ ]';
+            };
+        }
+        document.getElementById('btn-initiate').onclick = () => this._startGame(this._menuMode, null, this._menuHard);
         document.getElementById('btn-mode-online').onclick = () => this._showOnlineMenu();
         const cfgBtn = document.getElementById('btn-show-cfg');
         if (cfgBtn) cfgBtn.onclick = () => {};
@@ -185,6 +193,12 @@ class GameUI {
         this.cardPickCount = document.getElementById('card-pick-count');
         this.cardPickConfirm = document.getElementById('card-pick-confirm');
         this.cardPickConfirm.onclick = () => this._onCardPickConfirm();
+
+        // Steal pick modal (кража из раскрытых / вслепую)
+        this.stealPickModal = document.getElementById('steal-pick-modal');
+        this.stealPickTitle = document.getElementById('steal-pick-title');
+        this.stealPickRevealed = document.getElementById('steal-pick-revealed');
+        this.stealPickBlind = document.getElementById('steal-pick-blind');
 
         // Card detail overlay
         this.cardDetail = document.getElementById('card-detail');
@@ -260,8 +274,9 @@ class GameUI {
         this.handoffScreen.classList.add('hidden');
     }
 
-    _startGame(playerCount = 2, netOpts = null) {
+    _startGame(playerCount = 2, netOpts = null, hardMode = this._menuHard || false) {
         this._playerCount = playerCount;
+        this._hardMode = hardMode;
         const boardSize = playerCount === 3 ? 5 : 4;
         const winScore  = playerCount === 3 ? 20 : 15;
 
@@ -284,7 +299,7 @@ class GameUI {
             return;
         }
 
-        this.state = new GameState(boardSize, winScore, playerCount);
+        this.state = new GameState(boardSize, winScore, playerCount, hardMode);
         this.cardsById = buildCardsById(playerCount);
         const self = this;
         this.input = {
@@ -321,6 +336,21 @@ class GameUI {
                 } else {
                     self._showCardPick(pi, cards, count, done, ctx);
                 }
+            },
+            chooseStealSource(actorPI, ctx, done) {
+                // Hot-seat: вор всегда активный игрок — показываем модал сразу.
+                // Online: пока только локально у actorPI. Сетевая поддержка — TODO.
+                if (self.netMode === 'host' && actorPI !== self.localPI) {
+                    // Заглушка: для не-локального actor автоматически случайно из первого
+                    // доступного источника. Настоящая сетевая реализация — потом.
+                    const p = ctx.revealedPool[0];
+                    if (p) { done({ type: 'revealed', card: p.card, ownerPI: p.ownerPI }); return; }
+                    const o = ctx.opponents[0];
+                    if (o) { done({ type: 'blind', ownerPI: o.pi }); return; }
+                    done(null);
+                    return;
+                }
+                self._showStealPick(actorPI, ctx, done);
             },
             chooseNodes(pi, nodes, count, done) {
                 if (nodes.length <= count) { done(nodes); return; }
@@ -422,12 +452,11 @@ class GameUI {
             // FIX-04: «ИГРОК N» вместо «P-0N»
             this.playerTagEl.textContent = `ИГРОК ${activePI + 1}`;
         }
-        // FIX-04: tier-2 phase counter "ДЕЙСТВ 1/2" / "ЗАДАЧА 0/2"
+        // Tier-2: три независимых счётчика действий в фазе Ход
         const phaseInfoEl = document.getElementById('hud-phase-info');
         if (phaseInfoEl) {
             const phaseName = st.phase === Phase.Replenish ? 'ВОСПОЛН'
-                : st.phase === Phase.Action ? `ДЕЙСТВ ${st.chipsPlaced}/${st.chipsAllowed}`
-                : st.phase === Phase.Task ? `▶ ${st.tasksThisTurn || 0}/2 · ✦ ${st.utilizesThisTurn || 0}/2`
+                : st.phase === Phase.Turn ? `● ${st.chipsPlaced}/${st.chipsAllowed} · ▶ ${st.tasksThisTurn || 0}/2 · ✦ ${st.utilizesThisTurn || 0}/2`
                 : 'КОНЕЦ';
             phaseInfoEl.textContent = phaseName;
         }
@@ -457,8 +486,8 @@ class GameUI {
         this.deckCountEl.textContent = String(st.deck.count);
         this.discardCountEl.textContent = String(st.discard.length);
 
-        // Phase stepper — map Replenish→0, Action→1, Task→2 (END=3 only during summary)
-        const phaseIdx = st.phase === Phase.Replenish ? 0 : st.phase === Phase.Action ? 1 : st.phase === Phase.Task ? 2 : 3;
+        // Phase stepper — map Replenish→0, Turn→1 (END=2 only during summary)
+        const phaseIdx = st.phase === Phase.Replenish ? 0 : st.phase === Phase.Turn ? 1 : 2;
         if (this.phaseStepperEl) {
             for (const cell of this.phaseStepperEl.querySelectorAll('.ps-cell')) {
                 const p = parseInt(cell.dataset.phase, 10);
@@ -482,33 +511,30 @@ class GameUI {
         this._updatePhaseHint();
 
         // Buttons visibility
-        const inAction = st.phase === Phase.Action;
-        const inTask = st.phase === Phase.Task;
+        const inTurn = st.phase === Phase.Turn;
         const inSynth = !!this.synth;
         const inNodePick = !!this.nodePickDone;
         const endActionBtn = document.getElementById('btn-end-action');
         const skipBtn = document.getElementById('btn-skip');
-        endActionBtn.style.display = inAction ? '' : 'none';
-        document.getElementById('btn-utilize').style.display = (inTask && !inSynth && !inNodePick) ? '' : 'none';
-        skipBtn.style.display = (inTask && !inSynth && !inNodePick) ? '' : 'none';
+        if (endActionBtn) endActionBtn.style.display = 'none';  // удалён, алиас на всякий случай
+        document.getElementById('btn-utilize').style.display = (inTurn && !inSynth && !inNodePick) ? '' : 'none';
+        skipBtn.style.display = (inTurn && !inSynth && !inNodePick) ? '' : 'none';
 
-        // Dynamic primary/secondary state for action buttons
-        if (inAction) {
-            const chipsLeft = st.chipsAllowed - st.chipsPlaced;
-            endActionBtn.classList.toggle('btn-primary', chipsLeft === 0);
-            endActionBtn.classList.toggle('btn-ghost', chipsLeft > 0);
-        }
-        if (inTask && !inSynth && !inNodePick) {
+        // Dynamic primary/secondary state for end-turn button
+        if (inTurn && !inSynth && !inNodePick) {
             const vp = st.players[this._viewPI()];
             const allCards = [...vp.hand, ...st.players.flatMap(p => p.revealed)];
             const hasPlayable = allCards.some(c => this.tm.getValidPlacements(c).length > 0);
             const hasHand = vp.hand.length > 0 || vp.revealed.length > 0;
-            if (!hasHand)          skipBtn.textContent = '⏭ Завершить ход (нет карт)';
-            else if (!hasPlayable) skipBtn.textContent = '⏭ Завершить ход (нет розыгрышей)';
-            else                   skipBtn.textContent = '⏭ Завершить ход';
-            // Primary когда нет розыгрышей/карт, ghost когда есть что делать
-            skipBtn.classList.toggle('btn-primary', !hasPlayable);
-            skipBtn.classList.toggle('btn-ghost', hasPlayable);
+            const chipsLeft = st.chipsAllowed - st.chipsPlaced;
+            const canPlaceChip = chipsLeft > 0 && st.cp.reserve > 0 && st.board.emptyNodes().length > 0;
+            const somethingToDo = hasPlayable || canPlaceChip;
+            if (!hasHand && !canPlaceChip)      skipBtn.textContent = '⏭ Завершить ход (нет ходов)';
+            else if (!hasPlayable && !canPlaceChip) skipBtn.textContent = '⏭ Завершить ход (нет розыгрышей)';
+            else                                skipBtn.textContent = '⏭ Завершить ход';
+            // Primary когда делать нечего, ghost когда есть что делать
+            skipBtn.classList.toggle('btn-primary', !somethingToDo);
+            skipBtn.classList.toggle('btn-ghost', somethingToDo);
         }
 
         // Labels now rendered per-lane in _renderRevealed (FIX-21)
@@ -540,37 +566,36 @@ class GameUI {
         } else if (st.phase === Phase.Replenish) {
             text = 'Добираем карты до запаса...';
             tone = 'replenish';
-        } else if (st.phase === Phase.Action) {
+        } else if (st.phase === Phase.Turn) {
             const chipsLeft = st.chipsAllowed - st.chipsPlaced;
-            if (chipsLeft > 0) {
-                const w = chipsLeft === 1 ? 'фишку' : chipsLeft < 5 ? 'фишки' : 'фишек';
-                text = `Поставь ${chipsLeft} ${w} на поле`;
-                tone = 'action';
-                counter = `${chipsLeft}/${st.chipsAllowed}`;
-            } else {
-                text = '✓ Фишки поставлены · нажми «конец действий»';
-                tone = 'ok';
-            }
-        } else if (st.phase === Phase.Task) {
             const t = st.tasksThisTurn, u = st.utilizesThisTurn;
             if (this.pendingCard) {
-                // FIX-26: имя карты и счётчик теперь в focus-info; хинт направляет на доску
+                // pendingCard выбран — направляем на доску искать паттерн
                 text = `Найди паттерн на поле · тапай фишки`;
                 tone = 'action';
             } else {
                 const allCards = [...st.cp.hand, ...st.players.flatMap(p => p.revealed)];
                 const hasPlayable = allCards.some(c => this.tm.getValidPlacements(c).length > 0);
                 const hasHand = st.cp.hand.length > 0 || st.cp.revealed.length > 0;
-                if (!hasHand) {
-                    text = `Карт нет · завершай ход`;
+                const canPlace = chipsLeft > 0 && st.cp.reserve > 0 && st.board.emptyNodes().length > 0;
+                if (!hasHand && !canPlace) {
+                    text = `Ходов нет · завершай ход`;
                     tone = 'replenish';
-                } else if (!hasPlayable) {
-                    text = `Розыгрыш невозможен · ✦ утилизируй или завершай ход`;
+                } else if (canPlace && !hasPlayable && hasHand) {
+                    text = `Ставь фишки · розыгрыш невозможен`;
                     tone = 'action';
-                } else {
+                    counter = `●${chipsLeft}/${st.chipsAllowed}`;
+                } else if (canPlace && hasPlayable) {
+                    text = `Ставь фишки или разыгрывай карты`;
+                    tone = 'task';
+                    counter = `●${chipsLeft}/2 · ▶${t}/2 · ✦${u}/2`;
+                } else if (!canPlace && hasPlayable) {
                     text = `Выбери карту · ▶ разыграй или ✦ утилизируй`;
                     tone = 'task';
-                    counter = `${t}/2 · ${u}/2`;
+                    counter = `▶${t}/2 · ✦${u}/2`;
+                } else {
+                    text = `Розыгрыш невозможен · ✦ утилизируй или завершай ход`;
+                    tone = 'action';
                 }
             }
         }
@@ -655,7 +680,7 @@ class GameUI {
         // FIX-26: focus-mode активен только если карта имеет валидные позиции
         // (иначе нет смысла искать паттерн — игрок только утилизирует)
         const hasPlacements = pc && this.tm.getValidPlacements(pc).length > 0;
-        const active = !!((inHand || placeBSynth) && this.state.phase === Phase.Task && hasPlacements);
+        const active = !!((inHand || placeBSynth) && this.state.phase === Phase.Turn && hasPlacements);
 
         if (!active) {
             this.handEl.classList.remove('focus-mode');
@@ -663,8 +688,7 @@ class GameUI {
             const fi = this.handEl.querySelector('.focus-info');
             if (fi) fi.remove();
             this.handLabelEl.classList.remove('focus-hidden');
-            this.oppRevealedWrap.classList.remove('focus-hidden');
-            this.ownRevealedWrap.classList.remove('focus-hidden');
+            this.revealedWrap.classList.remove('focus-hidden');
             return;
         }
 
@@ -674,8 +698,7 @@ class GameUI {
             else el.classList.remove('hiding');
         });
         this.handLabelEl.classList.add('focus-hidden');
-        this.oppRevealedWrap.classList.add('focus-hidden');
-        this.ownRevealedWrap.classList.add('focus-hidden');
+        this.revealedWrap.classList.add('focus-hidden');
 
         let fi = this.handEl.querySelector('.focus-info');
         if (!fi) {
@@ -698,6 +721,7 @@ class GameUI {
         const inSynthB = this.synth?.step === 'placeB';
         const canSynth = !inSynthB
             && !this.synth
+            && this.state.hardMode
             && this.state.tasksThisTurn < 2
             && this._hasSynthPartner(card);
 
@@ -734,55 +758,39 @@ class GameUI {
         const st = this.state;
         const vpi = this._viewPI();
         const vp = st.players[vpi];
-        const allRevealed = st.players.flatMap(p => p.revealed);
+        // Общая зона раскрытых: карточки всех игроков в одном ряду
+        const allRevealed = st.players.flatMap((p, i) => p.revealed.map(c => ({ card: c, ownerPI: i })));
         const playable = new Set();
         const canAct = !this.netMode || st.currentPI === this.localPI;
         if (canAct) {
-            [...vp.hand, ...allRevealed].forEach(c => {
+            const allCards = [...vp.hand, ...allRevealed.map(x => x.card)];
+            allCards.forEach(c => {
                 if (this.tm.getValidPlacements(c).length > 0) playable.add(c);
             });
         }
 
-        // ── OPP lanes: one per opponent with revealed > 0 ──
-        this.oppRevealedWrap.innerHTML = '';
-        let oppTotal = 0;
-        st.players.forEach((p, i) => {
-            if (i === vpi || p.revealed.length === 0) return;
-            oppTotal += p.revealed.length;
-            const lane = this._makeRevealedLane(p.revealed, i, false, playable);
-            this.oppRevealedWrap.appendChild(lane);
-        });
-        this.oppRevealedWrap.classList.toggle('collapsed', oppTotal === 0);
-
-        // ── OWN lane (single) ──
-        this.ownRevealedWrap.innerHTML = '';
-        if (vp.revealed.length > 0) {
-            const lane = this._makeRevealedLane(vp.revealed, vpi, true, playable);
-            this.ownRevealedWrap.appendChild(lane);
-            this.ownRevealedWrap.classList.remove('collapsed');
-        } else {
-            this.ownRevealedWrap.classList.add('collapsed');
+        this.revealedWrap.innerHTML = '';
+        if (allRevealed.length === 0) {
+            this.revealedWrap.classList.add('collapsed');
+            return;
         }
+        const lane = this._makeRevealedLane(allRevealed, playable);
+        this.revealedWrap.appendChild(lane);
+        this.revealedWrap.classList.remove('collapsed');
     }
 
-    _makeRevealedLane(cards, ownerPI, isOwn, playable) {
-        const color = this._playerColor(ownerPI);
-        const tint  = this._playerTint(ownerPI);
-        const label = `ИГРОК ${ownerPI + 1} · РАСКРЫТО`;
-        const count = `${cards.length} ${this._cardWord(cards.length)}`;
-
+    _makeRevealedLane(entries, playable) {
+        const count = `${entries.length} ${this._cardWord(entries.length)}`;
         const lane = document.createElement('div');
         lane.className = 'rev-lane';
-        lane.style.setProperty('--lane-color', color);
-        lane.style.setProperty('--lane-tint', tint);
+        lane.style.setProperty('--lane-tint', 'rgba(170,204,255,0.05)');
         lane.innerHTML = `
-            <div class="rev-lane-label">${label}</div>
-            ${isOwn ? '<div class="rev-lane-hint">ЗАЖАТЬ · ✦ УТИЛ</div>' : ''}
+            <div class="rev-lane-label">РАСКРЫТО · ОБЩАЯ ЗОНА</div>
             <div class="rev-lane-count">${count}</div>
             <div class="rev-lane-row"></div>
         `;
         const row = lane.querySelector('.rev-lane-row');
-        cards.forEach(card => {
+        entries.forEach(({ card, ownerPI }) => {
             const el = this._makeCardEl(card, playable.has(card), true, ownerPI);
             row.appendChild(el);
         });
@@ -862,16 +870,12 @@ class GameUI {
 
         el.addEventListener('click', () => {
             if (didLongPress) { didLongPress = false; return; }
-            // In TASK phase: selection (existing behavior)
-            if (this.state && this.state.phase === Phase.Task) {
+            // В единой фазе Ход тап по карте = выбор карты для розыгрыша/утилизации
+            if (this.state && this.state.phase === Phase.Turn) {
                 this._onCardTap(card, isPlayable);
                 return;
             }
-            // REFILL/END: no interaction per UX_SPEC line 427
-            if (this.state && (this.state.phase === Phase.Refill || this.state.phase === Phase.End)) {
-                return;
-            }
-            // ACTIONS or anywhere else: rotate
+            // Replenish / прочее — двойной тап для поворота (обрабатывается отдельно)
             rotate();
         });
 
@@ -1141,8 +1145,14 @@ class GameUI {
     // ── Event handlers ─────────────────────────────────────────
 
     _onPhaseChanged(phase) {
-        if (phase === Phase.Action) {
-            this._highlightEmptyNodes();
+        if (phase === Phase.Turn) {
+            // Подсвечиваем пустые узлы, пока можно ставить фишки
+            const st = this.state;
+            if (st && st.chipsPlaced < st.chipsAllowed && st.cp.reserve > 0) {
+                this._highlightEmptyNodes();
+            } else {
+                this._clearHighlights();
+            }
         } else {
             this._clearHighlights();
         }
@@ -1165,24 +1175,21 @@ class GameUI {
         // Онлайн: блокируем действия, когда ход соперника
         if (this.netMode && this.state.currentPI !== this.localPI) return;
 
-        // Task phase: накапливаем тапы по фишкам паттерна
-        if (this.state.phase === Phase.Task) {
-            if (this.pendingCard || this.synth?.step === 'placeA' || this.synth?.step === 'placeB') {
-                this._onPatternNodeTap(r, c);
-            }
+        if (this.state.phase !== Phase.Turn) return;
+
+        // Если выбрана карта/идёт синтез — тап по фишке = паттерн
+        if (this.pendingCard || this.synth?.step === 'placeA' || this.synth?.step === 'placeB') {
+            this._onPatternNodeTap(r, c);
             return;
         }
-
-        if (this.state.phase !== Phase.Action) return;
 
         const st = this.state;
         const selfOcc = st.board.occOf(st.currentPI);
 
-        // Нажатие на свою фишку
+        // Тап по своей фишке, поставленной в этот ход — отменить
         if (st.board.nodes[r][c] === selfOcc) {
             const placedThisTurn = st.placedThisTurn || [];
             if (placedThisTurn.some(([pr, pc]) => pr === r && pc === c)) {
-                // Фишка поставлена в этот ход — отменить
                 const result = this.tm.undoChip(r, c);
                 if (result === 'ok') {
                     this._haptic(14);
@@ -1191,34 +1198,26 @@ class GameUI {
                     this._updatePhaseHint();
                     this._render();
                 }
-            } else if (st.chipsPlaced === 0) {
-                // Фишка с прошлого хода — убрать как альтернативное действие
-                const result = this.tm.returnPiece(r, c);
-                if (result === 'ok') {
-                    this._renderBoard();
-                    this._clearHighlights();
-                    this._updatePhaseHint();
-                }
             }
             return;
         }
 
+        // Пустой узел — разместить фишку (если лимит ещё позволяет)
         const result = this.tm.placeChip(r, c);
         if (result === 'ok') {
             this._haptic(14);
             this._playSound('chip');
             this._renderBoard();
-            if (this.state.phase === Phase.Action) {
-                // Подсветку пустых узлов оставляем только пока фишки ещё можно ставить
-                if (st.chipsPlaced < st.chipsAllowed) this._highlightEmptyNodes();
-                else this._clearHighlights();
-            }
+            // Подсветка пустых узлов — пока лимит не исчерпан
+            if (st.chipsPlaced < st.chipsAllowed && st.cp.reserve > 0) this._highlightEmptyNodes();
+            else this._clearHighlights();
             this._updatePhaseHint();
+            this._render();
         }
     }
 
     _onCardTap(card, isPlayable) {
-        if (this.state.phase !== Phase.Task) return;
+        if (this.state.phase !== Phase.Turn) return;
         if (this.netMode && this.state.currentPI !== this.localPI) return;
 
         // ── Синтез: выбор второй карты ──────────────────────────
@@ -1279,36 +1278,6 @@ class GameUI {
         const all = this.tm.getValidPlacements(cardB);
         const posA = new Set(matchA.chipPositions.map(([r, c]) => `${r},${c}`));
         return all.filter(p => p.chipPositions.some(([r, c]) => posA.has(`${r},${c}`)));
-    }
-
-    _onEndAction() {
-        if (this.netMode && this.state.currentPI !== this.localPI) return;
-        const st = this.state;
-        const chipsLeft = st.chipsAllowed - st.chipsPlaced;
-        const btn = document.getElementById('btn-end-action');
-        if (chipsLeft > 0 && !this._endActionConfirm) {
-            // Первый тап — предупреждение. Второй тап в течение 3 сек подтверждает.
-            this._endActionConfirm = true;
-            const word = chipsLeft === 1 ? 'фишку' : chipsLeft < 5 ? 'фишки' : 'фишек';
-            btn.textContent = `⚠ Не поставил ${chipsLeft} ${word} · тапни ещё раз`;
-            btn.style.background = 'linear-gradient(135deg, #ff9944, #d46a1e)';
-            btn.style.color = '#111';
-            if (navigator.vibrate) navigator.vibrate(30);
-            clearTimeout(this._endActionTimer);
-            this._endActionTimer = setTimeout(() => {
-                this._endActionConfirm = false;
-                btn.textContent = '✓ Конец действий';
-                btn.style.background = '';
-                btn.style.color = '';
-            }, 3000);
-            return;
-        }
-        this._endActionConfirm = false;
-        clearTimeout(this._endActionTimer);
-        btn.textContent = '✓ Конец действий';
-        btn.style.background = '';
-        btn.style.color = '';
-        this.tm.endAction();
     }
 
     _onUtilize() {
@@ -1478,8 +1447,9 @@ class GameUI {
         const confirmBtn = document.getElementById('btn-confirm');
         if (confirmBtn) confirmBtn.style.display = 'none';
 
-        // Synth — только если возможна вторая карта-партнёр
+        // Synth — только если hardMode и возможна вторая карта-партнёр
         const canSynth = !inSynthB
+            && this.state.hardMode
             && this.state.tasksThisTurn < 2
             && this.pendingCard
             && this._hasSynthPartner(this.pendingCard);
@@ -1855,9 +1825,11 @@ class GameUI {
                 ? `⚠ Эта карта уйдёт в сброс и пропадёт из твоей руки`
                 : `⚠ Эти карты уйдут в сброс и пропадут из твоей руки`;
         } else if (kind === 'dig') {
-            actionLabel = `выбрать ${cnt} из ${cnt + 2}`;
-            instruction = `Выбери ${cnt} ${cardWord} чтобы оставить себе`;
-            consequence = `✓ Выбранные карты попадут в руку · остальные уйдут в сброс`;
+            const step = inp.digStep;
+            const stepSuffix = (step && step.total > 1) ? ` · шаг ${step.current}/${step.total}` : '';
+            actionLabel = `выбрать 1 из 2${stepSuffix}`;
+            instruction = `Выбери 1 карту чтобы оставить себе · другая уйдёт в сброс`;
+            consequence = `✓ Выбранная карта попадёт в руку · другая в сброс`;
         } else {
             actionLabel = `выбрать ${cnt}`;
             instruction = `Выбери ${cnt} ${cardWord}`;
@@ -2050,6 +2022,67 @@ class GameUI {
         done(selected);
     }
 
+    // ── Steal pick modal ───────────────────────────────────────
+    // ctx: { revealedPool: [{card, ownerPI}], opponents: [{pi, handCount}], remaining, total }
+
+    _showStealPick(actorPI, ctx, done) {
+        const step = ctx.total - ctx.remaining + 1;
+        this.stealPickModal.dataset.player = `p${actorPI + 1}`;
+        this.stealPickTitle.innerHTML =
+            `<div class="sp-sub"><span class="player-title" data-player="p${actorPI + 1}" style="display:inline">ИГРОК ${actorPI + 1}</span> · КРАЖА ${step}/${ctx.total}</div>` +
+            `<div class="sp-main">ВЫБЕРИ ИСТОЧНИК</div>`;
+
+        // Раскрытые: одна карточка = один клик = мгновенный выбор
+        this.stealPickRevealed.innerHTML = '';
+        if (ctx.revealedPool.length === 0) {
+            this.stealPickRevealed.innerHTML = `<div class="sp-empty">В общей зоне пусто</div>`;
+        } else {
+            ctx.revealedPool.forEach(({ card, ownerPI }) => {
+                const item = document.createElement('div');
+                item.className = 'sp-rev-item';
+                item.dataset.player = `p${ownerPI + 1}`;
+                item.innerHTML =
+                    `<div class="sp-rev-pattern">${this._patternSVG(card.pattern, 44, ownerPI)}</div>` +
+                    `<div class="sp-rev-info">` +
+                      `<div class="sp-rev-name">${card.name}</div>` +
+                      `<div class="sp-rev-owner">ИГРОК ${ownerPI + 1}${ownerPI === actorPI ? ' · СВОЯ' : ''}</div>` +
+                    `</div>`;
+                item.addEventListener('click', () => this._finishStealPick({ type: 'revealed', card, ownerPI }));
+                this.stealPickRevealed.appendChild(item);
+            });
+        }
+
+        // Вслепую: одна кнопка на противника
+        this.stealPickBlind.innerHTML = '';
+        if (ctx.opponents.length === 0) {
+            this.stealPickBlind.innerHTML = `<div class="sp-empty">У противников пустые руки</div>`;
+        } else {
+            ctx.opponents.forEach(({ pi, handCount }) => {
+                const btn = document.createElement('button');
+                btn.className = 'sp-blind-btn';
+                btn.dataset.player = `p${pi + 1}`;
+                btn.innerHTML =
+                    `<span class="sp-blind-label">РУКА ИГРОКА ${pi + 1}</span>` +
+                    `<span class="sp-blind-count">🎲 ${handCount} карт · случайная</span>`;
+                btn.addEventListener('click', () => this._finishStealPick({ type: 'blind', ownerPI: pi }));
+                this.stealPickBlind.appendChild(btn);
+            });
+        }
+
+        this._stealPickDone = done;
+        if (this.stealPickModal.parentElement !== document.body) {
+            document.body.appendChild(this.stealPickModal);
+        }
+        this.stealPickModal.classList.remove('hidden');
+    }
+
+    _finishStealPick(selection) {
+        this.stealPickModal.classList.add('hidden');
+        const done = this._stealPickDone;
+        this._stealPickDone = null;
+        done?.(selection);
+    }
+
     // ── Card detail ────────────────────────────────────────────
 
     _rotateDetail(delta) {
@@ -2109,8 +2142,7 @@ class GameUI {
         if (this.state) {
             const st = this.state;
             const phaseName = st.phase === Phase.Replenish ? 'ВОСПОЛНЕНИЕ'
-                : st.phase === Phase.Action ? `ДЕЙСТВИЯ ${st.chipsPlaced}/${st.chipsAllowed}`
-                : st.phase === Phase.Task ? `ЗАДАЧА ▶ ${st.tasksThisTurn || 0}/2 · ✦ ${st.utilizesThisTurn || 0}/2`
+                : st.phase === Phase.Turn ? `ХОД ● ${st.chipsPlaced}/${st.chipsAllowed} · ▶ ${st.tasksThisTurn || 0}/2 · ✦ ${st.utilizesThisTurn || 0}/2`
                 : 'КОНЕЦ ХОДА';
             const elapsedMs = Date.now() - (this._matchStartTime || Date.now());
             const mm = Math.floor(elapsedMs / 60000);
@@ -2371,9 +2403,7 @@ class GameUI {
         try {
             switch (name) {
                 case 'placeChip':   this.tm.placeChip(args[0], args[1]); break;
-                case 'returnPiece': this.tm.returnPiece(args[0], args[1]); break;
                 case 'undoChip':    this.tm.undoChip(args[0], args[1]); break;
-                case 'endAction':   this.tm.endAction(); break;
                 case 'endTurn':
                     if (this.tm.endTurn() && this.state.phase === Phase.Replenish) {
                         this.tm.replenish();
@@ -2439,7 +2469,8 @@ class GameUI {
         }
         this._render();
         this._updatePhaseHint();
-        if (snap.phase === Phase.Action && snap.currentPI === this.localPI) {
+        if (snap.phase === Phase.Turn && snap.currentPI === this.localPI
+            && snap.chipsPlaced < snap.chipsAllowed) {
             this._highlightEmptyNodes();
         } else {
             this._clearHighlights();
@@ -2470,9 +2501,7 @@ class GameUI {
         };
         const mutations = {
             placeChip:   (r, c) => { sendAction('placeChip',   [r, c]); return 'ok'; },
-            returnPiece: (r, c) => { sendAction('returnPiece', [r, c]); return 'ok'; },
             undoChip:    (r, c) => { sendAction('undoChip',    [r, c]); return 'ok'; },
-            endAction:   ()     => { sendAction('endAction',   []); return true; },
             endTurn:     ()     => { sendAction('endTurn',     []); return true; },
             replenish:   ()     => { sendAction('replenish',   []); return true; },
             playCard:    (card, placement, onDone) => {

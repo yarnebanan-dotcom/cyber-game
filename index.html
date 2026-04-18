@@ -434,8 +434,7 @@ html, body {
         var(--bg-1);
 }
 .rev-lane + .rev-lane { border-top: 1px solid var(--line-ghost); }
-#opp-revealed-wrap .rev-lane { border-bottom: 1px dashed var(--line-ghost); }
-#own-revealed-wrap .rev-lane { border-top: 1px dashed var(--line-ghost); }
+#revealed-wrap .rev-lane { border-top: 1px dashed var(--line-ghost); border-bottom: 1px dashed var(--line-ghost); }
 
 .rev-lane-label {
     position: absolute; top: 3px; left: 12px;
@@ -486,8 +485,8 @@ html, body {
 .rev-lane .card-pattern svg { width: 36px; height: 36px; }
 .rev-lane .card-fx { display: none; }
 
-/* ▶ indicator on opp cards playable in my TASK phase */
-#opp-revealed-wrap .rev-lane .card.playable::after {
+/* ▶ indicator on any card in the shared revealed zone that's playable now */
+#revealed-wrap .rev-lane .card.playable::after {
     content: '▶';
     position: absolute; bottom: 2px; left: 3px;
     font-size: 8px; color: var(--accent);
@@ -1567,6 +1566,70 @@ html, body {
     color: var(--text-ghost); cursor: default;
 }
 
+/* Steal Pick Modal — выбор источника кражи (конкретная раскрытая или вслепую из руки) */
+#steal-pick-modal { background: rgba(2,6,10,0.96); backdrop-filter: blur(20px); z-index: var(--z-card-pick); }
+#steal-pick-modal.hidden { display: none; }
+#steal-pick-title {
+    font-family: var(--mono); font-size: 10px; letter-spacing: 0.2em;
+    padding-bottom: 8px; border-bottom: 1px solid var(--line-ghost);
+    color: var(--text-dim);
+}
+#steal-pick-title .sp-sub { font-size: 9px; color: var(--text-dim); margin-bottom: 4px; }
+#steal-pick-title .sp-main {
+    font-family: var(--display); font-size: 14px; font-weight: 700;
+    color: var(--accent); letter-spacing: 0.15em;
+}
+.sp-section { display: flex; flex-direction: column; gap: 6px; }
+.sp-section-label {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.2em;
+    color: var(--text-ghost);
+}
+.sp-list { display: flex; flex-direction: column; gap: 6px; }
+.sp-empty {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.15em;
+    color: var(--text-ghost); padding: 6px 8px;
+    border: 1px dashed var(--line-ghost); text-align: center;
+}
+.sp-rev-item {
+    display: flex; flex-direction: row; align-items: center; gap: 10px;
+    padding: 8px 10px; background: var(--bg-2);
+    border: 1px solid var(--line-ghost);
+    cursor: pointer; transition: border-color 0.15s, background 0.15s;
+}
+.sp-rev-item:hover { border-color: var(--accent); background: var(--bg-3); }
+.sp-rev-item[data-player="p1"]:hover { border-color: var(--p1); }
+.sp-rev-item[data-player="p2"]:hover { border-color: var(--p2); }
+.sp-rev-item[data-player="p3"]:hover { border-color: var(--p3); }
+.sp-rev-pattern { flex-shrink: 0; }
+.sp-rev-info { flex: 1; display: flex; flex-direction: column; gap: 2px; }
+.sp-rev-name {
+    font-family: var(--display); font-size: 11px; font-weight: 700;
+    color: var(--text); letter-spacing: 0.1em;
+}
+.sp-rev-owner {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.15em;
+    color: var(--text-dim);
+}
+.sp-blind-btn {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+    padding: 10px 12px; background: var(--bg-2);
+    border: 1px solid var(--line-ghost); cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    text-align: left;
+}
+.sp-blind-btn:hover { border-color: var(--accent); background: var(--bg-3); }
+.sp-blind-btn[data-player="p1"]:hover { border-color: var(--p1); }
+.sp-blind-btn[data-player="p2"]:hover { border-color: var(--p2); }
+.sp-blind-btn[data-player="p3"]:hover { border-color: var(--p3); }
+.sp-blind-label {
+    font-family: var(--display); font-size: 11px; font-weight: 700;
+    color: var(--text); letter-spacing: 0.1em;
+}
+.sp-blind-count {
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.15em;
+    color: var(--text-dim);
+}
+
 /* Card Detail — HUD Kit redesign */
 #card-detail { background: rgba(2, 6, 10, 0.92); backdrop-filter: blur(16px); }
 #card-detail.hidden { display: none; }
@@ -1869,7 +1932,38 @@ html, body {
     color: var(--text-dim); letter-spacing: 0.3em;
 }
 .menu-subtitle .diamond { color: var(--line); }
-.menu-modes { display: flex; gap: 6px; margin-bottom: 12px; }
+.menu-modes { display: flex; gap: 6px; margin-bottom: 8px; }
+.menu-hard {
+    position: relative;
+    display: block; width: 100%;
+    padding: 10px 12px;
+    background: var(--bg-1);
+    border: 1px solid var(--line-dim);
+    color: var(--text-dim);
+    font-family: var(--mono); font-size: 11px; letter-spacing: 0.16em;
+    cursor: pointer;
+    clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+    margin-bottom: 12px;
+    transition: background 0.15s, border-color 0.15s, color 0.15s;
+    text-align: left;
+}
+.menu-hard:hover, .menu-hard:focus { outline: none; background: var(--bg-2); }
+.menu-hard.active {
+    background: linear-gradient(90deg, rgba(255,106,43,0.18), rgba(255,106,43,0.04) 60%, transparent);
+    border-color: var(--accent);
+    color: var(--accent);
+}
+.menu-hard.active::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+    background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+}
+.menu-hard .hm-check { display: inline-block; width: 14px; margin-right: 8px; opacity: 0.5; }
+.menu-hard.active .hm-check { opacity: 1; }
+.menu-hard .hm-desc { display: block; font-size: 9px; color: var(--text-ghost); margin-top: 4px; letter-spacing: 0.1em; }
 .btn-mode {
     position: relative;
     flex: 1; padding: 12px 8px 12px 14px;
@@ -2270,25 +2364,21 @@ html, body {
         </div>
         <div class="phase-stepper" id="phase-stepper">
             <div class="ps-cell" data-phase="0">01·ВОСПОЛН</div>
-            <div class="ps-cell" data-phase="1">02·ДЕЙСТВ</div>
-            <div class="ps-cell" data-phase="2">03·ЗАДАЧА</div>
-            <div class="ps-cell" data-phase="3">04·КОНЕЦ</div>
+            <div class="ps-cell" data-phase="1">02·ХОД</div>
+            <div class="ps-cell" data-phase="2">03·КОНЕЦ</div>
         </div>
     </div>
 
     <!-- Phase hint bar -->
     <div id="phase-hint"></div>
 
-    <!-- Opponent(s) revealed cards — lanes rendered by JS -->
-    <div id="opp-revealed-wrap" class="revealed-wrap collapsed"></div>
+    <!-- Shared revealed cards zone — общая зона раскрытых (любой играет как свою) -->
+    <div id="revealed-wrap" class="revealed-wrap collapsed"></div>
 
     <!-- Board -->
     <div id="board-wrap">
         <div id="board"></div>
     </div>
-
-    <!-- Own revealed cards — lane rendered by JS -->
-    <div id="own-revealed-wrap" class="revealed-wrap collapsed"></div>
 
     <!-- Hand -->
     <div id="hand-wrap">
@@ -2328,7 +2418,6 @@ html, body {
 
     <!-- Action buttons -->
     <div id="action-bar">
-        <button class="btn btn-action" id="btn-end-action" style="display:none">✓ Конец действий</button>
         <button class="btn btn-utilize" id="btn-utilize" style="display:none">✦ Утилизировать</button>
         <button class="btn btn-skip" id="btn-skip" style="display:none">⏭ Завершить ход</button>
     </div>
@@ -2417,6 +2506,21 @@ html, body {
     </div>
 </div>
 
+<!-- Steal pick modal — кража: выбор конкретной раскрытой или случайной из руки -->
+<div class="overlay hidden" id="steal-pick-modal">
+    <div class="modal-box">
+        <div id="steal-pick-title"></div>
+        <div class="sp-section">
+            <div class="sp-section-label">ОБЩАЯ ЗОНА РАСКРЫТЫХ · КОНКРЕТНАЯ КАРТА</div>
+            <div id="steal-pick-revealed" class="sp-list"></div>
+        </div>
+        <div class="sp-section">
+            <div class="sp-section-label">ВСЛЕПУЮ ИЗ РУКИ ПРОТИВНИКА</div>
+            <div id="steal-pick-blind" class="sp-list"></div>
+        </div>
+    </div>
+</div>
+
 <!-- Card detail overlay -->
 <div class="overlay hidden" id="card-detail">
     <div class="detail-box">
@@ -2478,6 +2582,10 @@ html, body {
             <span>3 ИГРОКА · 5×5</span>
         </button>
     </div>
+    <button class="menu-hard" id="btn-hard-mode" type="button">
+        <span class="hm-check">[ ]</span>HARD MODE · СИНТЕЗ + АЛЬТЕРНАТИВЫ
+        <span class="hm-desc">РАСШИРЕННЫЕ ПРАВИЛА · ПРОПУСК ХОДА · +3 КАРТЫ</span>
+    </button>
     <button class="btn-initiate" id="btn-initiate">▶ INITIATE</button>
     <button class="btn-online-link" id="btn-mode-online">◉ ОНЛАЙН · ДУЭЛЬ · P2P</button>
     <div class="menu-foot">
