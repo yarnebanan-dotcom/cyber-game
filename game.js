@@ -77,7 +77,10 @@ class GameState {
         this.placedThisTurn = [];
         this.tasksThisTurn = 0;
         this.utilizesThisTurn = 0;
-        const cards = CardDatabase.create3();
+        // Колода по режиму: 2p → create() (53 карты, id 1..53), 3p → create3() (54 карты, id 1001+).
+        // Важно: id должны совпадать с buildCardsById(playerCount) в net.js —
+        // иначе онлайн-синхронизация фильтрует руки гостя в ноль.
+        const cards = playerCount === 3 ? CardDatabase.create3() : CardDatabase.create();
         this.deck = new Deck(cards, this.discard);
     }
     get cp() { return this.players[this.currentPI]; }
