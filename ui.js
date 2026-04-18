@@ -837,6 +837,8 @@ class GameUI {
                 <div class="${cornerClass}">${cornerText}</div>
             </div>
             <div class="card-pattern">${this._patternGridHTML(card.pattern)}</div>
+            <div class="card-fx-compact">${this._describeEffectsCompact(card)}</div>
+            <div class="card-badges">${this._effectBadges(card)}</div>
             <div class="card-name">${card.name}</div>
         `;
 
@@ -986,37 +988,46 @@ class GameUI {
 
     // Компактный формат для карт в руке: иконки + цифры
     _describeEffectsCompact(card) {
-        const parts = [];
-        if (card.playEffect.hasEffects)      parts.push(`<span class="fx-play">▶${this._fxCompact(card.playEffect)}</span>`);
-        if (card.utilizeEffect.hasEffects)   parts.push(`<span class="fx-util">✦${this._fxCompact(card.utilizeEffect)}</span>`);
-        if (card.synthesisEffect.hasEffects) parts.push(`<span class="fx-synth">⊕${this._fxCompact(card.synthesisEffect)}</span>`);
-        return parts.join('') || '';
+        const rows = [];
+        if (card.playEffect.hasEffects)      rows.push(`<span class="fx-row fx-play"><span class="fx-kind">▶</span>${this._fxCompact(card.playEffect)}</span>`);
+        if (card.utilizeEffect.hasEffects)   rows.push(`<span class="fx-row fx-util"><span class="fx-kind">✦</span>${this._fxCompact(card.utilizeEffect)}</span>`);
+        if (card.synthesisEffect.hasEffects) rows.push(`<span class="fx-row fx-synth"><span class="fx-kind">⊕</span>${this._fxCompact(card.synthesisEffect)}</span>`);
+        return rows.join('') || '';
     }
 
     _fxCompact(effect) {
+        // Каждое действие — отдельный span. Направленность на противника → класс .fx-opp.
         return effect.effects.map(fx => {
             const self = fx.target === Target.Self || fx.target === undefined;
             const n = fx.n;
             const inf = n === Infinity;
             const num = inf ? '∞' : n;
-            const oppMark = self ? '' : '!';  // ! = на противника
+            const cls = self ? 'fx-act' : 'fx-act fx-opp';
+            let body = '';
             switch (fx.constructor.name) {
-                case 'DrawCardsEffect':    return ` +${n}c`;            // карты в руку
-                case 'DigCardsEffect':     return ` ⛏${n}`;             // раскопать
-                case 'PlaceChipsEffect':   return ` ●${n}`;             // фишки
-                case 'RevealCardsEffect':  return ` 👁${num}${oppMark}`;
-                case 'DiscardCardsEffect': return ` ✕${num}${oppMark}`;
-                case 'StealCardsEffect':   return ` ⇆${n}`;
-                case 'ModifySupplyEffect': {
-                    const t = fx.target === Target.Self ? '' : '!';
-                    return ` ⚡${fx.delta>0?'+':''}${fx.delta}${t}`;
-                }
-                case 'SetSupplyEffect':    return ` ⚡=${fx.val}${self?'':'!'}`;
-                case 'CopyOpponentSupplyEffect': return ` ⚡=⚡!`;
-                case 'ResetFieldEffect':   return ` ↻стол`;
+                case 'DrawCardsEffect':    body = `+${n}c`;       break;  // карты в руку (всегда себе)
+                case 'DigCardsEffect':     body = `⛏${n}`;        break;  // раскопать (всегда себе)
+                case 'PlaceChipsEffect':   body = `●${n}`;        break;  // фишки на поле
+                case 'RevealCardsEffect':  body = `◉${num}`;     break;
+                case 'DiscardCardsEffect': body = `✕${num}`;      break;
+                case 'StealCardsEffect':   body = `⇆${n}`;        break;  // украсть (всегда у противника, но эффект себе)
+                case 'ModifySupplyEffect': body = `⚡${fx.delta>0?'+':''}${fx.delta}`; break;
+                case 'SetSupplyEffect':    body = `⚡=${fx.val}`; break;
+                case 'CopyOpponentSupplyEffect': body = `⚡=⚡`;    break;
+                case 'ResetFieldEffect':   body = `↻стол`;         break;
                 default: return '';
             }
+            return `<span class="${cls}">${body}</span>`;
         }).join('');
+    }
+
+    // Индикаторы типов эффектов для компактных карт в рев-зоне (3 цветных маркера)
+    _effectBadges(card) {
+        const marks = [];
+        if (card.playEffect.hasEffects)      marks.push(`<i class="fx-badge fx-play">▶</i>`);
+        if (card.utilizeEffect.hasEffects)   marks.push(`<i class="fx-badge fx-util">✦</i>`);
+        if (card.synthesisEffect.hasEffects) marks.push(`<i class="fx-badge fx-synth">⊕</i>`);
+        return marks.join('');
     }
 
     _fxText(effect) {

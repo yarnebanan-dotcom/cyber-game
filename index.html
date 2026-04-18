@@ -482,8 +482,15 @@ html, body {
     top: 2px; right: 2px;
 }
 .rev-lane .card-pattern { margin: 1px 0; }
-.rev-lane .card-pattern svg { width: 36px; height: 36px; }
+.rev-lane .card-pattern svg { width: 32px; height: 32px; }
 .rev-lane .card-fx { display: none; }
+.rev-lane .card-fx-compact { display: none; }
+.rev-lane .card-badges {
+    display: flex;
+    font-size: 9px;
+    padding: 0;
+    margin-top: 1px;
+}
 
 /* ▶ indicator on any card in the shared revealed zone that's playable now */
 #revealed-wrap .rev-lane .card.playable::after {
@@ -1254,17 +1261,17 @@ html, body {
 
 /* Pattern (3x3 inline grid, 80% card width) */
 .card-pattern {
-    flex: 1;
+    flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 2px 0;
+    padding: 1px 0;
 }
 .card-pattern-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1px;
-    width: 80%;
+    width: 58%;
     aspect-ratio: 1 / 1;
     transition: transform 0.22s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
@@ -1316,6 +1323,66 @@ html, body {
 .fx-util  { color: var(--accent); }
 .fx-synth { color: #b88aff; }
 .fx-none  { color: var(--text-ghost); }
+
+/* Компактный блок эффектов на карте в руке */
+.card-fx-compact {
+    font-family: var(--mono);
+    font-size: 7.5px;
+    line-height: 1.15;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    padding: 2px 1px 1px;
+    text-align: center;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+    border-top: 1px solid var(--line-ghost);
+}
+.card-fx-compact:empty { display: none; }
+.card-fx-compact .fx-row {
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    letter-spacing: 0.02em;
+}
+.card-fx-compact .fx-kind {
+    font-weight: 700;
+    margin-right: 1px;
+}
+.card-fx-compact .fx-row.fx-play  { color: var(--ok); }
+.card-fx-compact .fx-row.fx-util  { color: var(--accent); }
+.card-fx-compact .fx-row.fx-synth { color: #b88aff; }
+.card-fx-compact .fx-act {
+    display: inline-block;
+    padding: 0 1px;
+}
+/* Направленность на противника — ярко-красный акцент */
+.card-fx-compact .fx-act.fx-opp {
+    color: #ff5577;
+    text-shadow: 0 0 3px rgba(255, 85, 119, 0.45);
+    font-weight: 700;
+}
+
+/* Бейджи-индикаторы типов эффектов (для rev-lane) — в обычной карте скрыты */
+.card-badges {
+    display: none;
+    gap: 2px;
+    justify-content: center;
+    padding: 1px 0;
+    font-family: var(--mono);
+    font-size: 8px;
+    line-height: 1;
+}
+.card-badges .fx-badge {
+    font-style: normal;
+    font-weight: 700;
+    opacity: 0.95;
+}
+.card-badges .fx-badge.fx-play  { color: var(--ok); }
+.card-badges .fx-badge.fx-util  { color: var(--accent); }
+.card-badges .fx-badge.fx-synth { color: #b88aff; }
 
 /* ── Fullscreen Overlays ─────────────────────────────────── */
 .overlay {
