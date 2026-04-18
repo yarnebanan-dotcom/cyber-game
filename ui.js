@@ -431,12 +431,15 @@ class GameUI {
                 : 'КОНЕЦ';
             phaseInfoEl.textContent = phaseName;
         }
-        // Opponent score chips
+        // Opponent score chips (+ EXPERIMENTAL debt badge)
         if (this.oppScoresEl) {
             const chips = [];
             for (let i = 0; i < st.players.length; i++) {
                 if (i === activePI) continue;
-                chips.push(`<span class="p${i+1}">P${i+1}:${st.players[i].score}</span>`);
+                const p = st.players[i];
+                const debt = (p.pendingActions || []).reduce((a, x) => a + (x.count || 0), 0);
+                const badge = debt > 0 ? ` <span class="opp-debt" title="Долг: решить в свой ход">✕${debt}</span>` : '';
+                chips.push(`<span class="p${i+1}">P${i+1}:${p.score}${badge}</span>`);
             }
             this.oppScoresEl.innerHTML = chips.join('');
         }
@@ -1592,6 +1595,11 @@ class GameUI {
         // FIX-09: data-player на корне — раскрашивает .hl-player
         this.handoffScreen.dataset.player = `p${s.playerIdx + 1}`;
 
+        // Режим end-of-turn: показать end-panel/stats, скрыть summary
+        document.getElementById('handoff-end-panel').classList.remove('hidden');
+        document.getElementById('handoff-stats').classList.remove('hidden');
+        document.getElementById('handoff-summary').classList.add('hidden');
+
         // Top label: "ИГРОК N · ХОД ЗАВЕРШЁН"
         document.getElementById('handoff-player').innerHTML =
             `<span class="hl-player">ИГРОК ${s.playerIdx + 1}</span> · ХОД ЗАВЕРШЁН`;
@@ -1652,8 +1660,62 @@ class GameUI {
             this._handoffCallback = null;
             cb();
         } else {
-            this.tm.replenish();
+            // EXPERIMENTAL: сначала отдать «долги» (отложенные выборы от противника),
+            // потом обычное восполнение. См. PlayerState.pendingActions.
+            this._resolvePendingActions(() => this.tm.replenish());
         }
+    }
+
+    // EXPERIMENTAL: резолв отложенных эффектов противника в начале хода
+    _resolvePendingActions(onDone) {
+        const st = this.state;
+        const pl = st.cp;
+        const next = () => {
+            if (!pl.pendingActions.length) { onDone?.(); return; }
+            const action = pl.pendingActions.shift();
+            const all = action.kind === 'discard'
+                ? [...pl.hand, ...pl.revealed]
+                : [...pl.hand];
+            const cnt = Math.min(action.count, all.length);
+            if (cnt <= 0) { next(); return; }
+
+            // Контекст для модала — как будто kind='discard'/'reveal'
+            this.input.actionKind = action.kind;
+            this.input.actionCount = cnt;
+            this.input.actionTargetSelf = false;
+            this.input.sourceCard = { name: action.sourceCardName, cost: null };
+            this.input.sourceMode = 'play';
+
+            if (all.length <= cnt) {
+                // выбора нет — применить всё сразу
+                this._applyPendingChoice(action.kind, all);
+                next();
+                return;
+            }
+            const ctx = this._buildChoiceContext(st.currentPI, cnt);
+            // Override actorPI: долг оставил предыдущий игрок, а не текущий
+            ctx.actorPI = action.actorPI;
+            ctx.targetIsActor = false;
+            this._showCardPick(st.currentPI, all, cnt, chosen => {
+                this._applyPendingChoice(action.kind, chosen);
+                this._notify && this._notify();
+                this._render();
+                next();
+            }, ctx);
+        };
+        next();
+    }
+
+    _applyPendingChoice(kind, chosen) {
+        const st = this.state;
+        const pl = st.cp;
+        chosen.forEach(c => {
+            let i = pl.hand.indexOf(c);
+            if (i >= 0) pl.hand.splice(i, 1);
+            else { i = pl.revealed.indexOf(c); if (i >= 0) pl.revealed.splice(i, 1); }
+            if (kind === 'discard') st.discard.push(c);
+            else if (kind === 'reveal') pl.revealed.push(c);
+        });
     }
 
     // Контекст для модала/handoff: кто инициировал, какая карта, какой эффект
@@ -1709,6 +1771,11 @@ class GameUI {
     _showHandoffForChoice(pi, callback, ctx) {
         // FIX-09: data-player на корне — по целевому игроку
         this.handoffScreen.dataset.player = `p${pi + 1}`;
+
+        // Режим choice: скрыть end-panel/stats, показать summary
+        document.getElementById('handoff-end-panel').classList.add('hidden');
+        document.getElementById('handoff-stats').classList.add('hidden');
+        document.getElementById('handoff-summary').classList.remove('hidden');
 
         const playerEl = document.getElementById('handoff-player');
         if (ctx?.backToActor) {

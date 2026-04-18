@@ -32,6 +32,11 @@ class PlayerState {
         this.score = 0;
         this.totalChips = 8;
         this.chipsOnBoard = 0;
+        // EXPERIMENTAL (unverified): эффекты противника с выбором (discard/reveal)
+        // откладываются сюда и резолвятся в начале его хода, чтобы не передавать
+        // устройство туда-сюда. Требует игровых тестов — возможны баланс-проблемы.
+        // [{kind:'discard'|'reveal', count, sourceCardName, actorPI}]
+        this.pendingActions = [];
     }
     get reserve() { return this.totalChips - this.chipsOnBoard; }
 }
@@ -147,6 +152,16 @@ class RevealCardsEffect {
         const tp = st.players[ti];
         const toReveal = this.n === Infinity ? tp.hand.length : Math.min(this.n, tp.hand.length);
         if (toReveal <= 0) { done?.(); return; }
+        // EXPERIMENTAL: отложенный выбор противника — см. PlayerState.pendingActions
+        if (this.target === Target.Opp && toReveal < tp.hand.length) {
+            tp.pendingActions.push({
+                kind: 'reveal', count: toReveal,
+                sourceCardName: inp.sourceCard?.name ?? '',
+                actorPI: ap,
+            });
+            done?.();
+            return;
+        }
         inp.actionKind = 'reveal'; inp.actionCount = this.n; inp.actionTargetSelf = (this.target === Target.Self);
         inp.chooseCards(ti, [...tp.hand], toReveal, chosen => {
             chosen.forEach(c => {
@@ -167,6 +182,16 @@ class DiscardCardsEffect {
         const all = [...tp.hand, ...tp.revealed];
         const toDiscard = this.n === Infinity ? all.length : Math.min(this.n, all.length);
         if (toDiscard <= 0) { done?.(); return; }
+        // EXPERIMENTAL: отложенный выбор противника — см. PlayerState.pendingActions
+        if (this.target === Target.Opp && toDiscard < all.length) {
+            tp.pendingActions.push({
+                kind: 'discard', count: toDiscard,
+                sourceCardName: inp.sourceCard?.name ?? '',
+                actorPI: ap,
+            });
+            done?.();
+            return;
+        }
         inp.actionKind = 'discard'; inp.actionCount = this.n; inp.actionTargetSelf = (this.target === Target.Self);
         inp.chooseCards(ti, all, toDiscard, chosen => {
             chosen.forEach(c => {

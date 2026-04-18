@@ -302,6 +302,12 @@ html, body {
 .hud-opp-scores > span.p1 { color: var(--p1); border-color: rgba(63,208,230,0.35); }
 .hud-opp-scores > span.p2 { color: var(--p2); border-color: rgba(255,106,43,0.35); }
 .hud-opp-scores > span.p3 { color: var(--p3); border-color: rgba(183,108,255,0.35); }
+.hud-opp-scores .opp-debt {
+    display: inline-block; margin-left: 4px;
+    padding: 0 4px; font-size: 9px; font-weight: 700;
+    color: #ffb94d; background: rgba(255,106,43,0.15);
+    border: 1px solid rgba(255,106,43,0.5); border-radius: 2px;
+}
 
 .hud-spacer { flex: 1; min-width: 4px; }
 
@@ -1151,6 +1157,15 @@ html, body {
     border: 1px solid var(--accent);
     box-shadow: 0 0 12px rgba(255,106,43,0.2);
 }
+#handoff-end-panel.hidden, #handoff-stats.hidden, #handoff-summary.hidden { display: none; }
+.handoff-summary {
+    padding: 10px 14px;
+    background: var(--bg-1);
+    border: 1px solid var(--line-dim);
+    font-family: var(--sans); font-size: 13px;
+    color: var(--text); text-align: center; line-height: 1.5;
+}
+.handoff-summary .player-title { font-weight: 700; }
 .end-gain {
     font-family: var(--display); font-size: 26px; font-weight: 700;
     color: var(--accent);
@@ -2131,6 +2146,7 @@ html, body {
 <div class="overlay hidden" id="handoff-screen">
     <div id="handoff-content">
         <div class="handoff-label" id="handoff-player"></div>
+        <div class="handoff-summary" id="handoff-summary"></div>
         <div id="handoff-end-panel">
             <div class="end-gain" id="handoff-gain">+0</div>
             <div class="end-delta" id="handoff-delta"></div>

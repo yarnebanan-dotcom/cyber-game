@@ -6,6 +6,34 @@
 
 ---
 
+## 2026-04-18 — FIX-23 · отложенные выборы противника («долги»)
+
+Критический bug-fix + изменение game-flow. **Статус: ЭКСПЕРИМЕНТАЛЬНО, требует игровых тестов на баланс** (отметка `EXPERIMENTAL` в коде).
+
+### Bug: бесконечный розыгрыш КЭШИРОВАНИЕ
+- **Причина:** `#handoff-summary` отсутствовал в DOM → `_showHandoffForChoice` выбрасывал TypeError на `summaryEl.dataset.player` → колбэк-чейн эффектов обрывался между `Draw(3)` и `Discard(1,Opp)` → `_removeCardFromOwner` и `tasksThisTurn++` никогда не выполнялись → карта оставалась в руке, розыгрыш можно было повторять.
+- **Fix немедленный:** добавлен `#handoff-summary` в `index.html`, CSS-правила `.hidden` на `#handoff-*-panel/stats/summary`, взаимное скрытие двух режимов handoff в `_showHandoff` (end-turn) и `_showHandoffForChoice` (choice).
+
+### Game-flow change: отложенные выборы противника (вместо handoff туда-сюда)
+- Было: когда актёр играет карту с эффектом `Discard(Opp)`/`Reveal(Opp)` и у противника есть выбор — устройство передаётся противнику, он выбирает, передаётся обратно.
+- Стало: эффекты откладываются в `PlayerState.pendingActions = []` противника и разрешаются **в начале его хода до Восполнения**. Устройство не мигрирует во время хода актёра.
+- `game.js::DiscardCardsEffect` и `RevealCardsEffect` при `target===Opp` и `toDo < all.length` пушат `{kind, count, sourceCardName, actorPI}` в `pendingActions` и сразу завершают callback. Если выбора нет (всё сбрасывается/раскрывается) — работает синхронно как раньше.
+- `ui.js::_resolvePendingActions()` — последовательно разрешает все pending-действия текущего игрока через обычный `_showCardPick` (без handoff, он уже на своём устройстве). Вызывается из `_onHandoffOk` до `tm.replenish()`.
+- HUD: у противника в `#opp-scores` появляется бейдж `✕N` (где N — суммарный долг карт), tooltip «Долг: решить в свой ход».
+
+### Затронутые файлы
+- `game.js` — `PlayerState.pendingActions`, изменены `DiscardCardsEffect`/`RevealCardsEffect`
+- `ui.js` — `_resolvePendingActions`, `_applyPendingChoice`, интеграция в `_onHandoffOk`, бейдж в `_render`
+- `index.html` — `#handoff-summary` + CSS, `.opp-debt` стиль
+
+### Что может сломаться (требует тестов)
+- Синтез с opp-эффектами — несколько долгов накапливаются, порядок резолва может влиять на баланс
+- Раскрытие (`Reveal(Opp)`) во время своего хода — раньше было «сразу видно, можно играть»; теперь актёр не видит до следующего хода противника. Меняет стратегию.
+- Утилизации / onliner с opp-эффектом — логика та же, но флоу изменился
+- Онлайн-режим (host/guest) не проверялся — pending-поле сериализуется в state, но резолвер завязан на UI
+
+---
+
 ## 2026-04-18 — FIX-PACK v1 · доп. 20/21 (финал)
 
 Закрыты последние два стилевых фикса из v1-пакета (placement-panel + revealed zones). Механика не меняется.
