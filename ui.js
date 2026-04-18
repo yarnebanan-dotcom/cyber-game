@@ -45,6 +45,22 @@ class GameUI {
 
         this._bindElements();
         this._initAudio();
+        this._initLayoutObserver();
+    }
+
+    // UI-09: пробрасываем высоту action-bar в CSS var, чтобы #card-desc overlay
+    // всегда стоял над кнопками, вне зависимости от hardMode / safe-area / языка.
+    _initLayoutObserver() {
+        const app = document.getElementById('app');
+        const bar = document.getElementById('action-bar');
+        if (!app || !bar) return;
+        const sync = () => app.style.setProperty('--action-h', bar.offsetHeight + 'px');
+        sync();
+        if (typeof ResizeObserver !== 'undefined') {
+            new ResizeObserver(sync).observe(bar);
+        }
+        window.addEventListener('resize', sync);
+        window.addEventListener('orientationchange', sync);
     }
 
     _bindElements() {
@@ -1061,6 +1077,9 @@ class GameUI {
     _buildBoard(size = 4) {
         this.boardEl.innerHTML = '';
         this.boardEl.style.gridTemplateColumns = `repeat(${size}, 1fr)`;
+        this.boardEl.style.gridTemplateRows = `repeat(${size}, 1fr)`;
+        // UI-09: класс для CSS-переопределения при 5×5
+        this.boardEl.classList.toggle('size-5', size === 5);
         // Board uses 0 gap; connection lines drawn via SVG overlay
         this.boardEl.style.gap = '0';
         this.boardEl.style.padding = size === 5 ? '10px' : '14px';

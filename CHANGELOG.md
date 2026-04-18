@@ -6,6 +6,43 @@
 
 ---
 
+## 2026-04-19 — UI-09 · Viewport-aware layout system (P0-1 + P0-3 + P0-4)
+
+Радикальная переделка корневой раскладки после глобального аудита ([DESIGN-AUDIT.md](DESIGN-AUDIT.md)). Точечные фиксы UI-05…UI-08 меняли размеры карт, но не решали настоящую причину оверлапа: flex-shrink-chain в `#app` + `aspect-ratio` на доске + рост `#card-desc` внутри `#hand-wrap`. Этот коммит устраняет все три P0 разом.
+
+**Изменено в `Web/index.html`:**
+- `#app` — `display: flex; flex-direction: column` → `display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto 1fr auto auto auto`. Слоты: hud / phase-hint / revealed / board / hand / synth / action-bar. Явные `grid-row` на каждом child — при `display:none` track сохраняется, `1fr` всегда достаётся доске.
+- `#board-wrap` — `flex:1 + flex-center` → `display:grid; place-items:center; container-type: size`. Contained layout делает board sizing предсказуемым.
+- `#board` — `width: min(100%, calc(100dvh*0.38)); max-height:100%` → `width: min(100cqi, 100cqb); height: min(100cqi, 100cqb); aspect-ratio:1`. Container queries гарантируют квадрат, fits в меньшую сторону контейнера. Добавлен `grid-template-rows: repeat(N, 1fr)`.
+- `#board.size-5` — override для 5×5 режима.
+- `.card-desc` — `position: static` внутри `#hand-wrap` → `position: absolute` overlay над action-bar. Привязка `bottom: calc(var(--action-h, 52px) + safe-area + 10px)`. `max-height: 110px → 104px`. Добавлены `z-index: 5` и `box-shadow` для читаемости поверх руки.
+- `#hand-wrap` — убран `flex: 0 0 auto` (атавизм flex-раскладки), добавлен `min-width: 0`.
+- `#action-bar` — добавлены `max-height: 48px` (предотвращает 2-строчный wrap в hard mode) и `white-space: nowrap; text-overflow: ellipsis` на `.btn`.
+- HTML: `#card-desc` вынесен из `#hand-wrap` в прямого child `#app` (position:absolute, не занимает grid-cell).
+
+**Изменено в `Web/ui.js`:**
+- `_buildBoard` — добавлен `gridTemplateRows: repeat(N, 1fr)` и класс `.size-5` на `#board`.
+- `constructor` → `_initLayoutObserver` — `ResizeObserver` на `#action-bar` прокидывает `--action-h` в `#app`. Это якорь для `.card-desc` overlay. Слушает также `resize` и `orientationchange`.
+
+**Проверено в preview (живые замеры):**
+
+| Сценарий | Viewport | До UI-09 | После UI-09 |
+|---|---|---|---|
+| 2p 4×4 clean | 375×667 | board 181.6px, оверлап | **board 332×332, nodes 75px**, no overlap |
+| 2p 4×4 + card selected + 2 revealed/сторону | 375×667 | board 152px, 10 нодов скрыто | **board 246×246, nodes 54px**, все видно, overlay card-desc 104px |
+| 3p 5×5 HARD + card selected + 3 revealed/сторону | 360×640 | board 142×22 (сломана!), buttons wrap | **board 219×219, nodes 39px, 25/25 видно**, buttons single-row 112px |
+| HARD action-bar (3 кнопки) | 360×640 | 68px 2 строки | 39px 1 строка, ellipsis на длинных |
+
+**Что НЕ делалось (скоуп):**
+- P1/P2 issues остаются (revealed redesign → UI-10, touch targets → UI-11, landscape → UI-12)
+- Карты размера 112/66 из UI-05…UI-08 не тронуты — они функционируют корректно внутри новой grid-раскладки
+
+**Побочные баги найдены и поправлены:**
+- Без `minmax(0, 1fr)` на grid-column action-bar с `nowrap` кнопками раздвигал сетку до 480px при viewport 360.
+- Без явных `grid-row` на children, `display:none` элементы (`.hidden`, `.collapsed`) скипали track у auto-placement, смещая `1fr` c доски на руку (доска получала 0px!).
+
+---
+
 ## 2026-04-19 — UI-08 · Компактная карта в руке + центровка узора на всех картах
 
 У карт в руке (108×128) имя заканчивалось на ~105px, снизу оставалось ~18px пустоты. Высота подогнана; паттерн теперь растягивается на всю свободную высоту между header и name, удерживая узор ровно по центру и горизонтально, и вертикально.

@@ -187,16 +187,31 @@ html, body {
 }
 
 /* ── Layout ──────────────────────────────────────────────── */
+/* UI-09: grid-rows жёстко закрепляют вертикальный бюджет; доска (1fr) всегда получает остаток
+   после авто-строк HUD/hint/revealed/hand/synth/action-bar. #card-desc вынесен в overlay
+   (см. .card-desc ниже), поэтому его появление не ворует место у доски. */
 #app {
-    display: flex;
-    flex-direction: column;
+    display: grid;
+    /* minmax(0,1fr) — критично: разрешает grid-col сжиматься ниже min-content,
+       иначе action-bar с nowrap-кнопками раздвигает сетку за viewport */
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto auto auto 1fr auto auto auto;
     height: 100dvh;
     max-width: 480px;
     margin: 0 auto;
     padding: 0 6px env(safe-area-inset-bottom, 0px);
     gap: 5px;
     overflow: hidden;
+    position: relative;
 }
+/* Явные grid-row: при display:none child пропадает, но track сохраняется (1fr остаётся у доски) */
+#app > #hud              { grid-row: 1; }
+#app > #phase-hint       { grid-row: 2; }
+#app > #revealed-wrap    { grid-row: 3; }
+#app > #board-wrap       { grid-row: 4; min-height: 0; }
+#app > #hand-wrap        { grid-row: 5; }
+#app > #synth-order-panel{ grid-row: 6; }
+#app > #action-bar       { grid-row: 7; }
 
 /* ── HUD (KIT Phase 3 — compact header + phase stepper) ──── */
 #hud {
@@ -519,13 +534,18 @@ html, body {
 }
 
 /* ── Board ───────────────────────────────────────────────── */
+/* UI-09: container query size → доска всегда квадратная, fits в min(cqi, cqb) */
 #board-wrap {
-    flex: 1; display: flex; align-items: center; justify-content: center; min-height: 0;
+    display: grid;
+    place-items: center;
+    min-height: 0; min-width: 0;
     overflow: hidden;
+    container-type: size;
 }
 #board {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
+    grid-template-rows: repeat(4, 1fr);
     gap: 0;
     padding: 14px;
     background: var(--bg-1);
@@ -535,10 +555,14 @@ html, body {
         100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%,
         0 calc(100% - 14px), 0 14px
     );
-    width: min(100%, calc(100dvh * 0.38));
-    max-height: 100%;
+    width: min(100cqi, 100cqb);
+    height: min(100cqi, 100cqb);
     aspect-ratio: 1;
     position: relative;
+}
+#board.size-5 {
+    grid-template-columns: repeat(5, 1fr);
+    grid-template-rows: repeat(5, 1fr);
 }
 #board-lines {
     position: absolute;
@@ -653,20 +677,25 @@ html, body {
 }
 
 /* ── Action Buttons (KIT Phase 1) ──────────────────────────── */
-#action-bar { display: flex; gap: 6px; flex-shrink: 0; }
+/* UI-09: max-height + nowrap предотвращает 2-строчный wrap в hardMode (3 кнопки) */
+#action-bar { display: flex; gap: 6px; flex-shrink: 0; max-height: 48px; }
 .btn {
     flex: 1;
+    min-width: 0;
     position: relative;
-    padding: 11px 8px;
+    padding: 11px 6px;
     background: transparent;
     border: 1px solid var(--line);
     color: var(--text);
     font-family: var(--mono);
     font-size: 11px;
     font-weight: 500;
-    letter-spacing: 0.18em;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
     clip-path: polygon(
         0 0, calc(100% - 8px) 0, 100% 8px,
         100% 100%, 8px 100%, 0 calc(100% - 8px)
@@ -762,33 +791,41 @@ html, body {
 .synth-order-arrow { color: var(--accent); font-family: var(--mono); }
 
 /* ── Hand ────────────────────────────────────────────────── */
-/* FIX-03: flex-shrink без max-height чтобы карты не перекрывали action-bar */
+/* UI-09: в grid-раскладке hand-wrap — auto-row. card-desc вынесен в overlay. */
 #hand-wrap {
-    flex: 0 0 auto;
     overflow: visible;
     border-top: 1px solid rgba(80,110,180,0.15);
     padding-top: 3px;
     margin-top: 2px;
+    min-width: 0;
 }
 #hand-cards {
     display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px; scrollbar-width: none;
 }
 #hand-cards::-webkit-scrollbar { display: none; }
 
-/* Описание выбранной карты — под рукой */
+/* Описание выбранной карты — overlay над рукой, над action-bar (UI-09).
+   Причина: раньше card-desc лежал внутри #hand-wrap и при появлении увеличивал руку
+   на ~65px, воруя место у доски через flex-chain shrink. Теперь position:absolute,
+   якорится над action-bar через --action-h. Доска больше не деформируется. */
 .card-desc {
+    position: absolute;
+    left: 8px;
+    right: 8px;
+    bottom: calc(var(--action-h, 52px) + env(safe-area-inset-bottom, 0px) + 10px);
+    z-index: 5;
     font-family: var(--mono);
     font-size: 10px;
     line-height: 1.4;
     color: var(--text);
-    border: 1px solid var(--line-dim);
-    background: linear-gradient(180deg, rgba(26,102,119,0.08), rgba(0,0,0,0)), var(--bg-1);
+    border: 1px solid var(--line);
+    background: linear-gradient(180deg, rgba(26,102,119,0.12), rgba(0,0,0,0)), var(--bg-1);
     padding: 6px 8px;
-    margin-top: 4px;
-    max-height: 110px;
+    max-height: 104px;
     overflow-y: auto;
     clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
     scrollbar-width: none;
+    box-shadow: 0 -8px 24px rgba(0,0,0,0.6);
 }
 .card-desc::-webkit-scrollbar { display: none; }
 .card-desc.empty { display: none; }
@@ -2174,8 +2211,10 @@ html, body {
     <div id="hand-wrap">
         <div class="zone-label" id="hand-label">◦ РУКА · Игрок 1 <span style="color:var(--text-ghost)">··· 0/5</span></div>
         <div id="hand-cards"></div>
-        <div id="card-desc" class="card-desc empty"></div>
     </div>
+
+    <!-- Card description overlay (UI-09) — положение управляется CSS, не зависит от потока -->
+    <div id="card-desc" class="card-desc empty"></div>
 
     <!-- Synth order panel -->
     <div id="synth-order-panel" class="hidden">
