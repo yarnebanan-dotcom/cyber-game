@@ -59,8 +59,6 @@ class GameUI {
         this.phaseHintEl = document.getElementById('phase-hint');
         this.handEl = document.getElementById('hand-cards');
         this.handLabelEl = document.getElementById('hand-label');
-        this.ownRevealedEl = document.getElementById('own-revealed');
-        this.oppRevealedEl = document.getElementById('opp-revealed');
         this.ownRevealedWrap = document.getElementById('own-revealed-wrap');
         this.oppRevealedWrap = document.getElementById('opp-revealed-wrap');
 
@@ -510,14 +508,7 @@ class GameUI {
             skipBtn.classList.toggle('btn-ghost', hasPlayable);
         }
 
-        // Dynamic revealed labels
-        const vpi = this._viewPI();
-        const oppNums = st.players.map((_, i) => i + 1).filter(n => n !== vpi + 1);
-        document.getElementById('opp-revealed-label').textContent =
-            `◦ РАСКРЫТО · P-${oppNums.map(n => String(n).padStart(2, '0')).join(' · P-')}`;
-        document.getElementById('own-revealed-label').textContent =
-            `◦ РАСКРЫТО · P-${String(vpi + 1).padStart(2, '0')} (ВЫ)`;
-
+        // Labels now rendered per-lane in _renderRevealed (FIX-21)
         this._renderBoard();
         this._renderHand();
         this._renderRevealed();
@@ -640,21 +631,68 @@ class GameUI {
                 if (this.tm.getValidPlacements(c).length > 0) playable.add(c);
             });
         }
-        // Own revealed: owner = view player
-        this._renderCardRow(this.ownRevealedEl, vp.revealed, playable, true, vpi);
 
-        // Opponent(s) revealed: render each card with its actual owner PI
-        const oppPairs = [];
-        st.players.forEach((p, i) => { if (i !== vpi) p.revealed.forEach(c => oppPairs.push({ card: c, pi: i })); });
-        this.oppRevealedEl.innerHTML = '';
-        oppPairs.forEach(({ card, pi }) => {
-            const el = this._makeCardEl(card, playable.has(card), false, pi);
-            this.oppRevealedEl.appendChild(el);
+        // ── OPP lanes: one per opponent with revealed > 0 ──
+        this.oppRevealedWrap.innerHTML = '';
+        let oppTotal = 0;
+        st.players.forEach((p, i) => {
+            if (i === vpi || p.revealed.length === 0) return;
+            oppTotal += p.revealed.length;
+            const lane = this._makeRevealedLane(p.revealed, i, false, playable);
+            this.oppRevealedWrap.appendChild(lane);
         });
+        this.oppRevealedWrap.classList.toggle('collapsed', oppTotal === 0);
 
-        // Collapse empty revealed zones
-        this.ownRevealedWrap.classList.toggle('collapsed', vp.revealed.length === 0);
-        this.oppRevealedWrap.classList.toggle('collapsed', oppPairs.length === 0);
+        // ── OWN lane (single) ──
+        this.ownRevealedWrap.innerHTML = '';
+        if (vp.revealed.length > 0) {
+            const lane = this._makeRevealedLane(vp.revealed, vpi, true, playable);
+            this.ownRevealedWrap.appendChild(lane);
+            this.ownRevealedWrap.classList.remove('collapsed');
+        } else {
+            this.ownRevealedWrap.classList.add('collapsed');
+        }
+    }
+
+    _makeRevealedLane(cards, ownerPI, isOwn, playable) {
+        const color = this._playerColor(ownerPI);
+        const tint  = this._playerTint(ownerPI);
+        const label = `ИГРОК ${ownerPI + 1} · РАСКРЫТО`;
+        const count = `${cards.length} ${this._cardWord(cards.length)}`;
+
+        const lane = document.createElement('div');
+        lane.className = 'rev-lane';
+        lane.style.setProperty('--lane-color', color);
+        lane.style.setProperty('--lane-tint', tint);
+        lane.innerHTML = `
+            <div class="rev-lane-label">${label}</div>
+            ${isOwn ? '<div class="rev-lane-hint">ЗАЖАТЬ · ✦ УТИЛ</div>' : ''}
+            <div class="rev-lane-count">${count}</div>
+            <div class="rev-lane-row"></div>
+        `;
+        const row = lane.querySelector('.rev-lane-row');
+        cards.forEach(card => {
+            const el = this._makeCardEl(card, playable.has(card), true, ownerPI);
+            row.appendChild(el);
+        });
+        return lane;
+    }
+
+    _playerTint(pi) {
+        return [
+            'rgba(63,208,230,0.06)',  // p1 cyan
+            'rgba(255,106,43,0.06)',  // p2 orange
+            'rgba(183,108,255,0.06)'  // p3 violet
+        ][pi] ?? 'rgba(170,204,255,0.06)';
+    }
+
+    _cardWord(n) {
+        const mod100 = n % 100;
+        if (mod100 >= 11 && mod100 <= 14) return 'КАРТ';
+        const mod10 = n % 10;
+        if (mod10 === 1) return 'КАРТА';
+        if (mod10 >= 2 && mod10 <= 4) return 'КАРТЫ';
+        return 'КАРТ';
     }
 
     _renderCardRow(container, cards, playable, interactive, ownerPI) {

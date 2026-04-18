@@ -415,46 +415,79 @@ html, body {
 #phase-hint.tone-synth     { color: var(--accent); border-color: var(--accent); }
 #phase-hint.tone-ok        { color: var(--ok); border-color: var(--ok); }
 
-/* ── Revealed zones ──────────────────────────────────────── */
-.revealed-zone {
-    display: flex; gap: 4px; overflow-x: auto;
-    padding: 4px 6px; flex-shrink: 0; scrollbar-width: none;
-    background: var(--bg-1);
-    border: 1px dashed var(--line-dim);
-}
-#own-revealed-wrap .revealed-zone {
-    border: 1px solid var(--accent);
-    box-shadow: inset 0 0 10px rgba(255,106,43,0.06);
-}
-.revealed-zone::-webkit-scrollbar { display: none; }
-.zone-label { font-family: var(--mono); font-size: 9px; color: var(--text-dim); margin-bottom: 3px; padding-left: 2px; letter-spacing: 0.25em; font-weight: 400; text-transform: uppercase; }
-#own-revealed-label { color: var(--accent); }
-.zone-hint { font-family: var(--mono); font-size: 9px; color: var(--text-ghost); float: right; padding-right: 2px; font-weight: 400; letter-spacing: 0.12em; }
+/* ── Revealed zones — HUD lanes (FIX-21) ─────────────────── */
 .revealed-wrap { flex-shrink: 0; overflow: visible; }
 .revealed-wrap.collapsed { display: none; }
 
-/* Compact card style for revealed zones — thumbnail-only, no fx text */
-.revealed-zone .card {
-    width: 62px;
-    padding: 3px;
-    border-radius: 8px;
+/* One lane per owner; stacked when multiple (3p top) */
+.rev-lane {
+    position: relative;
+    padding: 14px 12px 6px;
+    background:
+        linear-gradient(180deg, var(--lane-tint, rgba(63,208,230,0.06)), transparent 80%),
+        var(--bg-1);
 }
-.revealed-zone .card-name {
-    font-size: 7.5px;
+.rev-lane + .rev-lane { border-top: 1px solid var(--line-ghost); }
+#opp-revealed-wrap .rev-lane { border-bottom: 1px dashed var(--line-ghost); }
+#own-revealed-wrap .rev-lane { border-top: 1px dashed var(--line-ghost); }
+
+.rev-lane-label {
+    position: absolute; top: 3px; left: 12px;
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.2em;
+    color: var(--lane-color, var(--text-dim));
+    font-weight: 400;
+}
+.rev-lane-count {
+    position: absolute; top: 3px; right: 12px;
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.15em;
+    color: var(--text-dim);
+}
+.rev-lane-hint {
+    position: absolute; top: 3px; right: 80px;
+    font-family: var(--mono); font-size: 9px; letter-spacing: 0.15em;
+    color: var(--text-dim);
+}
+.rev-lane-row {
+    display: flex; gap: 6px; overflow-x: auto;
+    scrollbar-width: none;
+}
+.rev-lane-row::-webkit-scrollbar { display: none; }
+
+/* Compact card in lane */
+.rev-lane .card {
+    width: 50px;
+    height: 54px;
+    padding: 3px;
+    border-radius: 4px;
+    flex-shrink: 0;
+}
+.rev-lane .card-header { height: 12px; margin-bottom: 1px; }
+.rev-lane .card-corner { display: none; }
+.rev-lane .card-name {
+    font-size: 7px;
     margin-bottom: 1px;
     padding-right: 11px;
     letter-spacing: 0;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     max-width: 100%;
 }
-.revealed-zone .card-cost {
-    width: 13px; height: 13px;
+.rev-lane .card-cost {
+    width: 12px; height: 12px;
     font-size: 8px;
     top: 2px; right: 2px;
 }
-.revealed-zone .card-pattern { margin: 1px 0; }
-.revealed-zone .card-pattern svg { width: 40px; height: 40px; }
-.revealed-zone .card-fx { display: none; }
+.rev-lane .card-pattern { margin: 1px 0; }
+.rev-lane .card-pattern svg { width: 36px; height: 36px; }
+.rev-lane .card-fx { display: none; }
+
+/* ▶ indicator on opp cards playable in my TASK phase */
+#opp-revealed-wrap .rev-lane .card.playable::after {
+    content: '▶';
+    position: absolute; bottom: 2px; left: 3px;
+    font-size: 8px; color: var(--accent);
+    text-shadow: 0 0 6px rgba(255,106,43,0.6);
+    pointer-events: none;
+}
 
 /* ── Keyframe Animations ─────────────────────────────────── */
 @keyframes node-p1-pulse {
@@ -926,8 +959,7 @@ html, body {
     padding-top: 3px;
     margin-top: 2px;
 }
-#own-revealed-wrap:not(.collapsed) + #board-wrap { margin-top: 0; }
-#hand-cards, .revealed-zone {
+#hand-cards {
     display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px; scrollbar-width: none;
 }
 #hand-cards::-webkit-scrollbar { display: none; }
@@ -2039,22 +2071,16 @@ html, body {
     <!-- Phase hint bar -->
     <div id="phase-hint"></div>
 
-    <!-- Opponent's revealed cards -->
-    <div id="opp-revealed-wrap" class="revealed-wrap">
-        <div class="zone-label" id="opp-revealed-label">◦ РАСКРЫТО · P-02</div>
-        <div class="revealed-zone" id="opp-revealed"></div>
-    </div>
+    <!-- Opponent(s) revealed cards — lanes rendered by JS -->
+    <div id="opp-revealed-wrap" class="revealed-wrap collapsed"></div>
 
     <!-- Board -->
     <div id="board-wrap">
         <div id="board"></div>
     </div>
 
-    <!-- Own revealed cards -->
-    <div id="own-revealed-wrap" class="revealed-wrap">
-        <div class="zone-label" id="own-revealed-label">◦ РАСКРЫТО · P-01 (ВЫ)</div>
-        <div class="revealed-zone" id="own-revealed"></div>
-    </div>
+    <!-- Own revealed cards — lane rendered by JS -->
+    <div id="own-revealed-wrap" class="revealed-wrap collapsed"></div>
 
     <!-- Hand -->
     <div id="hand-wrap">
