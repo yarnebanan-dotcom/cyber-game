@@ -993,6 +993,50 @@ html, body {
 }
 #hand-cards::-webkit-scrollbar { display: none; }
 
+/* Описание выбранной карты — под рукой */
+.card-desc {
+    font-family: var(--mono);
+    font-size: 10px;
+    line-height: 1.4;
+    color: var(--text);
+    border: 1px solid var(--line-dim);
+    background: linear-gradient(180deg, rgba(26,102,119,0.08), rgba(0,0,0,0)), var(--bg-1);
+    padding: 6px 8px;
+    margin-top: 4px;
+    max-height: 110px;
+    overflow-y: auto;
+    clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
+    scrollbar-width: none;
+}
+.card-desc::-webkit-scrollbar { display: none; }
+.card-desc.empty { display: none; }
+.card-desc .cd-head {
+    display: flex; align-items: baseline; gap: 8px;
+    font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+    font-size: 11px;
+    margin-bottom: 4px;
+    padding-bottom: 3px;
+    border-bottom: 1px dashed var(--line-dim);
+}
+.card-desc .cd-name { color: var(--text); flex: 1; min-width: 0; }
+.card-desc .cd-cost { color: var(--text-dim); font-size: 9px; }
+.card-desc .cd-row {
+    display: block;
+    margin-top: 3px;
+}
+.card-desc .cd-row .cd-kind {
+    font-weight: 700;
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    margin-right: 5px;
+    text-transform: uppercase;
+}
+.card-desc .cd-row.fx-play  .cd-kind { color: var(--ok); }
+.card-desc .cd-row.fx-util  .cd-kind { color: var(--accent); }
+.card-desc .cd-row.fx-synth .cd-kind { color: #b88aff; }
+.card-desc .cd-row .cd-text { color: var(--text-dim); }
+.card-desc .cd-empty { color: var(--text-ghost); font-style: italic; }
+
 /* ── FIX-26: V3 Focus-Card layout ──────────────────
    Когда выбрана карта (pendingCard) рука переходит в focus-mode:
    остаётся только выбранная карта и info-блок с паттерном/счётчиком/кнопками.
@@ -2399,6 +2443,7 @@ html, body {
     <div id="hand-wrap">
         <div class="zone-label" id="hand-label">◦ РУКА · Игрок 1 <span style="color:var(--text-ghost)">··· 0/5</span></div>
         <div id="hand-cards"></div>
+        <div id="card-desc" class="card-desc empty"></div>
     </div>
 
     <!-- Placement panel — FIX-20: HUD visual language -->

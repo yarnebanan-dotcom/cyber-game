@@ -29,6 +29,9 @@ class GameUI {
         // Card pattern rotations (card.id → degrees)
         this._cardRotations = new Map();
 
+        // Карта с показанным описанием под рукой (toggle по тапу)
+        this._descCard = null;
+
         // Score animation tracking
         this._prevScores = [0, 0, 0];
         this._playerCount = 2;
@@ -60,6 +63,7 @@ class GameUI {
         this.handEl = document.getElementById('hand-cards');
         this.handLabelEl = document.getElementById('hand-label');
         this.revealedWrap = document.getElementById('revealed-wrap');
+        this.cardDescEl = document.getElementById('card-desc');
 
         // Buttons
         document.getElementById('btn-utilize').onclick = () => this._onUtilize();
@@ -428,6 +432,8 @@ class GameUI {
             if (this._lastRenderCurrentPI !== undefined) this._turnNumber = (this._turnNumber || 1) + 1;
             else this._turnNumber = this._turnNumber || 1;
             this._lastRenderCurrentPI = st.currentPI;
+            // Смена игрока — сбрасываем описание карты
+            this._descCard = null;
             // Snapshot all players' scores at turn start (for END summary gain calc)
             this._turnStartScores = st.players.map(p => p.score);
             // FIX-11: полный снимок для отчёта в end-turn
@@ -541,6 +547,7 @@ class GameUI {
         this._renderBoard();
         this._renderHand();
         this._renderRevealed();
+        this._renderCardDesc();
         this._updateNetTurnIndicator();
     }
 
@@ -649,6 +656,37 @@ class GameUI {
         if (!cnt) return;
         cnt.textContent = `${tapped}/${total}`;
         cnt.classList.toggle('full', tapped === total && total > 0);
+    }
+
+    // Переключатель карты с показанным описанием. Повторный тап по той же карте — скрыть.
+    _setDescCard(card) {
+        this._descCard = (this._descCard === card) ? null : card;
+        this._renderCardDesc();
+    }
+
+    _renderCardDesc() {
+        const el = this.cardDescEl;
+        if (!el) return;
+        const card = this._descCard;
+        if (!card) {
+            el.classList.add('empty');
+            el.innerHTML = '';
+            return;
+        }
+        el.classList.remove('empty');
+        const rows = [];
+        if (card.playEffect && card.playEffect.hasEffects) {
+            rows.push(`<span class="cd-row fx-play"><span class="cd-kind">▶ Розыгрыш</span><span class="cd-text">${this._fxLongText(card.playEffect)}</span></span>`);
+        }
+        if (card.utilizeEffect && card.utilizeEffect.hasEffects) {
+            rows.push(`<span class="cd-row fx-util"><span class="cd-kind">✦ Утилизация</span><span class="cd-text">${this._fxLongText(card.utilizeEffect)}</span></span>`);
+        }
+        if (card.synthesisEffect && card.synthesisEffect.hasEffects) {
+            rows.push(`<span class="cd-row fx-synth"><span class="cd-kind">⊕ Синтез</span><span class="cd-text">${this._fxLongText(card.synthesisEffect)}</span></span>`);
+        }
+        const body = rows.length ? rows.join('') : '<span class="cd-row"><span class="cd-empty">Без эффектов</span></span>';
+        const costStr = (card.cost >= 0 ? '' : '−') + Math.abs(card.cost);
+        el.innerHTML = `<div class="cd-head"><span class="cd-name">${card.name}</span><span class="cd-cost">СТ · ${costStr}</span></div>${body}`;
     }
 
     _renderHand() {
@@ -867,6 +905,7 @@ class GameUI {
         };
 
         el.addEventListener('click', () => {
+            this._setDescCard(card);
             if (this.state && this.state.phase === Phase.Turn) {
                 this._onCardTap(card, isPlayable);
                 return;
