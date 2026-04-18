@@ -974,7 +974,7 @@ html, body {
 .card {
     flex-shrink: 0;
     width: 108px;
-    height: 128px;
+    height: 112px;
     background: var(--bg-1);
     border: 1px solid var(--line-dim);
     padding: 6px;
@@ -1041,11 +1041,12 @@ html, body {
 
 /* Pattern (3x3 inline grid) */
 .card-pattern {
-    flex: 0 0 auto;
+    flex: 1 1 auto;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 2px 0;
+    min-height: 0;
 }
 .card-pattern-grid {
     display: grid;
