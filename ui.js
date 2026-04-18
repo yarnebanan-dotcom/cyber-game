@@ -554,8 +554,8 @@ class GameUI {
         } else if (st.phase === Phase.Task) {
             const t = st.tasksThisTurn, u = st.utilizesThisTurn;
             if (this.pendingCard) {
-                const pl = this.pendingCard.pattern.length;
-                text = `Тапни ${pl} фишк${pl===1?'у':pl<5?'и':'ек'} паттерна · или ✦ Утилизировать`;
+                // FIX-24: единый хинт — игрок сам тапает всю комбинацию на поле
+                text = `Нажми на все фишки паттерна · или ✦ Утилизировать`;
                 tone = 'action';
             } else {
                 const allCards = [...st.cp.hand, ...st.players.flatMap(p => p.revealed)];
@@ -1157,13 +1157,9 @@ class GameUI {
                 this.currentPlacements = placements;
                 this.placementIndex = 0;
                 this._showCardSelectedPanel();
-                // FIX-06: подсветить все валидные фишки — объединение chipPositions
-                const allChips = new Set();
-                for (const p of placements) {
-                    for (const [r, c] of p.chipPositions) allChips.add(`${r},${c}`);
-                }
-                const positions = [...allChips].map(s => s.split(',').map(Number));
-                this._highlightNodes(positions);
+                // FIX-24: не подсвечивать комбинацию на поле при выборе карты —
+                // это слишком сильная подсказка. Игрок сам ищет паттерн;
+                // подсветка появляется только при перелистывании стрелками.
             }
         }
     }
@@ -1358,20 +1354,15 @@ class GameUI {
             }
         }
 
-        // Header counter + rotnav
+        // FIX-24: счётчик вариантов, стрелки и «РАЗЫГРАТЬ» убраны — они подсказывали
+        // количество и расположение решений. Игрок сам тапает фишки паттерна на доске;
+        // при совпадении карта сыграется автоматически через _onNodeTap.
         const headerCount = document.getElementById('pp-count-header');
-        if (headerCount) headerCount.textContent = `${Math.min(idx + 1, total)}/${total}`;
-        const rotLbl = document.getElementById('placement-count');
-        if (rotLbl) rotLbl.textContent = `ВАРИАНТ ${Math.min(idx + 1, total)} / ${total}`;
+        if (headerCount) headerCount.textContent = '';
         const rotNav = document.getElementById('pp-rotnav');
-        if (rotNav) rotNav.classList.toggle('hidden', total <= 1);
-
-        // Primary "▶ РАЗЫГРАТЬ" — в SynthB он не работает (там auto-confirm по фишкам)
+        if (rotNav) rotNav.classList.add('hidden');
         const confirmBtn = document.getElementById('btn-confirm');
-        if (confirmBtn) {
-            confirmBtn.style.display = total > 0 ? '' : 'none';
-            confirmBtn.disabled = total === 0;
-        }
+        if (confirmBtn) confirmBtn.style.display = 'none';
 
         // Synth — только если возможна вторая карта-партнёр
         const canSynth = !inSynthB
