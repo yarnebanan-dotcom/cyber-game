@@ -244,6 +244,7 @@ function serializeGameState(st, maskHandForPI = -1) {
         score: p.score,
         chipsOnBoard: p.chipsOnBoard,
         totalChips: p.totalChips,
+        bonusChipsNextTurn: p.bonusChipsNextTurn || 0,
     }));
 
     return {
@@ -262,6 +263,8 @@ function serializeGameState(st, maskHandForPI = -1) {
         utilizesThisTurn: st.utilizesThisTurn,
         mainActionDone: st.mainActionDone,
         placedThisTurn: (st.placedThisTurn || []).map(([r, c]) => [r, c]),
+        drewThreeThisTurn: !!st.drewThreeThisTurn,
+        hardMode: !!st.hardMode,
     };
 }
 
@@ -290,6 +293,7 @@ function applySnapshotTo(st, snap, cardsById) {
         pl.score = p.score;
         pl.chipsOnBoard = p.chipsOnBoard;
         pl.totalChips = p.totalChips;
+        pl.bonusChipsNextTurn = p.bonusChipsNextTurn || 0;
         return pl;
     });
 
@@ -304,6 +308,8 @@ function applySnapshotTo(st, snap, cardsById) {
     st.utilizesThisTurn = snap.utilizesThisTurn;
     st.mainActionDone = snap.mainActionDone;
     st.placedThisTurn = snap.placedThisTurn.map(([r, c]) => [r, c]);
+    st.drewThreeThisTurn = !!snap.drewThreeThisTurn;
+    st.hardMode = !!snap.hardMode;
 }
 
 // Собираем Map<id, cardObj> из колоды нужного режима (2p или 3p)

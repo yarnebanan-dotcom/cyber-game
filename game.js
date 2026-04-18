@@ -39,6 +39,9 @@ class PlayerState {
         // устройство туда-сюда. Требует игровых тестов — возможны баланс-проблемы.
         // [{kind:'discard'|'reveal', count, sourceCardName, actorPI}]
         this.pendingActions = [];
+        // Hard-mode: +1 к лимиту размещения на СЛЕДУЮЩИЙ ход,
+        // если игрок закончил этот ход не поставив ни одной фишки (и не использовал "добор").
+        this.bonusChipsNextTurn = 0;
     }
     get reserve() { return this.totalChips - this.chipsOnBoard; }
 }
@@ -77,6 +80,8 @@ class GameState {
         this.placedThisTurn = [];
         this.tasksThisTurn = 0;
         this.utilizesThisTurn = 0;
+        // Hard-mode: флаг «игрок выбрал добор 3 карт вместо размещения в этом ходу»
+        this.drewThreeThisTurn = false;
         // Колода по режиму: 2p → create() (53 карты, id 1..53), 3p → create3() (54 карты, id 1001+).
         // Важно: id должны совпадать с buildCardsById(playerCount) в net.js —
         // иначе онлайн-синхронизация фильтрует руки гостя в ноль.
@@ -424,9 +429,31 @@ class TurnManager {
     }
 
     endTurn() {
-        if (this.state.phase !== Phase.Turn) return false;
+        const st = this.state;
+        if (st.phase !== Phase.Turn) return false;
+        // Hard-mode бонус: если игрок заканчивает ход, не поставив ни одной фишки и не взяв
+        // "добор 3 карт" — на его следующий ход лимит размещения +1 (одноразово).
+        if (st.hardMode && st.chipsPlaced === 0 && !st.drewThreeThisTurn) {
+            st.cp.bonusChipsNextTurn = 1;
+        }
         this._endTurn();
         return true;
+    }
+
+    // Hard-mode альтернатива: взять 3 карты из колоды ВМЕСТО размещения фишек в этом ходу.
+    // Условия: Phase.Turn, ни одной фишки ещё не поставлено, альтернатива в этом ходу не использована.
+    // После вызова лимит размещения обнуляется — ставить фишки в этом же ходу уже нельзя.
+    drawThree() {
+        const st = this.state;
+        if (!st.hardMode) return 'invalidAction';
+        if (st.phase !== Phase.Turn) return 'invalidPhase';
+        if (st.drewThreeThisTurn) return 'invalidAction';
+        if (st.chipsPlaced > 0) return 'invalidAction';
+        st.cp.hand.push(...st.deck.draw(3));
+        st.chipsAllowed = 0;
+        st.drewThreeThisTurn = true;
+        this._notify();
+        return 'ok';
     }
 
     // Розыгрыш карты (не завершает ход — игрок может сыграть до 2 карт + 2 утилизации)
@@ -571,10 +598,14 @@ class TurnManager {
         const st = this.state;
         st.phase = Phase.Turn;
         st.chipsPlaced = 0;
-        st.chipsAllowed = 2;
+        // Hard-mode: применяем и сразу гасим бонус +1 фишка за пропуск размещения в пред. ходу
+        const bonus = st.cp.bonusChipsNextTurn || 0;
+        st.chipsAllowed = 2 + bonus;
+        st.cp.bonusChipsNextTurn = 0;
         st.placedThisTurn = [];
         st.tasksThisTurn = 0;
         st.utilizesThisTurn = 0;
+        st.drewThreeThisTurn = false;
         this.onPhaseChanged?.(Phase.Turn);
         this._notify();
     }

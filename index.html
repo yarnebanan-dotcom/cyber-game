@@ -480,11 +480,6 @@ html, body {
 .rev-lane .card-pattern { padding: 1px 0; }
 .rev-lane .card-pattern-grid { width: 58%; }
 .rev-lane .card-fx { display: none; }
-.rev-lane .card-fx-compact {
-    font-size: 7px;
-    padding: 2px 1px 0;
-    line-height: 1.15;
-}
 
 /* ▶ indicator on any card in the shared revealed zone that's playable now */
 #revealed-wrap .rev-lane .card.playable::after {
@@ -688,6 +683,11 @@ html, body {
     color: var(--accent);
 }
 .btn-utilize:hover:not(:disabled) { background: rgba(255,106,43,0.14); color: #ff8b55; border-color: #ff8b55; }
+.btn-draw-three {
+    border-color: var(--line);
+    color: var(--line);
+}
+.btn-draw-three:hover:not(:disabled) { background: rgba(63,208,230,0.14); color: #6fe4f5; border-color: #6fe4f5; }
 .btn-skip    {
     border-color: var(--line-dim);
     color: var(--text-dim);
@@ -707,225 +707,6 @@ html, body {
     color: var(--text-ghost) !important;
 }
 .btn.btn-ghost:hover:not(:disabled) { background: var(--bg-2) !important; color: var(--text-dim) !important; border-color: var(--line-dim) !important; }
-
-/* ── Placement Panel — FIX-20: HUD language ─────────────── */
-#placement-panel:not(.hidden) {
-    animation: panel-slide-in 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-#placement-panel {
-    position: relative;
-    display: flex; flex-direction: column; gap: 8px;
-    background: linear-gradient(180deg, rgba(63,208,230,0.03), transparent 80%), var(--bg-1);
-    border: 1px solid var(--line);
-    padding: 10px 12px;
-    flex-shrink: 0;
-    clip-path: polygon(
-        0 0, calc(100% - 10px) 0, 100% 10px,
-        100% 100%, 10px 100%, 0 calc(100% - 10px)
-    );
-}
-#placement-panel::before {
-    content: '';
-    position: absolute;
-    left: 10px; top: -1px;
-    width: 40px; height: 1px;
-    background: var(--accent);
-    pointer-events: none;
-}
-#placement-panel.hidden { display: none; }
-
-.pp-head {
-    display: flex; align-items: center; justify-content: space-between;
-    padding-bottom: 8px;
-    border-bottom: 1px dashed var(--line-ghost);
-}
-.pp-lbl {
-    font-family: var(--mono);
-    font-size: 9px;
-    letter-spacing: 0.22em;
-    color: var(--text-dim);
-    text-transform: uppercase;
-}
-.pp-lbl b {
-    color: var(--accent);
-    font-weight: 600;
-}
-.pp-close {
-    background: transparent;
-    border: none;
-    color: var(--text-dim);
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.15em;
-    cursor: pointer;
-    padding: 2px 4px;
-    text-transform: uppercase;
-    transition: color 0.15s;
-}
-.pp-close:hover { color: var(--danger); }
-.pp-close:active { transform: scale(0.94); }
-
-.pp-body {
-    display: flex; gap: 10px; align-items: stretch;
-}
-.pp-card-wrap {
-    width: 72px; flex-shrink: 0;
-    background: var(--bg-2);
-    border: 1px solid var(--line);
-    padding: 8px 6px;
-    display: flex; flex-direction: column; gap: 6px;
-    clip-path: polygon(
-        4px 0, calc(100% - 4px) 0, 100% 4px,
-        100% calc(100% - 4px), calc(100% - 4px) 100%, 4px 100%,
-        0 calc(100% - 4px), 0 4px
-    );
-}
-.pp-card-top {
-    display: flex; justify-content: space-between; align-items: center;
-}
-.pp-card-cost {
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.08em;
-    padding: 1px 4px;
-    border: 1px solid currentColor;
-    line-height: 1;
-}
-.pp-card-rot {
-    font-family: var(--mono);
-    font-size: 9px;
-    color: var(--text-dim);
-    letter-spacing: 0.1em;
-}
-.pp-card-pattern {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 2px;
-    background: var(--bg-0);
-    padding: 4px;
-    border: 1px solid var(--line-ghost);
-    aspect-ratio: 1;
-}
-.pp-card-pattern > span {
-    aspect-ratio: 1;
-    background: transparent;
-    border: 1px solid var(--line-ghost);
-    display: block;
-}
-.pp-card-pattern > span.w {
-    background: currentColor;
-    border-color: currentColor;
-    box-shadow: 0 0 3px rgba(63,208,230,0.35);
-}
-.pp-card-pattern > span.g {
-    background: var(--enemy-neutral, #4a5560);
-    border-color: var(--enemy-neutral, #4a5560);
-}
-.pp-card-name {
-    font-family: var(--display);
-    font-size: 9px;
-    letter-spacing: 0.1em;
-    color: var(--text);
-    text-align: center;
-    text-transform: uppercase;
-    margin-top: auto;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.pp-info {
-    flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0;
-}
-.pp-hint {
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--accent);
-    letter-spacing: 0.1em;
-    min-height: 14px;
-    line-height: 1.3;
-}
-.pp-hint b { color: #fff; font-weight: 700; }
-.pp-hint.empty { color: var(--text-dim); }
-
-.pp-rotnav {
-    display: flex; align-items: center; gap: 4px;
-}
-.pp-rotnav.hidden { display: none; }
-.pp-arr {
-    border: 1px solid var(--line-dim);
-    background: transparent;
-    color: var(--text);
-    padding: 2px 10px;
-    font-family: var(--mono);
-    font-size: 13px;
-    line-height: 1;
-    cursor: pointer;
-    clip-path: polygon(3px 0, 100% 0, 100% 100%, 0 100%, 0 3px);
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-.pp-arr:last-of-type {
-    clip-path: polygon(0 0, calc(100% - 3px) 0, 100% 3px, 100% 100%, 0 100%);
-}
-.pp-arr:hover { color: var(--accent); border-color: var(--accent); background: var(--bg-2); }
-.pp-arr:active { transform: scale(0.94); }
-#placement-count {
-    flex: 1;
-    text-align: center;
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--text);
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-    min-width: 0;
-}
-
-.pp-actions {
-    display: flex; gap: 6px; margin-top: auto;
-}
-.pp-btn {
-    flex: 1;
-    background: transparent;
-    border: 1px solid var(--line);
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.2em;
-    text-transform: uppercase;
-    padding: 9px 6px;
-    cursor: pointer;
-    clip-path: polygon(
-        0 0, calc(100% - 6px) 0, 100% 6px,
-        100% 100%, 6px 100%, 0 calc(100% - 6px)
-    );
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-#btn-confirm.pp-btn-hot {
-    background: var(--accent);
-    color: #02060a;
-    border-color: var(--accent);
-    font-weight: 700;
-    flex: 2;
-}
-#btn-confirm.pp-btn-hot:hover { background: #ff8b55; border-color: #ff8b55; }
-#btn-confirm.pp-btn-hot:active { transform: scale(0.97); }
-#btn-synth.pp-btn-ghost {
-    border-color: var(--line-dim);
-    color: var(--text-dim);
-}
-#btn-synth.pp-btn-ghost:hover { border-color: var(--line); color: var(--text); background: var(--bg-2); }
-#btn-synth.pp-btn-ghost:active { transform: scale(0.97); }
-
-/* Dense variant — FIX-20: узкие экраны */
-@media (max-height: 700px) {
-    #placement-panel { padding: 8px 10px; gap: 6px; }
-    #placement-panel .pp-head { display: none; }
-    #placement-panel .pp-card-wrap { width: 56px; padding: 6px 4px; }
-    #placement-panel .pp-card-name { font-size: 7px; }
-    #placement-panel .pp-rotnav { display: none; }
-    #placement-panel .pp-hint { font-size: 9px; }
-    #placement-panel .pp-btn { padding: 7px 4px; font-size: 9px; }
-}
 
 /* Synth order panel — HUD Kit */
 #synth-order-panel {
@@ -1192,7 +973,7 @@ html, body {
 .card {
     flex-shrink: 0;
     width: 108px;
-    height: 168px;
+    height: 128px;
     background: var(--bg-1);
     border: 1px solid var(--line-dim);
     padding: 6px;
@@ -1323,58 +1104,6 @@ html, body {
 .fx-util  { color: var(--accent); }
 .fx-synth { color: #b88aff; }
 .fx-none  { color: var(--text-ghost); }
-
-/* Блок подписанных эффектов — на картах в руке и в рев-зоне */
-.card-fx-compact {
-    font-family: var(--mono);
-    font-size: 7.5px;
-    line-height: 1.15;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-    padding: 3px 1px 1px;
-    text-align: left;
-    min-height: 0;
-    flex: 1 1 auto;
-    overflow: hidden;
-}
-.card-fx-compact:empty { display: none; }
-.card-fx-compact .fx-row {
-    display: block;
-    letter-spacing: 0;
-}
-.card-fx-compact .fx-row.fx-play  { color: var(--ok); }
-.card-fx-compact .fx-row.fx-util  { color: var(--accent); }
-.card-fx-compact .fx-row.fx-synth { color: #b88aff; }
-/* Заголовок типа эффекта — отдельная строка, жирным */
-.card-fx-compact .fx-kind {
-    display: block;
-    font-weight: 700;
-    font-size: 0.92em;
-    letter-spacing: 0.06em;
-    line-height: 1.15;
-    text-transform: uppercase;
-    opacity: 0.95;
-}
-/* Действия — отдельной строкой под заголовком, с небольшим отступом */
-.card-fx-compact .fx-act {
-    display: block;
-    white-space: nowrap;
-    padding-left: 6px;
-    color: var(--text);
-    font-weight: 400;
-    letter-spacing: 0;
-}
-/* Действия на противника — красные с суффиксом "опп" */
-.card-fx-compact .fx-act.fx-opp {
-    color: #ff5577;
-    font-weight: 700;
-}
-.card-fx-compact .fx-act.fx-opp::after {
-    content: " опп";
-    font-size: 0.9em;
-    opacity: 0.85;
-}
 
 /* ── Fullscreen Overlays ─────────────────────────────────── */
 .overlay {
@@ -2446,29 +2175,6 @@ html, body {
         <div id="card-desc" class="card-desc empty"></div>
     </div>
 
-    <!-- Placement panel — FIX-20: HUD visual language -->
-    <div id="placement-panel" class="hidden">
-        <div class="pp-head">
-            <span class="pp-lbl">ВЫБРАТЬ ПОЗИЦИЮ<b id="pp-count-header" style="display:none"></b></span>
-            <button class="pp-close" id="btn-synth-cancel">✕ ОТМЕНА</button>
-        </div>
-        <div class="pp-body">
-            <div class="pp-card-wrap" id="pp-card-preview"></div>
-            <div class="pp-info">
-                <div class="pp-hint" id="pp-hint"></div>
-                <div class="pp-rotnav" id="pp-rotnav">
-                    <button class="pp-arr" id="btn-prev">‹</button>
-                    <span class="pp-rotlbl" id="placement-count">ВАРИАНТ 1 / 1</span>
-                    <button class="pp-arr" id="btn-next">›</button>
-                </div>
-                <div class="pp-actions">
-                    <button class="pp-btn pp-btn-hot" id="btn-confirm">▶ РАЗЫГРАТЬ</button>
-                    <button class="pp-btn pp-btn-ghost" id="btn-synth">⊕ СИНТ</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Synth order panel -->
     <div id="synth-order-panel" class="hidden">
         <div class="synth-order-title">&gt; SYNTHESIS.ORDER</div>
@@ -2479,6 +2185,7 @@ html, body {
     <!-- Action buttons -->
     <div id="action-bar">
         <button class="btn btn-utilize" id="btn-utilize" style="display:none">✦ Утилизировать</button>
+        <button class="btn btn-draw-three" id="btn-draw-three" style="display:none">＋3 Добор</button>
         <button class="btn btn-skip" id="btn-skip" style="display:none">⏭ Завершить ход</button>
     </div>
 

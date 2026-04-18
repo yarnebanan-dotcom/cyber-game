@@ -11,7 +11,6 @@ class GameUI {
         this.pendingCard = null;
         this.pendingNodes = [];
         this.currentPlacements = [];
-        this.placementIndex = 0;
 
         // Synthesis state
         // null | { step: 'selectB'|'placeB'|'chooseOrder', cardA, matchA, cardB?, matchB? }
@@ -67,16 +66,8 @@ class GameUI {
 
         // Buttons
         document.getElementById('btn-utilize').onclick = () => this._onUtilize();
+        document.getElementById('btn-draw-three').onclick = () => this._onDrawThree();
         document.getElementById('btn-skip').onclick = () => this._onEndTurn();
-
-        // Placement panel
-        this.placementPanel = document.getElementById('placement-panel');
-        this.placementCount = document.getElementById('placement-count');
-        document.getElementById('btn-prev').onclick = () => this._prevPlacement();
-        document.getElementById('btn-next').onclick = () => this._nextPlacement();
-        document.getElementById('btn-confirm').onclick = () => this._confirmPlacement();
-        document.getElementById('btn-synth').onclick = () => this._onSynthNext();
-        document.getElementById('btn-synth-cancel').onclick = () => this._cancelSynth();
 
         // Synth order panel
         this.synthOrderPanel = document.getElementById('synth-order-panel');
@@ -408,7 +399,6 @@ class GameUI {
         this._lastTurnSummary = null;
         this.handoffScreen.classList.add('hidden');
         this.gameOverScreen.classList.add('hidden');
-        this.placementPanel.classList.add('hidden');
         this.cardPickModal.classList.add('hidden');
         this.synthOrderPanel.classList.add('hidden');
     }
@@ -526,6 +516,17 @@ class GameUI {
         document.getElementById('btn-utilize').style.display = (inTurn && !inSynth && !inNodePick) ? '' : 'none';
         skipBtn.style.display = (inTurn && !inSynth && !inNodePick) ? '' : 'none';
 
+        // Hard-mode: кнопка "＋3 Добор" — только если в этом ходу ещё не ставили фишки
+        // и не использовали альтернативу, в колоде+сбросе есть хотя бы 1 карта.
+        const drawThreeBtn = document.getElementById('btn-draw-three');
+        const deckHas = (st.deck?.cards?.length ?? st.deck?.count ?? 0) + (st.discard?.length ?? 0) > 0;
+        const canDrawThree = inTurn && !inSynth && !inNodePick
+            && st.hardMode
+            && !st.drewThreeThisTurn
+            && st.chipsPlaced === 0
+            && deckHas;
+        drawThreeBtn.style.display = canDrawThree ? '' : 'none';
+
         // Dynamic primary/secondary state for end-turn button
         if (inTurn && !inSynth && !inNodePick) {
             const vp = st.players[this._viewPI()];
@@ -585,17 +586,26 @@ class GameUI {
                 const hasPlayable = allCards.some(c => this.tm.getValidPlacements(c).length > 0);
                 const hasHand = st.cp.hand.length > 0 || st.cp.revealed.length > 0;
                 const canPlace = chipsLeft > 0 && st.cp.reserve > 0 && st.board.emptyNodes().length > 0;
+                const drewThree = !!st.drewThreeThisTurn;
+                const bonusChip = st.chipsAllowed > 2;
                 if (!hasHand && !canPlace) {
                     text = `Ходов нет · завершай ход`;
                     tone = 'replenish';
+                } else if (drewThree && hasPlayable) {
+                    text = `Добор использован · разыгрывай карты`;
+                    tone = 'task';
+                    counter = `▶${t}/2 · ✦${u}/2`;
+                } else if (drewThree) {
+                    text = `Добор использован · завершай ход`;
+                    tone = 'replenish';
                 } else if (canPlace && !hasPlayable && hasHand) {
-                    text = `Ставь фишки · розыгрыш невозможен`;
+                    text = bonusChip ? `Ставь фишки · бонус +1 за пропуск` : `Ставь фишки · розыгрыш невозможен`;
                     tone = 'action';
                     counter = `●${chipsLeft}/${st.chipsAllowed}`;
                 } else if (canPlace && hasPlayable) {
-                    text = `Ставь фишки или разыгрывай карты`;
+                    text = bonusChip ? `Ставь фишки (бонус +1) или разыгрывай карты` : `Ставь фишки или разыгрывай карты`;
                     tone = 'task';
-                    counter = `●${chipsLeft}/2 · ▶${t}/2 · ✦${u}/2`;
+                    counter = `●${chipsLeft}/${st.chipsAllowed} · ▶${t}/2 · ✦${u}/2`;
                 } else if (!canPlace && hasPlayable) {
                     text = `Выбери карту · ▶ разыграй или ✦ утилизируй`;
                     tone = 'task';
@@ -786,7 +796,6 @@ class GameUI {
     _cancelPendingCard() {
         this.pendingCard = null;
         this.pendingNodes = [];
-        this.placementPanel.classList.add('hidden');
         this._clearHighlights();
         this._clearTapped();
         this._render();
@@ -876,7 +885,6 @@ class GameUI {
             </div>
             <div class="card-pattern">${this._patternGridHTML(card.pattern)}</div>
             <div class="card-name">${card.name}</div>
-            <div class="card-fx-compact">${this._describeEffectsCompact(card)}</div>
         `;
 
         // Apply stored rotation to pattern grid
@@ -962,40 +970,6 @@ class GameUI {
         return parts.join('<br>') || '<span class="fx-none">—</span>';
     }
 
-    // Компактный формат для карт в руке и рев-зоне: заголовок-слово + действия словами
-    _describeEffectsCompact(card) {
-        const rows = [];
-        if (card.playEffect.hasEffects)      rows.push(`<span class="fx-row fx-play"><span class="fx-kind">РОЗЫГРЫШ</span>${this._fxCompact(card.playEffect)}</span>`);
-        if (card.utilizeEffect.hasEffects)   rows.push(`<span class="fx-row fx-util"><span class="fx-kind">УТИЛИЗАЦИЯ</span>${this._fxCompact(card.utilizeEffect)}</span>`);
-        if (card.synthesisEffect.hasEffects) rows.push(`<span class="fx-row fx-synth"><span class="fx-kind">СИНТЕЗ</span>${this._fxCompact(card.synthesisEffect)}</span>`);
-        return rows.join('') || '';
-    }
-
-    _fxCompact(effect) {
-        // Краткие текстовые метки (без иконок). Направленность на противника → класс .fx-opp.
-        return effect.effects.map(fx => {
-            const self = fx.target === Target.Self || fx.target === undefined;
-            const n = fx.n;
-            const inf = n === Infinity;
-            const num = inf ? 'ВСЁ' : n;
-            const cls = self ? 'fx-act' : 'fx-act fx-opp';
-            let body = '';
-            switch (fx.constructor.name) {
-                case 'DrawCardsEffect':    body = `взять ${n}`;       break;
-                case 'DigCardsEffect':     body = `раскоп ${n}`;      break;
-                case 'PlaceChipsEffect':   body = `поставь ${n}`;     break;
-                case 'RevealCardsEffect':  body = `раскр ${num}`;     break;
-                case 'DiscardCardsEffect': body = `сброс ${num}`;     break;
-                case 'StealCardsEffect':   body = `украсть ${n}`;     break;
-                case 'ModifySupplyEffect': body = `запас ${fx.delta>0?'+':''}${fx.delta}`; break;
-                case 'SetSupplyEffect':    body = `запас=${fx.val}`;  break;
-                case 'CopyOpponentSupplyEffect': body = `запас=опп`;   break;
-                case 'ResetFieldEffect':   body = `сброс стола`;       break;
-                default: return '';
-            }
-            return `<span class="${cls}">${body}</span>`;
-        }).join('');
-    }
 
     _fxText(effect) {
         // Склонения: карта 1 / карты 2-4 / карт 5+
@@ -1213,9 +1187,7 @@ class GameUI {
             this.synth.step = 'placeB';
             this.pendingCard = card;
             this.currentPlacements = sharedPlacements;
-            this.placementIndex = 0;
             this._render();
-            this._showCardSelectedPanel();
             this._showMessage(`Тапни позицию для ${card.name} на доске`);
             return;
         }
@@ -1224,7 +1196,6 @@ class GameUI {
         if (this.pendingCard === card) {
             this.pendingCard = null;
             this.pendingNodes = [];
-            this.placementPanel.classList.add('hidden');
             this._clearHighlights();
             this._clearTapped();
             this._render();
@@ -1233,7 +1204,6 @@ class GameUI {
 
         this.pendingCard = card;
         this.pendingNodes = [];
-        this.placementPanel.classList.add('hidden');
         this._clearHighlights();
         this._clearTapped();
         this._render();
@@ -1242,11 +1212,6 @@ class GameUI {
             const placements = this.tm.getValidPlacements(card);
             if (placements.length > 0) {
                 this.currentPlacements = placements;
-                this.placementIndex = 0;
-                this._showCardSelectedPanel();
-                // FIX-24: не подсвечивать комбинацию на поле при выборе карты —
-                // это слишком сильная подсказка. Игрок сам ищет паттерн;
-                // подсветка появляется только при перелистывании стрелками.
             }
         }
     }
@@ -1256,6 +1221,24 @@ class GameUI {
         const all = this.tm.getValidPlacements(cardB);
         const posA = new Set(matchA.chipPositions.map(([r, c]) => `${r},${c}`));
         return all.filter(p => p.chipPositions.some(([r, c]) => posA.has(`${r},${c}`)));
+    }
+
+    // Hard-mode альтернатива: берём 3 карты вместо размещения в этом ходу.
+    _onDrawThree() {
+        if (this.nodePickDone) return;
+        if (this.netMode && this.state.currentPI !== this.localPI) return;
+        const st = this.state;
+        if (!st.hardMode) return;
+        if (st.drewThreeThisTurn) { this._showMessage('Добор уже использован в этом ходу'); return; }
+        if (st.chipsPlaced > 0)   { this._showMessage('Фишка уже поставлена — добор недоступен'); return; }
+        const result = this.tm.drawThree();
+        if (result === 'ok') {
+            this._haptic([18, 8, 18]);
+            this._playSound('card');
+            this._render();
+        } else if (result === 'invalidAction' || result === 'invalidPhase') {
+            this._showMessage('Добор недоступен');
+        }
     }
 
     _onUtilize() {
@@ -1283,7 +1266,6 @@ class GameUI {
         if (this.netMode && this.state.currentPI !== this.localPI) return;
         this.synth = { step: 'placeA', cardA: this.pendingCard, placementsA: this.currentPlacements };
         this.pendingCard = null;
-        this.placementPanel.classList.add('hidden');
         this._clearHighlights();
         this._render();
         this._showMessage(`Тапни позицию ${this.synth.cardA.name} на доске`);
@@ -1293,7 +1275,6 @@ class GameUI {
         this.synth = null;
         this.pendingCard = null;
         this.pendingNodes = [];
-        this.placementPanel.classList.add('hidden');
         this.synthOrderPanel.classList.add('hidden');
         this._clearHighlights();
         this._render();
@@ -1350,7 +1331,6 @@ class GameUI {
             this._playSound('turn');
             this._lastTurnSummary = summary;
             this.pendingCard = null;
-            this.placementPanel.classList.add('hidden');
             this._clearHighlights();
             this._render();
             if (this.netMode === 'host') {
@@ -1362,81 +1342,6 @@ class GameUI {
                 this._showHandoff();
             }
         }
-    }
-
-    // ── Placement panel ────────────────────────────────────────
-
-    // FIX-26: placement-panel заменён V3 focus-mode (см. _syncFocusMode).
-    // Функция сохранена для совместимости вызовов из _onCardTap / synth placeB —
-    // теперь просто гарантирует скрытый placement-panel и перерендер (focus-info
-    // инжектится через _syncFocusMode внутри _renderHand).
-    _showCardSelectedPanel() {
-        this.placementPanel.classList.add('hidden');
-        const inSynthB = this.synth?.step === 'placeB';
-        const card = this.pendingCard;
-        const placements = this.currentPlacements || [];
-        const total = placements.length;
-        const idx = this.placementIndex || 0;
-
-        // Card preview (left side)
-        const preview = document.getElementById('pp-card-preview');
-        if (preview && card) {
-            const ownerPI = this.state.currentPI;
-            const color = this._playerColor(ownerPI);
-            const rot = this._cardRotations.get(card.id) || 0;
-            const rotTxt = rot ? `↻${rot}°` : '0°';
-            let patternCells = '';
-            for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
-                const cd = card.pattern.find(p => p.row === r && p.col === c);
-                const cls = cd ? (cd.type === CellType.W ? 'w' : 'g') : '';
-                patternCells += `<span class="${cls}"></span>`;
-            }
-            preview.style.color = color;
-            preview.innerHTML = `
-                <div class="pp-card-top">
-                    <span class="pp-card-cost">${card.cost}</span>
-                    <span class="pp-card-rot">${rotTxt}</span>
-                </div>
-                <div class="pp-card-pattern">${patternCells}</div>
-                <div class="pp-card-name">${card.name}</div>
-            `;
-        }
-
-        // Hint — описание эффекта розыгрыша
-        const hintEl = document.getElementById('pp-hint');
-        if (hintEl && card) {
-            const fx = card.playEffect;
-            if (fx && fx.hasEffects) {
-                hintEl.classList.remove('empty');
-                hintEl.innerHTML = `▶ ${this._fxText(fx)}`;
-            } else {
-                hintEl.classList.add('empty');
-                hintEl.textContent = '▶ эффекта розыгрыша нет';
-            }
-        }
-
-        // FIX-24: счётчик вариантов, стрелки и «РАЗЫГРАТЬ» убраны — они подсказывали
-        // количество и расположение решений. Игрок сам тапает фишки паттерна на доске;
-        // при совпадении карта сыграется автоматически через _onNodeTap.
-        const headerCount = document.getElementById('pp-count-header');
-        if (headerCount) headerCount.textContent = '';
-        const rotNav = document.getElementById('pp-rotnav');
-        if (rotNav) rotNav.classList.add('hidden');
-        const confirmBtn = document.getElementById('btn-confirm');
-        if (confirmBtn) confirmBtn.style.display = 'none';
-
-        // Synth — только если hardMode и возможна вторая карта-партнёр
-        const canSynth = !inSynthB
-            && this.state.hardMode
-            && this.state.tasksThisTurn < 2
-            && this.pendingCard
-            && this._hasSynthPartner(this.pendingCard);
-        const synthBtn = document.getElementById('btn-synth');
-        if (synthBtn) synthBtn.style.display = canSynth ? '' : 'none';
-
-        // FIX-26: cancel теперь в .fi-cancel внутри focus-info (рендерится в _fillFocusInfo).
-        // placement-panel в DOM оставлен, но скрыт — может удаляться в следующем коммите после тестов.
-        this._render();
     }
 
     // Есть ли среди других карт (рука + раскрытые) хотя бы одна, с которой возможен синтез
@@ -1527,8 +1432,6 @@ class GameUI {
             this.synth.matchB = match;
             this.synth.step = 'chooseOrder';
             reset();
-            this.placementPanel.classList.add('hidden');
-            // FIX-26: focus-mode off перед показом synth-order-panel
             this._syncFocusMode();
             this._showSynthOrderPanel();
             return;
@@ -1538,62 +1441,10 @@ class GameUI {
         const match = matchPos(this.currentPlacements);
         if (!match) { rollbackLast(); return; }
         reset();
-        this.placementPanel.classList.add('hidden');
         const card = this.pendingCard;
         this.pendingCard = null;
-        // FIX-26: убрать focus-mode сразу (иначе если у карты модальный эффект
-        // вроде «раскопать», focus-info останется до закрытия модала)
         this._syncFocusMode();
         this.tm.playCard(card, match, result => {
-            if (!result) { this._haptic(26); this._playSound('play'); }
-            this._render();
-            if (result === 'limitReached') this._showMessage('Лимит задач (2) исчерпан');
-        });
-    }
-
-    _prevPlacement() {
-        if (!this.currentPlacements?.length) return;
-        this.placementIndex = (this.placementIndex - 1 + this.currentPlacements.length) % this.currentPlacements.length;
-        this._updatePlacementHighlight();
-    }
-
-    _nextPlacement() {
-        if (!this.currentPlacements?.length) return;
-        this.placementIndex = (this.placementIndex + 1) % this.currentPlacements.length;
-        this._updatePlacementHighlight();
-    }
-
-    // FIX-20: обновить подсветку текущего варианта и счётчики в panel
-    _updatePlacementHighlight() {
-        const total = this.currentPlacements?.length || 0;
-        const idx = this.placementIndex || 0;
-        const headerCount = document.getElementById('pp-count-header');
-        if (headerCount) headerCount.textContent = `${Math.min(idx + 1, total)}/${total}`;
-        const rotLbl = document.getElementById('placement-count');
-        if (rotLbl) rotLbl.textContent = `ВАРИАНТ ${Math.min(idx + 1, total)} / ${total}`;
-        // Подсветка конкретного варианта
-        this._clearHighlights();
-        const cur = this.currentPlacements?.[idx];
-        if (cur) this._highlightNodes(cur.chipPositions);
-    }
-
-    _confirmPlacement() {
-        const placement = this.currentPlacements[this.placementIndex];
-
-        if (this.synth?.step === 'placeB') {
-            this.synth.matchB = placement;
-            this.synth.step = 'chooseOrder';
-            this.placementPanel.classList.add('hidden');
-            this._clearHighlights();
-            this._showSynthOrderPanel();
-            return;
-        }
-
-        this.placementPanel.classList.add('hidden');
-        this._clearHighlights();
-        const card = this.pendingCard;
-        this.pendingCard = null;
-        this.tm.playCard(card, placement, result => {
             if (!result) { this._haptic(26); this._playSound('play'); }
             this._render();
             if (result === 'limitReached') this._showMessage('Лимит задач (2) исчерпан');
@@ -2387,6 +2238,7 @@ class GameUI {
                         this.tm.replenish();
                     }
                     break;
+                case 'drawThree':   this.tm.drawThree(); break;
                 case 'replenish':   this.tm.replenish(); break;
                 case 'playCard': {
                     const card = cardsById.get(args[0]);
@@ -2481,6 +2333,7 @@ class GameUI {
             placeChip:   (r, c) => { sendAction('placeChip',   [r, c]); return 'ok'; },
             undoChip:    (r, c) => { sendAction('undoChip',    [r, c]); return 'ok'; },
             endTurn:     ()     => { sendAction('endTurn',     []); return true; },
+            drawThree:   ()     => { sendAction('drawThree',   []); return 'ok'; },
             replenish:   ()     => { sendAction('replenish',   []); return true; },
             playCard:    (card, placement, onDone) => {
                 sendAction('playCard', [card.id, placement.chipPositions]);

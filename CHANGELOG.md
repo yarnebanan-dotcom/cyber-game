@@ -6,6 +6,87 @@
 
 ---
 
+## 2026-04-19 — UI-05 · Убраны эффекты с карт + уменьшена высота
+
+Карты в руке больше не показывают блок описания эффектов — эта информация дублировала `#card-desc` внизу экрана, который появляется при тапе по карте. Карты стали ниже (168→128px), доска получила больше места, наезда руки на поле больше нет даже на коротких экранах (375×667).
+
+**Удалено:**
+- `ui.js::_makeCardEl` — строка `<div class="card-fx-compact">${this._describeEffectsCompact(card)}</div>` из шаблона карты
+- `ui.js::_describeEffectsCompact` и `ui.js::_fxCompact` — мёртвые методы
+- `index.html` — CSS-блок `.card-fx-compact` и всех вложенных `.fx-row/.fx-kind/.fx-act/.fx-opp` (~50 строк); также `.rev-lane .card-fx-compact`
+
+**Изменено:**
+- `index.html::.card` — `height: 168px → 128px`
+
+**Проверено в preview (2p, 375×667):**
+- Карта показывает только `[cost]`, паттерн и имя — как в настольной версии.
+- `#card-desc` внизу по-прежнему открывает полное описание при тапе.
+- board bottom 419, hand top 462 — чистый зазор 43px, наезда нет.
+- Консоль чистая.
+
+---
+
+## 2026-04-19 — FIX-26 · Финальная чистка placement-panel
+
+Снесён мёртвый DOM и методы `placement-panel`, которые были оставлены скрытыми после перехода на V3 focus-mode. Поведение UI не меняется — только удаление кода, который уже не вызывался.
+
+**Удалено из `Web/index.html`:**
+- DOM-блок `<div id="placement-panel">` со всеми дочерними элементами (`#btn-synth-cancel`, `#pp-card-preview`, `#pp-hint`, `#pp-rotnav`, `#btn-prev`, `#placement-count`, `#btn-next`, `#btn-confirm`, `#btn-synth`)
+- CSS-секция `#placement-panel`, `.pp-head`, `.pp-lbl`, `.pp-close`, `.pp-body`, `.pp-card-wrap`, `.pp-card-top`, `.pp-card-cost`, `.pp-card-rot`, `.pp-card-pattern`, `.pp-card-name`, `.pp-info`, `.pp-hint`, `.pp-rotnav`, `.pp-arr`, `#placement-count`, `.pp-actions`, `.pp-btn`, `#btn-confirm.pp-btn-hot`, `#btn-synth.pp-btn-ghost`
+- Media-query `@media (max-height: 700px)` с правилами для `#placement-panel`
+
+**Удалено из `Web/ui.js`:**
+- Поле `this.placementIndex` в конструкторе
+- Биндинги `this.placementPanel`, `this.placementCount` и хендлеры `btn-prev/btn-next/btn-confirm/btn-synth/btn-synth-cancel` в `_bindElements`
+- Методы `_showCardSelectedPanel`, `_prevPlacement`, `_nextPlacement`, `_updatePlacementHighlight`, `_confirmPlacement`
+- Все вызовы `this.placementPanel.classList.add('hidden')` (в `_cancelPendingCard`, `_onCardTap`, `_onSynthNext`, `_cancelSynth`, `_onEndTurn`, `_onPatternNodeTap`)
+
+**Что осталось:**
+- `this.currentPlacements` — используется в синтезе (`placementsA`) и `_hasSynthPartner`
+- `_hasSynthPartner` — нужен для показа `#fi-synth` в focus-info
+- Фокус-мод (`_syncFocusMode`, `_fillFocusInfo`, `_updateFocusCount`) — весь flow выбора карты / совпадения паттерна идёт через него
+
+**Проверено в preview (2p, без hardMode):**
+- Перезагрузка страницы: `#placement-panel`, `#btn-prev/next/confirm/synth/synth-cancel` не существуют в DOM, `window.ui` инициализирован.
+- Стартовая партия → фаза Turn: поставил 2 фишки через `tm.placeChip(0,0)/(0,1)` → `chipsPlaced=2`, `board.nodes[0][0]=1`.
+- Тап по карте БАЙТ (MC:W) → focus-mode активирован (`#hand-cards.focus-mode`), `.focus-info` содержит имя, эффект `▶ раскопай 1 карту (+2 в сброс)`, счётчик `0/1`. `pendingCard='БАЙТ'`, `currentPlacements=2`.
+- Тап по узлу (0,0) → открылся `#card-pick-modal` с двумя вариантами раскопки.
+- Выбор ИНКАПСУЛЯЦИЯ → ПОДТВЕРДИТЬ → modal закрыт, `tasksThisTurn=1`, `discardLen=2` (2 сброшенных), `handSize=4` (1 добрана), `chip[0][0]=0` (фишка снята), `focusModeActive=false`.
+- Консоль: никаких ошибок на всём прогоне.
+
+**Зачем:** `placement-panel` функционально был заменён V3 focus-mode ещё в предыдущих фиксах, но DOM+CSS+5 методов оставались в коде как «на всякий случай». Теперь удалены — ~220 строк CSS, ~80 строк JS, 22 строки HTML.
+
+---
+
+## 2026-04-19 — HARD-01 · Альтернативы размещения фишек в Hard mode
+
+Закрыт TODO из REF-01: реализованы две альтернативы действию «поставить 2 фишки» в Hard mode. Правила обычного режима не затронуты.
+
+**Альтернатива 1 — «Пропуск → +1 фишка на следующий ход».** Если в Hard mode игрок завершает ход, не поставив ни одной фишки и не использовав добор — на его следующий ход `chipsAllowed = 3` (одноразово, бонус сгорает в начале хода). Карты разыгрывать/утилизировать в пропускаемый ход можно.
+
+**Альтернатива 2 — «＋3 Добор».** Кнопка в action-bar (cyan border, рядом с «✦ Утилизировать»). Видна только в Hard mode и только когда `chipsPlaced === 0 && !drewThreeThisTurn && deck+discard > 0`. При клике — 3 карты из колоды в руку, `chipsAllowed = 0`, `drewThreeThisTurn = true`. Кнопка пропадает, хинт фазы: «Добор использован · разыгрывай карты / завершай ход». Бонус +1 за пропуск после добора **не** выдаётся.
+
+**Код:**
+- `game.js::PlayerState` — поле `bonusChipsNextTurn` (0/1)
+- `game.js::GameState` — поле `drewThreeThisTurn`
+- `game.js::TurnManager.endTurn` — при hardMode && chipsPlaced===0 && !drewThreeThisTurn → `cp.bonusChipsNextTurn = 1`
+- `game.js::TurnManager.drawThree()` — новый метод с гейтами (hardMode, Phase.Turn, !drewThreeThisTurn, chipsPlaced===0)
+- `game.js::TurnManager._toTurn` — применяет и обнуляет `bonusChipsNextTurn`, сбрасывает `drewThreeThisTurn`
+- `net.js` — сериализация `bonusChipsNextTurn`, `drewThreeThisTurn`, `hardMode`; `applySnapshotTo` восстанавливает их
+- `ui.js` — `_onDrawThree`, action-router `case 'drawThree'`, guest TM proxy `drawThree`, гейт видимости в `_render`, новые ветки в `_updatePhaseHint` для drewThree и bonusChip
+- `index.html` — кнопка `#btn-draw-three` и её стиль `.btn-draw-three`
+
+**Проверено в preview (hardMode=true, 2p):**
+- Старт: chipsAllowed=2, кнопка видна, хинт «Ставь фишки».
+- Клик «＋3 Добор» → handSize 3→6, deck 50→47, chipsAllowed=0, drewThree=true, кнопка скрыта, хинт «Добор использован · завершай ход». `drawThreeResult==='ok'`.
+- endTurn после добора → p1.bonusChipsNextTurn=0 (бонуса нет).
+- p2 endTurn без размещения и без добора → p2.bonusChipsNextTurn=1.
+- Возврат хода к p2 → chipsAllowed=3 (бонус применился), p2.bonusChipsNextTurn=0 (сгорел), хинт «Ставь фишки · бонус +1 за пропуск ●3/3».
+- После `placeChip(0,0)` → chipsPlaced=1, кнопка добора скрыта, `drawThree()` возвращает `'invalidAction'`.
+- Консоль чистая.
+
+---
+
 ## 2026-04-19 — FIX-27 · Онлайн: у игрока 2 не появлялись карты
 
 **Баг:** `GameState` всегда создавал колоду через `CardDatabase.create3()` (ID 1001+), независимо от `playerCount`. При этом `buildCardsById(2)` (net.js) строил карту `id→card` из `CardDatabase.create()` (ID 1..53). Результат: в 2p-онлайне хост клал в руки ID 1001+, гость применял snapshot → `cardsById.get(id)` возвращал `undefined` → после `.filter(Boolean)` рука становилась пустой. Отображалось: «у игрока 2 нет карт».
