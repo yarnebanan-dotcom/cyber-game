@@ -504,7 +504,7 @@ class GameUI {
         const playerTag = this.netMode
             ? `Игрок ${viewPI + 1}`
             : `Игрок ${st.currentPI + 1}`;
-        this.handLabelEl.innerHTML = `◦ РУКА · ${playerTag} <span style="color:var(--text-ghost)">··· ${handSize}/5</span> <span class="zone-hint">зажать = детали</span>`;
+        this.handLabelEl.innerHTML = `◦ РУКА · ${playerTag} <span style="color:var(--text-ghost)">··· ${handSize}/5</span>`;
         this.handLabelEl.style.color = playerColor;
 
         // Phase hint
@@ -837,9 +837,8 @@ class GameUI {
                 <div class="${cornerClass}">${cornerText}</div>
             </div>
             <div class="card-pattern">${this._patternGridHTML(card.pattern)}</div>
-            <div class="card-fx-compact">${this._describeEffectsCompact(card)}</div>
-            <div class="card-badges">${this._effectBadges(card)}</div>
             <div class="card-name">${card.name}</div>
+            <div class="card-fx-compact">${this._describeEffectsCompact(card)}</div>
         `;
 
         // Apply stored rotation to pattern grid
@@ -848,15 +847,12 @@ class GameUI {
             if (grid) grid.style.transform = `rotate(${storedRot}deg)`;
         }
 
-        // UX_SPEC §2.7: click = rotate (TASK phase = selection instead)
-        //   long-press 350ms = detail popup
-        let didLongPress = false;
+        // Клик: TASK = выбор, иначе = поворот паттерна
         const rotate = () => {
             const next = ((this._cardRotations.get(card.id) || 0) + 90) % 360;
             this._cardRotations.set(card.id, next);
             const grid = el.querySelector('.card-pattern-grid');
             if (grid) grid.style.transform = next ? `rotate(${next}deg)` : '';
-            // Update corner tag
             const cornerEl = el.querySelector('.card-corner');
             if (cornerEl) {
                 if (next === 0) {
@@ -871,76 +867,17 @@ class GameUI {
         };
 
         el.addEventListener('click', () => {
-            if (didLongPress) { didLongPress = false; return; }
-            // В единой фазе Ход тап по карте = выбор карты для розыгрыша/утилизации
             if (this.state && this.state.phase === Phase.Turn) {
                 this._onCardTap(card, isPlayable);
                 return;
             }
-            // Replenish / прочее — двойной тап для поворота (обрабатывается отдельно)
             rotate();
         });
 
-        // Prevent text selection and context menu on long press
         el.addEventListener('selectstart', e => e.preventDefault());
         el.addEventListener('contextmenu', e => e.preventDefault());
 
-        // Long press (touch + mouse) → floating popup above card, 350ms per UX_SPEC §2.7
-        let pressTimer;
-        const startPress = () => {
-            pressTimer = setTimeout(() => {
-                didLongPress = true;
-                this._haptic(8);
-                this._showCardPopup(card, el);
-            }, 350);
-        };
-        const endPress = () => clearTimeout(pressTimer);
-        el.addEventListener('touchstart', startPress, { passive: true });
-        el.addEventListener('touchend', endPress, { passive: true });
-        el.addEventListener('touchcancel', endPress, { passive: true });
-        el.addEventListener('mousedown', startPress);
-        el.addEventListener('mouseup', endPress);
-        el.addEventListener('mouseleave', endPress);
-
         return el;
-    }
-
-    _showCardPopup(card, anchorEl) {
-        // FIX-02: ownerPI берём с data-player атрибута карты-источника
-        const dp = anchorEl?.dataset?.player;  // "p1" | "p2" | "p3"
-        const ownerPI = dp ? (parseInt(dp.slice(1), 10) - 1) : undefined;
-        // Remove existing popup
-        document.getElementById('card-popup')?.remove();
-
-        const popup = document.createElement('div');
-        popup.id = 'card-popup';
-        popup.innerHTML = `
-            <div class="card-cost">${card.cost}</div>
-            <div class="card-popup-name">${card.name}</div>
-            <div class="card-pattern" style="display:flex;justify-content:center;margin:4px 0">${this._patternSVG(card.pattern, 56, ownerPI)}</div>
-            <div class="card-fx" style="display:block">${this._describeEffects(card)}</div>
-        `;
-        document.body.appendChild(popup);
-
-        // Position: above the anchor card, horizontally centred on it
-        const rect = anchorEl.getBoundingClientRect();
-        const pw = 160, ph = popup.offsetHeight || 180;
-        let left = rect.left + rect.width / 2 - pw / 2;
-        let top  = rect.top - ph - 10;
-        // Clamp to viewport
-        left = Math.max(8, Math.min(left, window.innerWidth - pw - 8));
-        top  = Math.max(8, top);
-        popup.style.left = left + 'px';
-        popup.style.top  = top  + 'px';
-
-        // Dismiss on any touch outside
-        const dismiss = (e) => {
-            if (!popup.contains(e.target)) {
-                popup.remove();
-                document.removeEventListener('touchstart', dismiss);
-            }
-        };
-        setTimeout(() => document.addEventListener('touchstart', dismiss, { passive: true }), 50);
     }
 
     // Inline HTML 3x3 grid per kit GameCard (strictly matches chips-cards.jsx)
@@ -996,38 +933,29 @@ class GameUI {
     }
 
     _fxCompact(effect) {
-        // Каждое действие — отдельный span. Направленность на противника → класс .fx-opp.
+        // Краткие текстовые метки (без иконок). Направленность на противника → класс .fx-opp.
         return effect.effects.map(fx => {
             const self = fx.target === Target.Self || fx.target === undefined;
             const n = fx.n;
             const inf = n === Infinity;
-            const num = inf ? '∞' : n;
+            const num = inf ? 'ВСЁ' : n;
             const cls = self ? 'fx-act' : 'fx-act fx-opp';
             let body = '';
             switch (fx.constructor.name) {
-                case 'DrawCardsEffect':    body = `+${n}c`;       break;  // карты в руку (всегда себе)
-                case 'DigCardsEffect':     body = `⛏${n}`;        break;  // раскопать (всегда себе)
-                case 'PlaceChipsEffect':   body = `●${n}`;        break;  // фишки на поле
-                case 'RevealCardsEffect':  body = `◉${num}`;     break;
-                case 'DiscardCardsEffect': body = `✕${num}`;      break;
-                case 'StealCardsEffect':   body = `⇆${n}`;        break;  // украсть (всегда у противника, но эффект себе)
-                case 'ModifySupplyEffect': body = `⚡${fx.delta>0?'+':''}${fx.delta}`; break;
-                case 'SetSupplyEffect':    body = `⚡=${fx.val}`; break;
-                case 'CopyOpponentSupplyEffect': body = `⚡=⚡`;    break;
-                case 'ResetFieldEffect':   body = `↻стол`;         break;
+                case 'DrawCardsEffect':    body = `взять ${n}`;       break;
+                case 'DigCardsEffect':     body = `раскоп ${n}`;      break;
+                case 'PlaceChipsEffect':   body = `поставь ${n}`;     break;
+                case 'RevealCardsEffect':  body = `раскр ${num}`;     break;
+                case 'DiscardCardsEffect': body = `сброс ${num}`;     break;
+                case 'StealCardsEffect':   body = `украсть ${n}`;     break;
+                case 'ModifySupplyEffect': body = `запас ${fx.delta>0?'+':''}${fx.delta}`; break;
+                case 'SetSupplyEffect':    body = `запас=${fx.val}`;  break;
+                case 'CopyOpponentSupplyEffect': body = `запас=опп`;   break;
+                case 'ResetFieldEffect':   body = `сброс стола`;       break;
                 default: return '';
             }
             return `<span class="${cls}">${body}</span>`;
         }).join('');
-    }
-
-    // Индикаторы типов эффектов для компактных карт в рев-зоне (3 цветных маркера)
-    _effectBadges(card) {
-        const marks = [];
-        if (card.playEffect.hasEffects)      marks.push(`<i class="fx-badge fx-play">▶</i>`);
-        if (card.utilizeEffect.hasEffects)   marks.push(`<i class="fx-badge fx-util">✦</i>`);
-        if (card.synthesisEffect.hasEffects) marks.push(`<i class="fx-badge fx-synth">⊕</i>`);
-        return marks.join('');
     }
 
     _fxText(effect) {

@@ -458,38 +458,32 @@ html, body {
 }
 .rev-lane-row::-webkit-scrollbar { display: none; }
 
-/* Compact card in lane */
+/* Compact card in lane (те же компоненты что и на руке, просто мельче) */
 .rev-lane .card {
-    width: 50px;
-    height: 54px;
-    padding: 3px;
+    width: 92px;
+    height: 132px;
+    padding: 4px;
     border-radius: 4px;
     flex-shrink: 0;
 }
-.rev-lane .card-header { height: 12px; margin-bottom: 1px; }
+.rev-lane .card-header { margin-bottom: 1px; }
 .rev-lane .card-corner { display: none; }
 .rev-lane .card-name {
-    font-size: 7px;
-    margin-bottom: 1px;
-    padding-right: 11px;
-    letter-spacing: 0;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-    max-width: 100%;
+    font-size: 7.5px;
+    letter-spacing: 0.08em;
+    padding: 1px 0;
 }
 .rev-lane .card-cost {
-    width: 12px; height: 12px;
-    font-size: 8px;
-    top: 2px; right: 2px;
-}
-.rev-lane .card-pattern { margin: 1px 0; }
-.rev-lane .card-pattern svg { width: 32px; height: 32px; }
-.rev-lane .card-fx { display: none; }
-.rev-lane .card-fx-compact { display: none; }
-.rev-lane .card-badges {
-    display: flex;
+    width: 14px; height: 14px;
     font-size: 9px;
-    padding: 0;
-    margin-top: 1px;
+}
+.rev-lane .card-pattern { padding: 1px 0; }
+.rev-lane .card-pattern-grid { width: 58%; }
+.rev-lane .card-fx { display: none; }
+.rev-lane .card-fx-compact {
+    font-size: 7px;
+    padding: 2px 1px 0;
+    line-height: 1.15;
 }
 
 /* ▶ indicator on any card in the shared revealed zone that's playable now */
@@ -1153,8 +1147,8 @@ html, body {
 /* ── Card (KIT Phase 2 — strict kit layout) ───────────────── */
 .card {
     flex-shrink: 0;
-    width: 80px;
-    height: 116px; /* 80 * 1.45 */
+    width: 108px;
+    height: 152px;
     background: var(--bg-1);
     border: 1px solid var(--line-dim);
     padding: 6px;
@@ -1172,46 +1166,6 @@ html, body {
         0 100%, 0 8px
     );
     transform-origin: bottom center;
-}
-/* Card popup on long press */
-#card-popup {
-    position: fixed;
-    width: 160px;
-    background: var(--bg-1);
-    border: 1px solid var(--line);
-    border-radius: 0;
-    padding: 8px;
-    z-index: var(--z-card-detail);
-    box-shadow: 0 12px 40px rgba(0,0,0,0.85), 0 0 18px rgba(63,208,230,0.22);
-    pointer-events: none;
-    clip-path: polygon(
-        8px 0, 100% 0,
-        100% calc(100% - 8px), calc(100% - 8px) 100%,
-        0 100%, 0 8px
-    );
-    animation: popup-in 0.15s cubic-bezier(0.34,1.4,0.64,1);
-}
-@keyframes popup-in {
-    from { opacity: 0; transform: scale(0.85); }
-    to   { opacity: 1; transform: scale(1); }
-}
-.card-popup-name {
-    font-family: var(--display);
-    font-size: 11px; font-weight: 700;
-    color: var(--text);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-    margin-bottom: 4px; padding-right: 22px; line-height: 1.3;
-    border-bottom: 1px solid var(--line-ghost);
-    padding-bottom: 4px;
-}
-.zone-hint {
-    font-family: var(--mono);
-    font-size: 9px;
-    color: var(--line);
-    letter-spacing: 0.08em;
-    margin-left: 6px;
-    opacity: 0.85;
 }
 .card.playable {}
 .card.unplayable {}
@@ -1259,19 +1213,19 @@ html, body {
 }
 .card-corner.rot { color: var(--line); font-size: 8px; letter-spacing: 0.05em; }
 
-/* Pattern (3x3 inline grid, 80% card width) */
+/* Pattern (3x3 inline grid) */
 .card-pattern {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 1px 0;
+    padding: 2px 0;
 }
 .card-pattern-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1px;
-    width: 58%;
+    width: 62%;
     aspect-ratio: 1 / 1;
     transition: transform 0.22s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
@@ -1296,17 +1250,19 @@ html, body {
     opacity: 0.6;
 }
 
-/* Name (bottom, with top divider) */
+/* Name (between pattern and effects block) */
 .card-name {
     font-family: var(--display);
     font-size: 9px; font-weight: 700;
     color: var(--text); line-height: 1.2;
-    letter-spacing: 0.15em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     text-align: center;
-    padding: 2px 0 0;
+    padding: 2px 0;
     border-top: 1px solid var(--line-ghost);
+    border-bottom: 1px solid var(--line-ghost);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    flex: 0 0 auto;
 }
 .card.selected .card-name { color: var(--accent); }
 
@@ -1324,65 +1280,56 @@ html, body {
 .fx-synth { color: #b88aff; }
 .fx-none  { color: var(--text-ghost); }
 
-/* Компактный блок эффектов на карте в руке */
+/* Блок подписанных эффектов — на картах в руке и в рев-зоне */
 .card-fx-compact {
     font-family: var(--mono);
     font-size: 7.5px;
-    line-height: 1.15;
+    line-height: 1.2;
     display: flex;
     flex-direction: column;
-    gap: 1px;
+    gap: 0;
     padding: 2px 1px 1px;
-    text-align: center;
+    text-align: left;
     min-height: 0;
     flex: 1 1 auto;
     overflow: hidden;
-    border-top: 1px solid var(--line-ghost);
 }
 .card-fx-compact:empty { display: none; }
 .card-fx-compact .fx-row {
     display: block;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    letter-spacing: 0.02em;
-}
-.card-fx-compact .fx-kind {
-    font-weight: 700;
-    margin-right: 1px;
+    letter-spacing: 0;
 }
 .card-fx-compact .fx-row.fx-play  { color: var(--ok); }
 .card-fx-compact .fx-row.fx-util  { color: var(--accent); }
 .card-fx-compact .fx-row.fx-synth { color: #b88aff; }
-.card-fx-compact .fx-act {
+.card-fx-compact .fx-kind {
+    font-weight: 700;
     display: inline-block;
-    padding: 0 1px;
+    width: 8px;
+    text-align: center;
 }
-/* Направленность на противника — ярко-красный акцент */
+/* Каждое действие — отдельной строкой; у первого слева иконка типа, у следующих — отступ под неё */
+.card-fx-compact .fx-act {
+    display: block;
+    white-space: nowrap;
+    padding-left: 10px;
+    text-indent: -10px;
+}
+.card-fx-compact .fx-kind + .fx-act {
+    padding-left: 0;
+    text-indent: 0;
+    display: inline-block;
+}
+/* Действия на противника — красные с суффиксом "опп" */
 .card-fx-compact .fx-act.fx-opp {
     color: #ff5577;
-    text-shadow: 0 0 3px rgba(255, 85, 119, 0.45);
     font-weight: 700;
 }
-
-/* Бейджи-индикаторы типов эффектов (для rev-lane) — в обычной карте скрыты */
-.card-badges {
-    display: none;
-    gap: 2px;
-    justify-content: center;
-    padding: 1px 0;
-    font-family: var(--mono);
-    font-size: 8px;
-    line-height: 1;
+.card-fx-compact .fx-act.fx-opp::after {
+    content: " опп";
+    font-size: 0.9em;
+    opacity: 0.85;
 }
-.card-badges .fx-badge {
-    font-style: normal;
-    font-weight: 700;
-    opacity: 0.95;
-}
-.card-badges .fx-badge.fx-play  { color: var(--ok); }
-.card-badges .fx-badge.fx-util  { color: var(--accent); }
-.card-badges .fx-badge.fx-synth { color: #b88aff; }
 
 /* ── Fullscreen Overlays ─────────────────────────────────── */
 .overlay {
