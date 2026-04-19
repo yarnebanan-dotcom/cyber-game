@@ -829,19 +829,15 @@ class GameUI {
         }
 
         this.revealedWrap.innerHTML = '';
-        if (allRevealed.length === 0) {
-            this.revealedWrap.classList.add('collapsed');
-            return;
-        }
+        this.revealedWrap.classList.remove('collapsed');
         const lane = this._makeRevealedLane(allRevealed, playable);
         this.revealedWrap.appendChild(lane);
-        this.revealedWrap.classList.remove('collapsed');
     }
 
     _makeRevealedLane(entries, playable) {
         const count = `${entries.length} ${this._cardWord(entries.length)}`;
         const lane = document.createElement('div');
-        lane.className = 'rev-lane';
+        lane.className = 'rev-lane' + (entries.length === 0 ? ' empty' : '');
         lane.style.setProperty('--lane-tint', 'rgba(170,204,255,0.05)');
         lane.innerHTML = `
             <div class="rev-lane-label">РАСКРЫТО · ОБЩАЯ ЗОНА</div>
@@ -849,10 +845,14 @@ class GameUI {
             <div class="rev-lane-row"></div>
         `;
         const row = lane.querySelector('.rev-lane-row');
-        entries.forEach(({ card, ownerPI }) => {
-            const el = this._makeCardEl(card, playable.has(card), true, ownerPI);
-            row.appendChild(el);
-        });
+        if (entries.length === 0) {
+            row.innerHTML = '<div class="rev-lane-placeholder">— пусто —</div>';
+        } else {
+            entries.forEach(({ card, ownerPI }) => {
+                const el = this._makeCardEl(card, playable.has(card), true, ownerPI);
+                row.appendChild(el);
+            });
+        }
         return lane;
     }
 

@@ -441,7 +441,23 @@ html, body {
 
 /* ── Revealed zones — HUD lanes (FIX-21) ─────────────────── */
 .revealed-wrap { flex-shrink: 0; overflow: visible; }
-.revealed-wrap.collapsed { display: none; }
+/* Пустая зона остаётся видимой — слот «здесь появятся раскрытые карты» */
+.rev-lane.empty {
+    padding: 14px 12px 6px;
+    opacity: 0.55;
+}
+.rev-lane.empty .rev-lane-row {
+    min-height: 28px;
+    align-items: center;
+    justify-content: center;
+}
+.rev-lane-placeholder {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--text-ghost);
+    text-transform: uppercase;
+}
 
 /* One lane per owner; stacked when multiple (3p top) */
 .rev-lane {
