@@ -533,22 +533,10 @@ class GameUI {
             && deckHas;
         drawThreeBtn.style.display = canDrawThree ? '' : 'none';
 
-        // Dynamic primary/secondary state for end-turn button
-        if (inTurn && !inSynth && !inNodePick) {
-            const vp = st.players[this._viewPI()];
-            const allCards = [...vp.hand, ...st.players.flatMap(p => p.revealed)];
-            const hasPlayable = allCards.some(c => this.tm.getValidPlacements(c).length > 0);
-            const hasHand = vp.hand.length > 0 || vp.revealed.length > 0;
-            const chipsLeft = st.chipsAllowed - st.chipsPlaced;
-            const canPlaceChip = chipsLeft > 0 && st.cp.reserve > 0 && st.board.emptyNodes().length > 0;
-            const somethingToDo = hasPlayable || canPlaceChip;
-            if (!hasHand && !canPlaceChip)      skipBtn.textContent = '⏭ Завершить ход (нет ходов)';
-            else if (!hasPlayable && !canPlaceChip) skipBtn.textContent = '⏭ Завершить ход (нет розыгрышей)';
-            else                                skipBtn.textContent = '⏭ Завершить ход';
-            // Primary когда делать нечего, ghost когда есть что делать
-            skipBtn.classList.toggle('btn-primary', !somethingToDo);
-            skipBtn.classList.toggle('btn-ghost', somethingToDo);
-        }
+        // Кнопка всегда primary, без подсказок о наличии розыгрышей
+        skipBtn.textContent = '⏭ Завершить ход';
+        skipBtn.classList.add('btn-primary');
+        skipBtn.classList.remove('btn-ghost');
 
         // Labels now rendered per-lane in _renderRevealed (FIX-21)
         this._renderBoard();
