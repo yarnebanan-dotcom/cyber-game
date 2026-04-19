@@ -312,9 +312,9 @@ function applySnapshotTo(st, snap, cardsById) {
     st.hardMode = !!snap.hardMode;
 }
 
-// Собираем Map<id, cardObj> из колоды нужного режима (2p или 3p)
-function buildCardsById(playerCount) {
-    const cards = playerCount === 3 ? CardDatabase.create3() : CardDatabase.create();
+// Собираем Map<id, cardObj> из единой колоды
+function buildCardsById(_playerCount) {
+    const cards = CardDatabase.create();
     const map = new Map();
     for (const c of cards) map.set(c.id, c);
     return map;

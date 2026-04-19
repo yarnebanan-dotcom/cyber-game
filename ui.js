@@ -1037,7 +1037,7 @@ class GameUI {
     _populateRulesDeck() {
         const box = document.getElementById('rules-deck-list');
         if (!box || box.dataset.filled === '1') return;
-        const deck = (this._playerCount === 3) ? CardDatabase.create3() : CardDatabase.create();
+        const deck = CardDatabase.create();
         // Dedup by name+cost (одинаковые копии вместе)
         const seen = new Map();
         for (const c of deck) {

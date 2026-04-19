@@ -82,10 +82,8 @@ class GameState {
         this.utilizesThisTurn = 0;
         // Hard-mode: флаг «игрок выбрал добор 3 карт вместо размещения в этом ходу»
         this.drewThreeThisTurn = false;
-        // Колода по режиму: 2p → create() (53 карты, id 1..53), 3p → create3() (54 карты, id 1001+).
-        // Важно: id должны совпадать с buildCardsById(playerCount) в net.js —
-        // иначе онлайн-синхронизация фильтрует руки гостя в ноль.
-        const cards = playerCount === 3 ? CardDatabase.create3() : CardDatabase.create();
+        // Единая колода для всех режимов (2p/3p). id совпадают с buildCardsById() в net.js.
+        const cards = CardDatabase.create();
         this.deck = new Deck(cards, this.discard);
     }
     get cp() { return this.players[this.currentPI]; }
@@ -661,94 +659,15 @@ class TurnManager {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  CARD DATABASE  (54 карты 2p)
-//  Сетки карт имеют разный размер: 3×3, 4×4, реже 4×3/3×4/5×4/5×5.
-//  Паттерны сверены по фото-референсам в /Визуал/2 игрока/.
+//  CARD DATABASE  (54 карты — единая актуальная колода)
+//  Все карты имеют сетку 3×3. gridW/gridH не передаются — default в
+//  PatternMatcher (card.gridW || 3, card.gridH || 3) покрывает это.
 // ═══════════════════════════════════════════════════════════
 
 class CardDatabase {
     static create() {
         const cards = [];
         let id = 1;
-        const add = (copies, name, cost, pattern, play, utilize, synthesis, grid) => {
-            const [gw, gh] = grid || [3, 3];
-            for (let i = 0; i < copies; i++) cards.push({
-                id: id++, name, cost, pattern: pattern || [],
-                gridW: gw, gridH: gh,
-                playEffect: play || CardEffect.None,
-                utilizeEffect: utilize || CardEffect.None,
-                synthesisEffect: synthesis || CardEffect.None,
-            });
-        };
-
-        // ── СТОИМОСТЬ 0 ──
-        add(2, 'БАЙТ',               0, [W(1,1)], E(Dig(1)));
-        add(2, 'БИТЫЙ ПИКСЕЛЬ',      0, [G(1,1)]);
-        add(2, 'МИГРАЦИЯ',           0, [W(1,1)], E(Place(1)));
-        add(1, 'ОБРАТНАЯ СВЯЗЬ',     0, [G(1,2),W(2,1)], E(Draw(1)), null, null, [4,4]);
-        add(1, 'УЯЗВИМОСТЬ',         0, [W(1,1),G(1,2),G(2,1)], E(Steal(1)), null, null, [4,4]);
-        add(1, 'ИНКАПСУЛЯЦИЯ',       0, [G(1,2),W(2,1),G(2,3),G(3,2)], E(Dig(1)), null, null, [4,4]);
-        add(1, 'ШИФРОВАНИЕ',         0, [W(0,1),G(1,0),G(1,2),W(2,1)], E(Supply(+1,Target.Self)));
-        add(1, 'БУФЕРИЗАЦИЯ',        0, [G(1,0),W(1,1),G(1,2)], null, null, E(Place(1)));
-        add(1, 'БЭКДОР',             0, [G(0,1),W(1,0),W(1,1),G(2,1)], E(Supply(-1,Target.Opp)));
-        add(1, 'ПЕРЕХВАТ ПОТОКА',    0, [G(0,2),W(1,0)], E(Reveal(1,Target.Opp)), E(Reveal(1,Target.Self)));
-        add(1, 'ТЕРНАРНЫЙ ОПЕРАТОР', 0, [W(0,1),G(0,2),W(1,1),G(1,2)], E(Discard(3,Target.Opp)), E(Discard(2,Target.Self)));
-
-        // ── СТОИМОСТЬ 1 ──
-        add(2, 'БИТ',                1, [W(1,1)], null, E(Place(1)));
-        add(1, 'ДУБЛИРОВАНИЕ',       1, [W(1,1),W(1,2)], E(Place(1)), null, null, [4,4]);
-        add(1, 'БРУТФОРС',           1, [W(1,1),G(1,2),W(2,1),W(2,2)], E(Reveal(1,Target.Opp),Draw(2)), null, null, [3,4]);
-        add(1, 'НАПРАВЛЕННЫЙ ПОТОК', 1, [W(1,3),W(2,2),W(3,1)], E(Reveal(3,Target.Opp)), E(Reveal(1,Target.Self)), null, [4,4]);
-        add(1, 'БИНАРНЫЙ ОПЕРАТОР',  1, [W(0,1),W(1,0),W(1,2)], E(Supply(+1,Target.Self)));
-        add(1, 'СОРТИРОВКА',         1, [W(0,3),W(1,2),W(2,1),W(3,1)], E(Dig(2),Supply(+1,Target.Self)), null, null, [4,4]);
-        add(1, 'ОБНОВЛЕНИЕ',         1, [W(0,2),W(1,3),W(2,1)], E(SetSup(4,Target.Self)), null, null, [4,4]);
-        add(1, 'СИНХРОНИЗАЦИЯ',      1, [W(1,0),G(1,1),W(1,2),G(1,3)], E(CopySup()), null, null, [4,4]);
-        add(1, 'ИНЪЕКЦИЯ КОДА',      1, [W(0,0),G(1,2),G(2,1),W(3,3)], E(Reveal(1,Target.Opp),Steal(1)), null, null, [4,4]);
-        add(1, 'ПРОКСИ',             1, [W(1,0),G(1,1),G(2,2),W(2,3)], E(Place(1),Reveal(1,Target.Self),Discard(1,Target.Opp)), null, null, [4,4]);
-        add(1, 'ЗАМЫКАНИЕ',          1, [W(2,1),W(2,2),G(2,3),W(2,4)], E(Supply(-1,Target.Opp)), null, null, [5,4]);
-        add(1, 'РЕКУРСИЯ',           1, [W(1,1),G(1,2),W(2,1),G(2,2)], E(Steal(1)), null, null, [4,4]);
-
-        // ── СТОИМОСТЬ 2 ──
-        add(2, 'ЗАЦИКЛИВАНИЕ',       2, [W(1,1)], E(Discard(1,Target.Self)));
-        add(1, 'БИНАРНЫЕ ПОТОКИ',    2, [W(1,1),W(2,2)], null, null, null, [4,4]);
-        add(1, 'ПЕРЕЗАГРУЗКА',       2, [W(1,2),W(2,1),W(2,2)], E(Reset(),Place(1)), null, null, [4,4]);
-        add(1, 'СИНЕРГИЯ',           2, [G(1,1),W(1,2),W(2,1),G(2,2)], E(Supply(+1,Target.Opp),Supply(+1,Target.Self)), null, null, [4,4]);
-        add(1, 'ЛОЖНЫЕ ДАННЫЕ',      2, [W(1,1),G(1,2),W(2,1)], E(Reveal(2,Target.Self),Draw(2)), null, null, [4,3]);
-        add(1, 'БРАНДМАУЭР',         2, [W(0,1),W(1,1),G(1,2),W(2,1)], E(Place(2)));
-        add(1, 'ИТЕРАЦИЯ',           2, [W(0,1),W(1,0),W(1,2),W(2,1)], E(Place(4)));
-        add(1, 'АСИНХРОННОСТЬ',      2, [G(1,1),G(1,2),W(2,2),W(2,3)], E(Reveal(2,Target.Opp),Reveal(2,Target.Self)), null, null, [4,4]);
-        add(1, 'ФОРК',               2, [W(1,1),W(1,3),W(2,2),W(3,2)], E(Place(2),Draw(2)), null, null, [4,4]);
-        add(1, 'ИНТЕРФЕЙС',          2, [W(1,2),W(2,1),W(2,2),W(3,2)], E(Reveal(2,Target.Self),Place(4),Discard(1,Target.Opp)), null, null, [4,4]);
-
-        // ── СТОИМОСТЬ 3 ──
-        add(1, 'ПЕРЕГРУЗКА',         3, [W(1,1),W(1,2),W(2,1),W(2,2)], E(Draw(3)), null, null, [4,4]);
-        add(1, 'РЕЗЕРВ',             3, [W(1,1),W(1,2),W(2,2)], E(Discard(1,Target.Opp)), E(Discard(2,Target.Self),Draw(2)), null, [4,4]);
-        add(1, 'УСИЛЕНИЕ ЯДРА',      3, [W(1,2),W(2,1),W(2,2),W(2,3),W(3,2)], E(Supply(+2,Target.Self)), null, null, [4,4]);
-        add(1, 'РЕФАКТОРИНГ',        3, [W(0,0),W(0,2),W(1,1),W(2,0),W(2,2)], E(Steal(2),Place(3)), E(Reveal(1,Target.Self)));
-        add(1, 'СОКЕТ',              3, [W(1,1),W(1,2),W(2,2),W(3,2)], E(Draw(3)), null, null, [4,4]);
-        add(1, 'ФРАГМЕНТАЦИЯ',       3, [W(0,0),G(0,2),W(2,0),W(2,2)], E(Dig(1)), null, null, [4,4]);
-        add(1, 'ЧЕРВЬ СЕТИ',         3, [W(0,0),W(1,0),W(2,1),W(3,1)], E(DiscardAll(Target.Opp)), E(DiscardAll(Target.Self)), null, [4,4]);
-
-        // ── СТОИМОСТЬ 4 ──
-        add(1, 'ПАРАЛЛЕЛЬНЫЕ ПОТОКИ',4, [W(0,0),W(0,2),W(2,0),W(2,2)], E(Reveal(2,Target.Self),Draw(2)));
-        add(1, 'КЭШИРОВАНИЕ',        4, [W(1,1),W(1,2),W(2,1),W(2,2),W(3,1)], E(Draw(3),Discard(1,Target.Opp)), null, null, [4,4]);
-        add(1, 'РЕПЛИКАЦИЯ',         4, [W(1,3),W(2,1),W(2,3),W(3,1)], E(Draw(3),RevealAll(Target.Self)), null, null, [5,5]);
-        add(1, 'ДЕФРАГМЕНТАЦИЯ',     4, [W(0,0),W(0,3),W(3,0),W(3,3)], E(DiscardAll(Target.Self),Draw(4)), null, null, [4,4]);
-        add(1, 'ЭНТРОПИЯ',           4, [W(0,3),G(1,2),G(2,1),W(3,0)], E(Supply(-1,Target.Self)), null, null, [4,4]);
-        add(1, 'ТУННЕЛИРОВАНИЕ',     4, [W(0,1),W(1,1),W(2,1),W(3,1)], null, null, E(Supply(+1,Target.Self)), [4,4]);
-
-        // ── СТОИМОСТЬ -1 ──
-        add(1, 'ПЕРЕНАПРАВЛЕНИЕ',   -1, [G(1,2),G(2,1)], null, E(Place(1)), null, [4,4]);
-        add(1, 'КЛЮЧ БЕЗОПАСНОСТИ', -1, [W(0,1),G(1,1)], E(Reveal(1,Target.Opp)), null, E(Reset()));
-        add(1, 'ПРЕРЫВАНИЕ',        -1, [G(2,1),G(2,2),W(2,3)], null, null, E(Supply(-1,Target.Opp)), [4,4]);
-
-        return cards;
-    }
-
-    // ── 3-PLAYER DECK (54 карты: те же 53 + УСИЛЕНИЕ ЯДРА; часть паттернов изменена) ──
-    static create3() {
-        const cards = [];
-        let id = 1001;
         const add = (copies, name, cost, pattern, play, utilize, synthesis) => {
             for (let i = 0; i < copies; i++) cards.push({
                 id: id++, name, cost, pattern: pattern || [],
