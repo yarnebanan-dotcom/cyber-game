@@ -948,10 +948,31 @@ class GameUI {
         return el;
     }
 
+    // Если паттерн помещается в 3×3 — показываем 3×3, иначе минимальную квадратную сетку,
+    // в которую он влезает. Паттерн центрируется внутри.
+    _normalizedPattern(card) {
+        const pattern = card.pattern || [];
+        if (!pattern.length) return { cells: [], gw: 3, gh: 3 };
+        let rMin = Infinity, rMax = -Infinity, cMin = Infinity, cMax = -Infinity;
+        for (const p of pattern) {
+            if (p.row < rMin) rMin = p.row; if (p.row > rMax) rMax = p.row;
+            if (p.col < cMin) cMin = p.col; if (p.col > cMax) cMax = p.col;
+        }
+        const bbW = cMax - cMin + 1;
+        const bbH = rMax - rMin + 1;
+        const dim = Math.max(3, bbW, bbH);
+        const offC = Math.floor((dim - bbW) / 2);
+        const offR = Math.floor((dim - bbH) / 2);
+        const cells = pattern.map(p => ({
+            row: p.row - rMin + offR,
+            col: p.col - cMin + offC,
+            type: p.type,
+        }));
+        return { cells, gw: dim, gh: dim };
+    }
+
     _patternGridHTML(card) {
-        const gw = card.gridW || 3;
-        const gh = card.gridH || 3;
-        const cells = card.pattern || [];
+        const { cells, gw, gh } = this._normalizedPattern(card);
         let html = `<div class="card-pattern-grid" style="grid-template-columns:repeat(${gw},1fr);grid-template-rows:repeat(${gh},1fr);aspect-ratio:${gw}/${gh};">`;
         for (let r = 0; r < gh; r++) for (let c = 0; c < gw; c++) {
             const cd = cells.find(p => p.row === r && p.col === c);
@@ -964,9 +985,7 @@ class GameUI {
     }
 
     _patternSVG(card, size = 48, ownerPI) {
-        const gw = card.gridW || 3;
-        const gh = card.gridH || 3;
-        const cells = card.pattern || [];
+        const { cells, gw, gh } = this._normalizedPattern(card);
         const gap = 1;
         const maxDim = Math.max(gw, gh, 1);
         const cell = Math.floor((size - 8) / maxDim - gap);
