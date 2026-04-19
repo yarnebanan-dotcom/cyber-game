@@ -2307,6 +2307,20 @@ html, body {
     .pause-snap-row .ps-k { min-width: 68px; }
     .pause-snap-row { font-size: 9px; gap: 6px; }
 }
+
+/* ── Responsive: ультра-узкие (≤320px, Galaxy-Fold) ────────────── */
+@media (max-width: 320px) {
+    /* phase-hint: текст на 2 строки, контейнер растёт вместо обрезки */
+    #phase-hint {
+        height: auto;
+        min-height: 32px;
+        padding-top: 3px;
+        padding-bottom: 3px;
+        align-items: flex-start;
+        overflow: visible;
+    }
+    #phase-hint .hint-text { line-height: 1.3; }
+}
 </style>
 </head>
 <body>
