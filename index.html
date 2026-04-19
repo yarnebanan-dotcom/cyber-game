@@ -645,18 +645,13 @@ html, body {
 .node:nth-child(4n+2)::before { animation-delay: 0.35s; }
 .node:nth-child(4n+3)::before { animation-delay: 0.70s; }
 .node:nth-child(4n+4)::before { animation-delay: 1.05s; }
-/* FIX-06: пульсирующая dashed-рамка вокруг валидных фишек паттерна */
+/* Статичная dashed-рамка на валидных узлах node pick (без мигания) */
 .node.highlighted {
-    background: rgba(255,106,43,0.14);
-    outline: 1.5px dashed var(--accent);
+    background: rgba(255,106,43,0.12);
+    outline: 1.5px dashed rgba(255,106,43,0.75);
     outline-offset: -3px;
-    animation: node-valid-pulse 1.1s ease-in-out infinite;
 }
 .node.highlighted::before { animation: none; }
-@keyframes node-valid-pulse {
-    0%, 100% { outline-color: rgba(255,106,43,0.55); background: rgba(255,106,43,0.08); }
-    50%      { outline-color: rgba(255,106,43,1); background: rgba(255,106,43,0.22); }
-}
 /* FIX-26: крест-accent на уже тапнутых фишках паттерна (V3) */
 .node.tapped {
     outline: 1.5px solid var(--accent);
