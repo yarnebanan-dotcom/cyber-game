@@ -6,6 +6,15 @@
 
 ---
 
+## 2026-04-19 — Онлайн: фикс мигания доски у гостя + документация протокола
+
+- `ui.js` `_renderBoard` — подсветка пустых узлов перенесена внутрь единого ре-рендера: `canPlaceChips = phase===Turn && isMyTurn && !nodePickDone && chipsPlaced<chipsAllowed && reserve>0`. Теперь `.highlighted` живёт только ту фазу, когда игрок реально может ставить фишки, и `_render()` больше не стирает её побочно — пульсация не «мигает» на чужом ходу.
+- `ui.js` `_onPhaseChanged` — добавлен guard `isOppTurnNet = netMode && currentPI !== localPI`: в онлайне на ходу соперника `_highlightEmptyNodes()` не вызывается.
+- `net.js` — поправлен комментарий протокола: `{ type: 'action', action, ...args }` → `{ type: 'action', name, args }` (реальный формат из `_createGuestTM`).
+- Онлайн протестирован end-to-end (host/guest в одном контексте через `new Peer()`): connect, snapshot, `replenish`/`placeChip`/`endTurn` actions, keepalive ping, disconnect detection — всё работает.
+
+---
+
 ## 2026-04-19 — Долгое нажатие на карту — анимированный поворот паттерна
 
 - `ui.js` `_renderHandCard` — `pointerdown` запускает таймер 350ms, затем `setInterval(rotate, 450)`; `pointerup/leave/cancel` останавливают. `pointermove` с threshold 8px отменяет (чтобы не конфликтовать со скроллом руки).

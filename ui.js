@@ -639,6 +639,10 @@ class GameUI {
         // Переживание подсветки (node pick) через ре-рендер
         const allowedSet = new Set((this.nodePickAllowed || []).map(([r, c]) => `${r},${c}`));
         const selectedSet = new Set((this.nodePickResult || []).map(([r, c]) => `${r},${c}`));
+        // Подсветка пустых узлов, когда в свой ход можно ставить фишки
+        const isMyTurn = !this.netMode || st.currentPI === this.localPI;
+        const canPlaceChips = st.phase === Phase.Turn && isMyTurn && !this.nodePickDone
+            && st.chipsPlaced < st.chipsAllowed && (st.cp?.reserve ?? 0) > 0;
         cells.forEach(cell => {
             const r = parseInt(cell.dataset.r), c = parseInt(cell.dataset.c);
             const occ = st.board.nodes[r][c];
@@ -646,6 +650,7 @@ class GameUI {
             if (tappedSet.has(`${r},${c}`)) cn += ' tapped';
             if (consumed && consumed.has(`${r},${c}`)) cn += ' consumed';
             if (allowedSet.has(`${r},${c}`)) cn += ' highlighted';
+            else if (canPlaceChips && occ === 0) cn += ' highlighted';
             if (selectedSet.has(`${r},${c}`)) cn += ' selected-node';
             cell.className = cn;
         });
@@ -1179,7 +1184,8 @@ class GameUI {
         if (phase === Phase.Turn) {
             // Подсвечиваем пустые узлы, пока можно ставить фишки
             const st = this.state;
-            if (st && st.chipsPlaced < st.chipsAllowed && st.cp.reserve > 0) {
+            const isOppTurnNet = this.netMode && st && st.currentPI !== this.localPI;
+            if (!isOppTurnNet && st && st.chipsPlaced < st.chipsAllowed && st.cp.reserve > 0) {
                 this._highlightEmptyNodes();
             } else {
                 this._clearHighlights();

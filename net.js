@@ -8,7 +8,7 @@
 //  Протокол сообщений:
 //    { type: 'hello', role: 'guest' }                     guest → host
 //    { type: 'state', snapshot }                          host → guest
-//    { type: 'action', action, ...args }                  guest → host
+//    { type: 'action', name, args }                       guest → host
 //    { type: 'input-req', reqId, kind, pi, ctx, payload } host → guest
 //    { type: 'input-res', reqId, chosen }                 guest → host
 //    { type: 'game-over', winner }                        host → guest
