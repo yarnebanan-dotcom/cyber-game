@@ -6,6 +6,14 @@
 
 ---
 
+## 2026-04-19 — Долгое нажатие на карту — анимированный поворот паттерна
+
+- `ui.js` `_renderHandCard` — `pointerdown` запускает таймер 350ms, затем `setInterval(rotate, 450)`; `pointerup/leave/cancel` останавливают. `pointermove` с threshold 8px отменяет (чтобы не конфликтовать со скроллом руки).
+- Первый `rotate` срабатывает сразу при переходе в long-press, далее каждые 450ms. Использует существующую `rotate()` (обновляет `_cardRotations`, `card-pattern-grid` transform и `.card-corner` label).
+- Флаг `didHoldRotate` подавляет следующий `click`, чтобы hold не триггерил выбор карты в Turn-фазе. Быстрый тап (<350ms) работает как раньше.
+
+---
+
 ## 2026-04-19 — Меню: HARD MODE переименован, правила на русском, вкладка ХАРД
 
 - `index.html` — кнопка `#btn-hard-mode`: убран чекбокс `[ ]/[x]`, остались только «HARD MODE» + subtitle «РАСШИРЕННЫЕ ПРАВИЛА» (центрированный текст). CSS: `.menu-hard { text-align: center }`, убран `.hm-check`.

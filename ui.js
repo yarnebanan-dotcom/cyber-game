@@ -904,7 +904,35 @@ class GameUI {
             this._haptic(6);
         };
 
+        // Долгое нажатие — анимированное вращение паттерна (пока держим)
+        let holdTimer = null;
+        let holdInterval = null;
+        let didHoldRotate = false;
+        let startX = 0, startY = 0;
+        const endHold = () => {
+            if (holdTimer) { clearTimeout(holdTimer); holdTimer = null; }
+            if (holdInterval) { clearInterval(holdInterval); holdInterval = null; }
+        };
+        el.addEventListener('pointerdown', (e) => {
+            startX = e.clientX; startY = e.clientY;
+            didHoldRotate = false;
+            endHold();
+            holdTimer = setTimeout(() => {
+                didHoldRotate = true;
+                rotate();
+                holdInterval = setInterval(rotate, 450);
+            }, 350);
+        });
+        el.addEventListener('pointermove', (e) => {
+            if (!holdTimer && !holdInterval) return;
+            if (Math.hypot(e.clientX - startX, e.clientY - startY) > 8) endHold();
+        });
+        el.addEventListener('pointerup', endHold);
+        el.addEventListener('pointerleave', endHold);
+        el.addEventListener('pointercancel', endHold);
+
         el.addEventListener('click', () => {
+            if (didHoldRotate) { didHoldRotate = false; return; }
             this._setDescCard(card);
             if (this.state && this.state.phase === Phase.Turn) {
                 this._onCardTap(card, isPlayable);
