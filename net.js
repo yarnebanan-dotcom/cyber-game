@@ -30,6 +30,7 @@ class Net {
         this.onDisconnect = null;    // () => void
         this.onReconnect = null;     // () => void
         this.onError = null;         // (err) => void
+        this.onNetLog = null;        // (line:string) => void  -- on-screen диагностика
 
         // Внутреннее
         this._pendingRequests = new Map();  // reqId → resolve
@@ -49,6 +50,15 @@ class Net {
     }
 
     static _peerIdFor(code) { return 'cyber-game-' + code.toLowerCase(); }
+
+    _log(line, level = 'info') {
+        const tag = level === 'warn' ? '⚠ ' : level === 'err' ? '✕ ' : '· ';
+        const msg = tag + line;
+        if (level === 'warn') console.warn('[NET]', line);
+        else if (level === 'err') console.error('[NET]', line);
+        else console.log('[NET]', line);
+        this.onNetLog?.(msg, level);
+    }
 
     // Единый PeerJS cloud — host и guest ОБЯЗАНЫ быть на одном signalling сервере,
     // иначе они друг друга не увидят (peer-unavailable). Fallback между серверами ломает это.
@@ -73,14 +83,14 @@ class Net {
         const peerId = Net._peerIdFor(this.code);
 
         return new Promise((resolve, reject) => {
-            console.log('[NET host] peerId=%s', peerId);
+            this._log(`host: создаю peer ${peerId} (retry=${retry})`);
             this.peer = new Peer(peerId, Net._peerOpts());
             let settled = false;
 
             const openTimer = setTimeout(() => {
                 if (settled) return;
                 settled = true;
-                console.warn('[NET host] таймаут open — retry %d', retry);
+                this._log(`host: таймаут 15с, пробую ещё раз (retry=${retry + 1})`, 'warn');
                 try { this.peer.destroy(); } catch (_) {}
                 this.peer = null;
                 setTimeout(() => this.hostGame(retry + 1).then(resolve, reject), 1000);
@@ -90,12 +100,12 @@ class Net {
                 if (settled) return;
                 settled = true;
                 clearTimeout(openTimer);
-                console.log('[NET host] открыт, code=%s', this.code);
+                this._log(`host: peer открыт, code=${this.code} ✓`);
                 resolve(this.code);
             });
 
             this.peer.on('error', (e) => {
-                console.warn('[NET host] error type=%s, msg=%s', e.type, e.message);
+                this._log(`host: error type=${e.type} msg=${e.message || ''}`, 'warn');
                 if (settled) { this.onError?.(e); return; }
                 if (e.type === 'unavailable-id') {
                     settled = true;
@@ -139,7 +149,7 @@ class Net {
         const targetPeerId = Net._peerIdFor(this.code);
 
         return new Promise((resolve, reject) => {
-            console.log('[NET guest] target=%s, retry=%d', targetPeerId, retry);
+            this._log(`guest: ищу хоста ${targetPeerId} (retry=${retry})`);
             this.peer = new Peer(Net._peerOpts());
             let resolved = false;
 
@@ -149,35 +159,36 @@ class Net {
                 try { this.peer.destroy(); } catch (_) {}
                 this.peer = null;
                 if (retry < 5) {
-                    console.warn('[NET guest] retry %d через %dмс (%s)', retry + 1, delayMs, errMsg);
+                    this._log(`guest: повтор через ${delayMs}мс (${errMsg})`, 'warn');
                     setTimeout(() => this.joinGame(code, retry + 1).then(resolve, reject), delayMs);
                 } else {
+                    this._log(`guest: ${errMsg}`, 'err');
                     reject(new Error(errMsg));
                 }
             };
 
             this.peer.on('open', () => {
-                console.log('[NET guest] peer open, connecting к %s...', targetPeerId);
+                this._log(`guest: peer открыт, пробую connect...`);
                 const conn = this.peer.connect(targetPeerId, { reliable: true });
                 this._bindConn(conn, false);
 
                 conn.on('open', () => {
                     if (resolved) return;
                     resolved = true;
-                    console.log('[NET guest] conn open ✓');
+                    this._log(`guest: соединение установлено ✓`);
                     conn.send({ type: 'hello', role: 'guest' });
                     resolve();
                 });
 
                 setTimeout(() => {
                     if (resolved) return;
-                    console.warn('[NET guest] таймаут подключения (retry=%d)', retry);
+                    this._log(`guest: таймаут 20с на подключение`, 'warn');
                     retryOrFail('Хост не найден. Проверь код или попроси создать игру заново.', 2000);
                 }, 20000);
             });
 
             this.peer.on('error', (e) => {
-                console.warn('[NET guest] error type=%s, msg=%s', e.type, e.message);
+                this._log(`guest: error type=${e.type} msg=${e.message || ''}`, 'warn');
                 if (e.type === 'peer-unavailable') {
                     retryOrFail('Хост не найден. Проверь код или попроси создать игру заново.', 2000);
                     return;

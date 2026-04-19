@@ -2206,6 +2206,8 @@ class GameUI {
         this._showOnlineScreen('online-host-screen');
         const codeEl = document.getElementById('online-host-code');
         const statusEl = document.getElementById('online-host-status');
+        const logEl = document.getElementById('online-host-log');
+        if (logEl) { logEl.textContent = ''; logEl.classList.add('hidden'); logEl.classList.remove('error'); }
         codeEl.textContent = '————';
         statusEl.innerHTML = '<div class="net-spinner" style="margin:0 auto 8px"></div>Инициализация...';
 
@@ -2228,6 +2230,8 @@ class GameUI {
         this._showOnlineScreen('online-join-screen');
         const input = document.getElementById('online-join-input');
         const statusEl = document.getElementById('online-join-status');
+        const logEl = document.getElementById('online-join-log');
+        if (logEl) { logEl.textContent = ''; logEl.classList.add('hidden'); logEl.classList.remove('error'); }
         input.value = '';
         statusEl.textContent = '';
         statusEl.classList.remove('error');
@@ -2257,6 +2261,8 @@ class GameUI {
         } catch (e) {
             statusEl.classList.add('error');
             statusEl.textContent = e.message || 'Не удалось подключиться';
+            const logEl = document.getElementById('online-join-log');
+            if (logEl) logEl.classList.add('error');
             confirmBtn.disabled = false;
             this.net?.disconnect();
             this.net = null;
@@ -2279,6 +2285,17 @@ class GameUI {
 
     _wireNetCallbacks() {
         const net = this.net;
+
+        net.onNetLog = (line, level) => {
+            const target = net.role === 'host' ? 'online-host-log' : 'online-join-log';
+            const el = document.getElementById(target);
+            if (!el) return;
+            el.classList.remove('hidden');
+            if (level === 'err') el.classList.add('error');
+            const t = new Date().toLocaleTimeString('ru-RU', { hour12: false });
+            el.textContent += (el.textContent ? '\n' : '') + `${t} ${line}`;
+            el.scrollTop = el.scrollHeight;
+        };
 
         net.onPeerConnected = () => {
             if (net.role === 'host') {

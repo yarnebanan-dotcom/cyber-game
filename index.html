@@ -1977,6 +1977,15 @@ html, body {
 .online-code-input:focus { border-color: rgba(68,136,255,0.85); box-shadow: 0 0 20px rgba(68,136,255,0.25); }
 .online-status { font-size: 13px; color: #7a8eaa; text-align: center; line-height: 1.6; min-height: 36px; }
 .online-status.error { color: #ff8877; }
+.online-net-log {
+    font-family: ui-monospace, 'SF Mono', monospace;
+    font-size: 10px; color: #6b82a3; line-height: 1.45;
+    background: rgba(4,8,20,0.85); border: 1px solid rgba(70,110,210,0.3); border-radius: 8px;
+    padding: 8px 10px; margin: 6px auto 0;
+    max-width: 320px; max-height: 120px; overflow: auto;
+    text-align: left; white-space: pre-wrap; word-break: break-all;
+}
+.online-net-log.error { border-color: rgba(255,136,119,0.45); color: #d8a0a0; }
 .online-back {
     padding: 10px 20px;
     background: transparent;
@@ -2576,6 +2585,7 @@ html, body {
         <div class="net-spinner" style="margin:0 auto 8px"></div>
         Ожидаем подключение...
     </div>
+    <pre id="online-host-log" class="online-net-log hidden"></pre>
     <button class="online-back" id="btn-online-host-cancel">Отмена</button>
 </div>
 
@@ -2587,6 +2597,7 @@ html, body {
            placeholder="XXXX" maxlength="4" autocomplete="off"
            autocapitalize="characters" spellcheck="false">
     <div class="online-status" id="online-join-status">&nbsp;</div>
+    <pre id="online-join-log" class="online-net-log hidden"></pre>
     <button class="online-primary" id="btn-online-join-confirm" disabled>Подключиться</button>
     <button class="online-back" id="btn-online-join-cancel">Отмена</button>
 </div>
