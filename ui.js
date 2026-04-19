@@ -340,15 +340,32 @@ class GameUI {
             },
             chooseStealSource(actorPI, ctx, done) {
                 // Hot-seat: вор всегда активный игрок — показываем модал сразу.
-                // Online: пока только локально у actorPI. Сетевая поддержка — TODO.
+                // Online host: если actor не локальный, запрашиваем выбор у гостя по сети.
                 if (self.netMode === 'host' && actorPI !== self.localPI) {
-                    // Заглушка: для не-локального actor автоматически случайно из первого
-                    // доступного источника. Настоящая сетевая реализация — потом.
-                    const p = ctx.revealedPool[0];
-                    if (p) { done({ type: 'revealed', card: p.card, ownerPI: p.ownerPI }); return; }
-                    const o = ctx.opponents[0];
-                    if (o) { done({ type: 'blind', ownerPI: o.pi }); return; }
-                    done(null);
+                    const payload = {
+                        revealedPool: ctx.revealedPool.map(({ card, ownerPI }) => ({ cardId: card.id, ownerPI })),
+                        opponents: ctx.opponents.map(({ pi, handCount }) => ({ pi, handCount })),
+                        remaining: ctx.remaining,
+                        total: ctx.total,
+                    };
+                    self.net.request('chooseStealSource', actorPI, null, payload).then(resp => {
+                        if (!resp || typeof resp !== 'object') { done(null); return; }
+                        if (resp.type === 'revealed') {
+                            const entry = ctx.revealedPool.find(p => p.card.id === resp.cardId && p.ownerPI === resp.ownerPI);
+                            if (entry) { done({ type: 'revealed', card: entry.card, ownerPI: entry.ownerPI }); return; }
+                            // Карта могла исчезнуть из пула — fallback на первый доступный источник
+                        }
+                        if (resp.type === 'blind') {
+                            const o = ctx.opponents.find(x => x.pi === resp.ownerPI);
+                            if (o) { done({ type: 'blind', ownerPI: o.pi }); return; }
+                        }
+                        // Невалидный ответ — fallback
+                        const p = ctx.revealedPool[0];
+                        if (p) { done({ type: 'revealed', card: p.card, ownerPI: p.ownerPI }); return; }
+                        const o = ctx.opponents[0];
+                        if (o) { done({ type: 'blind', ownerPI: o.pi }); return; }
+                        done(null);
+                    });
                     return;
                 }
                 self._showStealPick(actorPI, ctx, done);
@@ -2393,6 +2410,23 @@ class GameUI {
         } else if (kind === 'chooseNodes') {
             this._startNodePick(payload.nodes || [], payload.count, chosen => {
                 this.net.respondToRequest(reqId, chosen);
+            });
+        } else if (kind === 'chooseStealSource') {
+            const ctx = {
+                revealedPool: (payload.revealedPool || [])
+                    .map(({ cardId, ownerPI }) => ({ card: this.cardsById.get(cardId), ownerPI }))
+                    .filter(x => x.card),
+                opponents: payload.opponents || [],
+                remaining: payload.remaining,
+                total: payload.total,
+            };
+            this._showStealPick(pi, ctx, choice => {
+                if (!choice) { this.net.respondToRequest(reqId, null); return; }
+                if (choice.type === 'revealed') {
+                    this.net.respondToRequest(reqId, { type: 'revealed', cardId: choice.card.id, ownerPI: choice.ownerPI });
+                } else {
+                    this.net.respondToRequest(reqId, { type: 'blind', ownerPI: choice.ownerPI });
+                }
             });
         }
     }

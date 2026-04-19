@@ -6,6 +6,15 @@
 
 ---
 
+## 2026-04-19 — Онлайн: сетевая кража карт (chooseStealSource)
+
+- До фикса: `chooseStealSource` в `input`-прокси [ui.js:341](Web/ui.js:341) для не-локального actor'а (когда actor=гость) автоматически выбирал первую доступную цель — без интерактивного выбора у жертвы. Карты УЯЗВИМОСТЬ / ИНЪЕКЦИЯ КОДА / РЕКУРСИЯ / РЕФАКТОРИНГ в онлайне работали «криво» когда их играл гость.
+- Фикс: добавил RPC-ветку по паттерну `chooseCards`/`chooseNodes`. Host сериализует `ctx` в payload (`revealedPool` → массив `{cardId, ownerPI}`, `opponents` → `{pi, handCount}`) и через `net.request('chooseStealSource', ...)` запрашивает guest'а. Guest в `_guestHandleInputReq` восстанавливает `ctx.revealedPool` через `cardsById`, показывает `_showStealPick`, ответ отправляет обратно через `respondToRequest`. Host резолвит и передаёт реальный объект карты.
+- Fallback: если guest не нашёл карту (карта ушла из пула между request и response) или вернул невалидный ответ — host выбирает первую доступную цель, чтобы игра не зависла.
+- Тест `_test-online-steal.js` проверяет оба пути (blind + revealed) через прямой вызов `input.chooseStealSource` на host'е с моком ctx. Оба PASS: blind-btns=1 → `{type:blind, ownerPI:0}`, rev-items=1 → `{type:revealed, cardId:8, cardName:УЯЗВИМОСТЬ, ownerPI:0}`.
+
+---
+
 ## 2026-04-19 — Стартовая раздача карт всем игрокам
 
 - До фикса: в `ui.startGame()` вызывался `tm.replenish()`, который добирает карты **только у current player**. У игрока 2 до его первого хода была пустая рука — в онлайне он физически ничего не мог тапнуть и прочитать описания карт пока ходит соперник. В hot-seat это было скрыто handoff-экраном, но фикс одинаково правильный для обоих режимов.
