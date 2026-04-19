@@ -639,10 +639,6 @@ class GameUI {
         // Переживание подсветки (node pick) через ре-рендер
         const allowedSet = new Set((this.nodePickAllowed || []).map(([r, c]) => `${r},${c}`));
         const selectedSet = new Set((this.nodePickResult || []).map(([r, c]) => `${r},${c}`));
-        // Подсветка пустых узлов, когда в свой ход можно ставить фишки
-        const isMyTurn = !this.netMode || st.currentPI === this.localPI;
-        const canPlaceChips = st.phase === Phase.Turn && isMyTurn && !this.nodePickDone
-            && st.chipsPlaced < st.chipsAllowed && (st.cp?.reserve ?? 0) > 0;
         cells.forEach(cell => {
             const r = parseInt(cell.dataset.r), c = parseInt(cell.dataset.c);
             const occ = st.board.nodes[r][c];
@@ -650,7 +646,6 @@ class GameUI {
             if (tappedSet.has(`${r},${c}`)) cn += ' tapped';
             if (consumed && consumed.has(`${r},${c}`)) cn += ' consumed';
             if (allowedSet.has(`${r},${c}`)) cn += ' highlighted';
-            else if (canPlaceChips && occ === 0) cn += ' highlighted';
             if (selectedSet.has(`${r},${c}`)) cn += ' selected-node';
             cell.className = cn;
         });
@@ -1181,18 +1176,9 @@ class GameUI {
     // ── Event handlers ─────────────────────────────────────────
 
     _onPhaseChanged(phase) {
-        if (phase === Phase.Turn) {
-            // Подсвечиваем пустые узлы, пока можно ставить фишки
-            const st = this.state;
-            const isOppTurnNet = this.netMode && st && st.currentPI !== this.localPI;
-            if (!isOppTurnNet && st && st.chipsPlaced < st.chipsAllowed && st.cp.reserve > 0) {
-                this._highlightEmptyNodes();
-            } else {
-                this._clearHighlights();
-            }
-        } else {
-            this._clearHighlights();
-        }
+        // Подсветку пустых узлов НЕ включаем — игрок и так видит, что узлы пустые.
+        // Остаётся только подсветка при выборе узлов для эффекта (allowedSet в _renderBoard).
+        this._clearHighlights();
         this._updatePhaseHint();
     }
 
@@ -1231,7 +1217,6 @@ class GameUI {
                 if (result === 'ok') {
                     this._haptic(14);
                     this._renderBoard();
-                    this._highlightEmptyNodes();
                     this._updatePhaseHint();
                     this._render();
                 }
@@ -1245,9 +1230,6 @@ class GameUI {
             this._haptic(14);
             this._playSound('chip');
             this._renderBoard();
-            // Подсветка пустых узлов — пока лимит не исчерпан
-            if (st.chipsPlaced < st.chipsAllowed && st.cp.reserve > 0) this._highlightEmptyNodes();
-            else this._clearHighlights();
             this._updatePhaseHint();
             this._render();
         }
@@ -1563,10 +1545,12 @@ class GameUI {
         if (cell) cell.classList.add('selected-node');
 
         if (this.nodePickRemaining <= 0 || this.nodePickAllowed.length === 0) {
-            this._clearHighlights();
             const done = this.nodePickDone;
             const result = this.nodePickResult;
             this.nodePickDone = null;
+            this.nodePickAllowed = [];
+            this.nodePickResult = [];
+            this._clearHighlights();
             this._updatePhaseHint();
             done(result);
         } else {
@@ -2388,12 +2372,7 @@ class GameUI {
         }
         this._render();
         this._updatePhaseHint();
-        if (snap.phase === Phase.Turn && snap.currentPI === this.localPI
-            && snap.chipsPlaced < snap.chipsAllowed) {
-            this._highlightEmptyNodes();
-        } else {
-            this._clearHighlights();
-        }
+        this._clearHighlights();
         this._updateNetTurnIndicator();
     }
 

@@ -6,6 +6,17 @@
 
 ---
 
+## 2026-04-19 — Онлайн: убрана автоподсветка пустых узлов + фикс остаточных highlight
+
+- `ui.js` `_renderBoard` — удалена ветка авто-`highlighted` для пустых узлов (`canPlaceChips && occ===0`). Игрок и так видит, что узлы пустые; дополнительная подсветка только путала и ломалась на ходе соперника. Подсветка остаётся только для `allowedSet` (выбор узлов эффектом).
+- `ui.js` `_onPhaseChanged` — упрощён: теперь просто `_clearHighlights() + _updatePhaseHint()`, без авто-хайлайта.
+- `ui.js` `_onNodeTap` — убраны вызовы `_highlightEmptyNodes()` после undo/place фишки.
+- `ui.js` `_guestApplyState` — убран блок `if (myTurn && canPlaceChips) _highlightEmptyNodes()`, остался `_clearHighlights()`.
+- `ui.js` `_handleNodePick` — **bugfix**: при завершении node-pick обнулялся только `nodePickDone`, но `nodePickAllowed` и `nodePickResult` оставались — из-за чего следующий `_renderBoard` снова подсвечивал старые разрешённые клетки. Теперь обе массивы чистятся.
+- Тестирование: Playwright e2e, 2 контекста (host+guest), карта БИТ инъецирована в руку гостя и разыграна по сети (score 0→1, hand 4→3, discard=1, снапшоты синхронны). 4 раунда цикла без ошибок, `highlighted=0` на обоих клиентах во всех состояниях.
+
+---
+
 ## 2026-04-19 — Онлайн: фикс мигания доски у гостя + документация протокола
 
 - `ui.js` `_renderBoard` — подсветка пустых узлов перенесена внутрь единого ре-рендера: `canPlaceChips = phase===Turn && isMyTurn && !nodePickDone && chipsPlaced<chipsAllowed && reserve>0`. Теперь `.highlighted` живёт только ту фазу, когда игрок реально может ставить фишки, и `_render()` больше не стирает её побочно — пульсация не «мигает» на чужом ходу.
