@@ -817,6 +817,31 @@ class GameUI {
         this._render();
     }
 
+    // Анимированный вылет карты из руки/раскрытых перед тем как state её уберёт.
+    // Вызывается СИНХРОННО до tm.playCard / tm.utilizeCard. Клон карты переводится
+    // в position:fixed c текущими координатами, оригинал удаляется; клон убирается
+    // после окончания keyframes.
+    _animateCardFlyOut(cardId) {
+        const src = document.querySelector(`.card[data-card-id="${cardId}"]`);
+        if (!src) return;
+        const rect = src.getBoundingClientRect();
+        const clone = src.cloneNode(true);
+        clone.classList.remove('selected', 'playable', 'unplayable');
+        clone.classList.add('card-flying-out');
+        clone.style.left = rect.left + 'px';
+        clone.style.top  = rect.top  + 'px';
+        clone.style.width  = rect.width  + 'px';
+        clone.style.height = rect.height + 'px';
+        // Отталкиваемся вбок от центра экрана — карты с левой стороны улетают влево, с правой вправо.
+        const centerX = window.innerWidth / 2;
+        const cardCx = rect.left + rect.width / 2;
+        clone.style.setProperty('--fly-dx', `${(cardCx - centerX) * 0.3}px`);
+        document.body.appendChild(clone);
+        // Убираем оригинал, чтобы _render() не наткнулся на дубликат
+        src.style.visibility = 'hidden';
+        setTimeout(() => { try { clone.remove(); } catch (_) {} }, 600);
+    }
+
     _renderRevealed() {
         const st = this.state;
         const vpi = this._viewPI();
@@ -888,6 +913,7 @@ class GameUI {
     _makeCardEl(card, isPlayable, interactive, ownerPI) {
         const el = document.createElement('div');
         el.className = 'card' + (isPlayable ? ' playable' : ' unplayable');
+        el.dataset.cardId = card.id;
         if (typeof ownerPI === 'number') el.dataset.player = `p${ownerPI + 1}`;
         if (card === this.pendingCard) el.classList.add('selected');
 
@@ -1344,6 +1370,7 @@ class GameUI {
             this._showMessage('Лимит утилизаций (2) исчерпан');
             return;
         }
+        this._animateCardFlyOut(this.pendingCard.id);
         this.tm.utilizeCard(this.pendingCard, result => {
             this.pendingCard = null;
             this._render();
@@ -1387,6 +1414,8 @@ class GameUI {
         const { cardA, cardB, matchA, matchB } = this.synth;
         this.synth = null;
         this.pendingCard = null;
+        this._animateCardFlyOut(cardA.id);
+        this._animateCardFlyOut(cardB.id);
         this.tm.synthesis(cardA, cardB, matchA, matchB, aFirst, result => {
             this._render();
             if (result === 'limitReached') this._showMessage('Лимит задач (2) исчерпан');
@@ -1538,6 +1567,7 @@ class GameUI {
         this._syncFocusMode();
         // Визуально «гасим» только что разыгранную комбинацию на время эффекта
         this._consumedPattern = new Set(match.chipPositions.map(([r, c]) => `${r},${c}`));
+        this._animateCardFlyOut(card.id);
         this.tm.playCard(card, match, result => {
             if (!result) { this._haptic(26); this._playSound('play'); }
             this._consumedPattern = null;
