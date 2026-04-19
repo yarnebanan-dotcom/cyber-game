@@ -1080,23 +1080,23 @@ class GameUI {
                 case 'PlaceChipsEffect':
                     return `Поставь ${n} фишк${chipsWord(n)} на свободные узлы.`;
                 case 'RevealCardsEffect':
-                    if (inf) return self ? `Выложи ВСЮ руку в раскрытые — их может разыграть любой.` : `Противник выкладывает ВСЮ руку в раскрытые.`;
-                    return self ? `Выложи ${n} карт${cardsWord(n)} в раскрытые — их может разыграть любой.` : `Противник выкладывает ${n} карт${cardsWord(n)} в раскрытые.`;
+                    if (inf) return self ? `Выложи ВСЮ руку в раскрытые.` : `Противник выкладывает ВСЮ руку.`;
+                    return self ? `Выложи ${n} карт${cardsWord(n)} в раскрытые.` : `Противник выкладывает ${n} карт${cardsWord(n)} в раскрытые.`;
                 case 'DiscardCardsEffect':
-                    if (inf) return self ? `Сбрось ВСЮ руку (включая раскрытые).` : `Противник сбрасывает ВСЮ руку.`;
-                    return self ? `Сбрось ${n} карт${cardsWord(n)} (можно раскрытые).` : `Противник сбрасывает ${n} карт${cardsWord(n)}.`;
+                    if (inf) return self ? `Сбрось ВСЮ руку.` : `Противник сбрасывает ВСЮ руку.`;
+                    return self ? `Сбрось ${n} карт${cardsWord(n)}.` : `Противник сбрасывает ${n} карт${cardsWord(n)}.`;
                 case 'StealCardsEffect':
                     return `Возьми ${n} случайн${n===1?'ую':'ых'} карт${cardsWord(n)} из руки противника.`;
                 case 'ModifySupplyEffect': {
                     const sign = fx.delta > 0 ? '+' : '';
-                    return self ? `Твой запас ${sign}${fx.delta} (2..6).` : `Запас противника ${sign}${fx.delta} (2..6).`;
+                    return self ? `Твой запас ${sign}${fx.delta}.` : `Запас противника ${sign}${fx.delta}.`;
                 }
                 case 'SetSupplyEffect':
-                    return self ? `Твой запас = ${fx.val} (2..6).` : `Запас противника = ${fx.val} (2..6).`;
+                    return self ? `Твой запас = ${fx.val}.` : `Запас противника = ${fx.val}.`;
                 case 'CopyOpponentSupplyEffect':
-                    return `Твой запас = запас противника (2..6).`;
+                    return `Твой запас = запас противника.`;
                 case 'ResetFieldEffect':
-                    return `Все фишки уходят с поля — каждый забирает свои.`;
+                    return `Все фишки уходят с поля.`;
                 default: return '';
             }
         }).filter(Boolean).join(' ');
