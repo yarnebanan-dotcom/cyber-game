@@ -93,7 +93,10 @@ class GameUI {
         document.getElementById('btn-gameover-menu').onclick = () => this._showMenu();
 
         // Rules screen
-        document.getElementById('btn-show-rules').onclick = () => document.getElementById('rules-screen').classList.remove('hidden');
+        document.getElementById('btn-show-rules').onclick = () => {
+            this._populateRulesDeck();
+            document.getElementById('rules-screen').classList.remove('hidden');
+        };
         document.getElementById('btn-rules-close').onclick = () => document.getElementById('rules-screen').classList.add('hidden');
         // Rules tabs
         document.querySelectorAll('.rules-tab').forEach(btn => {
@@ -501,7 +504,11 @@ class GameUI {
         const playerTag = this.netMode
             ? `Игрок ${viewPI + 1}`
             : `Игрок ${st.currentPI + 1}`;
-        this.handLabelEl.innerHTML = `◦ РУКА · ${playerTag} <span style="color:var(--text-ghost)">··· ${handSize}/5</span>`;
+        // UI-10: мета-строка с подсказкой справа
+        const supply = st.players[this.netMode ? viewPI : st.currentPI].supply;
+        this.handLabelEl.innerHTML =
+            `<span>РУКА · ${playerTag.toUpperCase()} · <span style="color:var(--text)">${handSize}/${supply}</span></span>` +
+            `<span class="hand-hint">ТАП = ВЫБОР</span>`;
         this.handLabelEl.style.color = playerColor;
 
         // Phase hint
@@ -620,7 +627,12 @@ class GameUI {
 
         // Render hint bar with arrow + text + optional counter (kit proto pattern)
         const counterHTML = counter ? `<span class="hint-counter">${counter}</span>` : '';
-        this.phaseHintEl.innerHTML = `<span class="hint-arrow">&gt;</span><span class="hint-text">${text}</span>${counterHTML}`;
+        // UI-10: первое слово (повелительный глагол) выделяем как .hint-verb
+        const m = text.match(/^([\p{Lu}][\p{L}]+)\s+/u);
+        const verbHtml = m
+            ? `<span class="hint-verb">${m[1]}</span>${text.slice(m[0].length)}`
+            : text;
+        this.phaseHintEl.innerHTML = `<span class="hint-arrow">&gt;</span><span class="hint-text">${verbHtml}</span>${counterHTML}`;
         this.phaseHintEl.className = 'tone-' + tone;
     }
 
@@ -885,14 +897,14 @@ class GameUI {
         if (card === this.pendingCard) el.classList.add('selected');
 
         const storedRot = this._cardRotations.get(card.id) || 0;
-        const cornerText = storedRot ? `↻${storedRot}°` : '◇◇◇';
+        const cornerText = storedRot ? `↻${storedRot}°` : '↻';
         const cornerClass = storedRot ? 'card-corner rot' : 'card-corner';
         el.innerHTML = `
             <div class="card-header">
                 <div class="card-cost">${card.cost}</div>
                 <div class="${cornerClass}">${cornerText}</div>
             </div>
-            <div class="card-pattern">${this._patternGridHTML(card.pattern)}</div>
+            <div class="card-pattern">${this._patternGridHTML(card)}</div>
             <div class="card-name">${card.name}</div>
         `;
 
@@ -936,39 +948,77 @@ class GameUI {
         return el;
     }
 
-    // Inline HTML 3x3 grid per kit GameCard (strictly matches chips-cards.jsx)
-    _patternGridHTML(pattern) {
-        let html = '<div class="card-pattern-grid">';
-        for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
-            const cell_data = pattern.find(p => p.row === r && p.col === c);
+    _patternGridHTML(card) {
+        const gw = card.gridW || 3;
+        const gh = card.gridH || 3;
+        const cells = card.pattern || [];
+        let html = `<div class="card-pattern-grid" style="grid-template-columns:repeat(${gw},1fr);grid-template-rows:repeat(${gh},1fr);aspect-ratio:${gw}/${gh};">`;
+        for (let r = 0; r < gh; r++) for (let c = 0; c < gw; c++) {
+            const cd = cells.find(p => p.row === r && p.col === c);
             let cls = 'empty';
-            if (cell_data) cls = cell_data.type === CellType.W ? 'w' : 'g';
+            if (cd) cls = cd.type === CellType.W ? 'w' : 'g';
             html += `<div class="card-pattern-cell ${cls}"></div>`;
         }
         html += '</div>';
         return html;
     }
 
-    _patternSVG(pattern, size = 48, ownerPI) {
-        const cell = Math.floor((size - 8) / 3 - 2), gap = 2;
-        // FIX-02: W = цвет владельца, G = нейтральный серый
+    _patternSVG(card, size = 48, ownerPI) {
+        const gw = card.gridW || 3;
+        const gh = card.gridH || 3;
+        const cells = card.pattern || [];
+        const gap = 1;
+        const maxDim = Math.max(gw, gh, 1);
+        const cell = Math.floor((size - 8) / maxDim - gap);
         const ownerColor = (typeof ownerPI === 'number') ? this._playerColor(ownerPI) : '#ff6a2b';
-        const enemyColor = '#4a5560'; // --enemy-neutral
+        const enemyColor = '#8a95a2';
+        const gridW_px = gw * cell + (gw - 1) * gap;
+        const gridH_px = gh * cell + (gh - 1) * gap;
+        const offX = (size - gridW_px) / 2;
+        const offY = (size - gridH_px) / 2;
         let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`;
         svg += `<rect width="${size}" height="${size}" fill="transparent"/>`;
-        for (let r = 0; r < 3; r++) for (let c = 0; c < 3; c++) {
-            const x = 4 + c * (cell + gap), y = 4 + r * (cell + gap);
-            const cell_data = pattern.find(p => p.row === r && p.col === c);
-            if (cell_data) {
-                const fill = cell_data.type === CellType.W ? ownerColor : enemyColor;
+        for (let r = 0; r < gh; r++) for (let c = 0; c < gw; c++) {
+            const x = offX + c * (cell + gap), y = offY + r * (cell + gap);
+            const cd = cells.find(p => p.row === r && p.col === c);
+            if (cd) {
+                const fill = cd.type === CellType.W ? ownerColor : enemyColor;
                 svg += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="${fill}"/>`;
             } else {
-                // empty → dashed ghost outline
                 svg += `<rect x="${x}" y="${y}" width="${cell}" height="${cell}" fill="transparent" stroke="#0e3542" stroke-width="0.5" stroke-dasharray="1.5 1.5"/>`;
             }
         }
         svg += '</svg>';
         return svg;
+    }
+
+    _populateRulesDeck() {
+        const box = document.getElementById('rules-deck-list');
+        if (!box || box.dataset.filled === '1') return;
+        const deck = (this._playerCount === 3) ? CardDatabase.create3() : CardDatabase.create();
+        // Dedup by name+cost (одинаковые копии вместе)
+        const seen = new Map();
+        for (const c of deck) {
+            const k = `${c.name}|${c.cost}`;
+            if (!seen.has(k)) seen.set(k, { card: c, count: 1 });
+            else seen.get(k).count++;
+        }
+        const rows = [...seen.values()].sort((a, b) => a.card.cost - b.card.cost || a.card.name.localeCompare(b.card.name, 'ru'));
+        let html = '';
+        for (const { card, count } of rows) {
+            const costLabel = card.cost === 0 ? '0' : (card.cost > 0 ? `+${card.cost}` : `${card.cost}`);
+            const copies = count > 1 ? ` <span style="color:var(--text-ghost);font-weight:400">×${count}</span>` : '';
+            html += `<div class="rules-deck-row">`
+                + `<div class="rd-cost">${costLabel}</div>`
+                + `<div class="rd-pattern">${this._patternSVG(card, 48, undefined)}</div>`
+                + `<div class="rd-body">`
+                    + `<div class="rd-name">${card.name}${copies}</div>`
+                    + `<div class="rd-fx">${this._describeEffects(card)}</div>`
+                + `</div>`
+                + `</div>`;
+        }
+        box.innerHTML = html;
+        box.dataset.filled = '1';
     }
 
     _describeEffects(card) {
@@ -1827,7 +1877,7 @@ class GameUI {
             if (card.playEffect.hasEffects) fxLines.push(`▶ ${this._fxText(card.playEffect)}`);
             if (card.utilizeEffect.hasEffects) fxLines.push(`✕ ${this._fxText(card.utilizeEffect)}`);
             item.innerHTML =
-                `<div class="pick-item-pattern">${this._patternSVG(card.pattern, 48, pi)}</div>` +
+                `<div class="pick-item-pattern">${this._patternSVG(card, 48, pi)}</div>` +
                 `<div class="pick-item-info">` +
                   `<div class="pick-item-header"><strong>${card.name}</strong><span class="pick-cost">[${card.cost}]</span></div>` +
                   (fxLines.length ? `<div class="pick-item-fx">${fxLines.join('<br>')}</div>` : '') +
@@ -1883,7 +1933,7 @@ class GameUI {
                 item.className = 'sp-rev-item';
                 item.dataset.player = `p${ownerPI + 1}`;
                 item.innerHTML =
-                    `<div class="sp-rev-pattern">${this._patternSVG(card.pattern, 44, ownerPI)}</div>` +
+                    `<div class="sp-rev-pattern">${this._patternSVG(card, 44, ownerPI)}</div>` +
                     `<div class="sp-rev-info">` +
                       `<div class="sp-rev-name">${card.name}</div>` +
                       `<div class="sp-rev-owner">ИГРОК ${ownerPI + 1}${ownerPI === actorPI ? ' · СВОЯ' : ''}</div>` +
@@ -1936,7 +1986,7 @@ class GameUI {
         this._detailRotation = 0;
         document.getElementById('detail-name').textContent = card.name;
         document.getElementById('detail-cost').textContent = String(card.cost);
-        document.getElementById('detail-pattern').innerHTML = this._patternSVG(card.pattern, 48, ownerPI);
+        document.getElementById('detail-pattern').innerHTML = this._patternSVG(card, 48, ownerPI);
 
         const renderFx = (type, icon, label, effect) => {
             if (!effect || !effect.hasEffects) return '';

@@ -329,31 +329,35 @@ const Reset = () => new ResetFieldEffect();
 // ═══════════════════════════════════════════════════════════
 
 class PatternMatcher {
-    // Rotate 90° clockwise in 3×3 grid: (r,c) → (c, 2-r)
-    static _rotate90(cells) {
-        return cells.map(({ row, col, type }) => ({ row: col, col: 2 - row, type }));
+    // Rotate 90° clockwise in gridW×gridH grid: (r, c) → (c, gridH - 1 - r).
+    // После поворота сетка становится gridH×gridW (ширина/высота меняются местами).
+    static _rotate90(cells, gridH) {
+        return cells.map(({ row, col, type }) => ({ row: col, col: gridH - 1 - row, type }));
     }
 
     // All unique rotations (0/90/180/270°) of the pattern
-    static _getRotations(pattern) {
+    static _getRotations(pattern, gridW, gridH) {
         const rotations = [];
         const seen = new Set();
-        let cur = pattern;
+        let cur = pattern, gw = gridW, gh = gridH;
         for (let i = 0; i < 4; i++) {
-            const key = [...cur].sort((a, b) => a.row * 10 + a.col - (b.row * 10 + b.col))
-                .map(c => `${c.row}${c.col}${c.type}`).join('|');
+            const key = [...cur].sort((a, b) => a.row * 100 + a.col - (b.row * 100 + b.col))
+                .map(c => `${c.row},${c.col},${c.type}`).join('|');
             if (!seen.has(key)) { seen.add(key); rotations.push(cur); }
-            cur = PatternMatcher._rotate90(cur);
+            cur = PatternMatcher._rotate90(cur, gh);
+            [gw, gh] = [gh, gw];
         }
         return rotations;
     }
 
-    static findMatches(pattern, board, ap) {
+    static findMatches(card, board, ap) {
+        const pattern = card.pattern;
         if (!pattern || pattern.length === 0) return [];
+        const gridW = card.gridW || 3, gridH = card.gridH || 3;
         const results = [];
         const seenPos = new Set();
 
-        for (const rot of PatternMatcher._getRotations(pattern)) {
+        for (const rot of PatternMatcher._getRotations(pattern, gridW, gridH)) {
             let minR = Infinity, maxR = -Infinity, minC = Infinity, maxC = -Infinity;
             for (const cell of rot) {
                 minR = Math.min(minR, cell.row); maxR = Math.max(maxR, cell.row);
@@ -467,7 +471,7 @@ class TurnManager {
         const owned = pl.hand.includes(card) || st.players.some(p => p.revealed.includes(card));
         if (!owned) { onDone?.('invalidAction'); return; }
 
-        const validPlacements = PatternMatcher.findMatches(card.pattern, st.board, st.currentPI);
+        const validPlacements = PatternMatcher.findMatches(card, st.board, st.currentPI);
         if (!this._isPlacementValid(placement, validPlacements)) { onDone?.('invalidAction'); return; }
 
         // Правила: +очки → эффект → фишки снимаются → карта в сброс
@@ -528,8 +532,8 @@ class TurnManager {
         const ownedB = pl.hand.includes(cardB) || st.players.some(p => p.revealed.includes(cardB));
         if (!ownedA || !ownedB) { onDone?.('invalidAction'); return; }
 
-        const validsA = PatternMatcher.findMatches(cardA.pattern, st.board, st.currentPI);
-        const validsB = PatternMatcher.findMatches(cardB.pattern, st.board, st.currentPI);
+        const validsA = PatternMatcher.findMatches(cardA, st.board, st.currentPI);
+        const validsB = PatternMatcher.findMatches(cardB, st.board, st.currentPI);
         if (!this._isPlacementValid(matchA, validsA)) { onDone?.('invalidAction'); return; }
         if (!this._isPlacementValid(matchB, validsB)) { onDone?.('invalidAction'); return; }
 
@@ -577,7 +581,7 @@ class TurnManager {
     }
 
     getValidPlacements(card) {
-        return PatternMatcher.findMatches(card.pattern, this.state.board, this.state.currentPI);
+        return PatternMatcher.findMatches(card, this.state.board, this.state.currentPI);
     }
 
     // ── Internals ──
@@ -645,16 +649,20 @@ class TurnManager {
 }
 
 // ═══════════════════════════════════════════════════════════
-//  CARD DATABASE  (53 карты)
+//  CARD DATABASE  (54 карты 2p)
+//  Сетки карт имеют разный размер: 3×3, 4×4, реже 4×3/3×4/5×4/5×5.
+//  Паттерны сверены по фото-референсам в /Визуал/2 игрока/.
 // ═══════════════════════════════════════════════════════════
 
 class CardDatabase {
     static create() {
         const cards = [];
         let id = 1;
-        const add = (copies, name, cost, pattern, play, utilize, synthesis) => {
+        const add = (copies, name, cost, pattern, play, utilize, synthesis, grid) => {
+            const [gw, gh] = grid || [3, 3];
             for (let i = 0; i < copies; i++) cards.push({
                 id: id++, name, cost, pattern: pattern || [],
+                gridW: gw, gridH: gh,
                 playEffect: play || CardEffect.None,
                 utilizeEffect: utilize || CardEffect.None,
                 synthesisEffect: synthesis || CardEffect.None,
@@ -665,61 +673,62 @@ class CardDatabase {
         add(2, 'БАЙТ',               0, [W(1,1)], E(Dig(1)));
         add(2, 'БИТЫЙ ПИКСЕЛЬ',      0, [G(1,1)]);
         add(2, 'МИГРАЦИЯ',           0, [W(1,1)], E(Place(1)));
-        add(1, 'ОБРАТНАЯ СВЯЗЬ',     0, [G(0,2),W(2,0)], E(Draw(1)));
-        add(1, 'УЯЗВИМОСТЬ',         0, [W(1,0),G(1,2),G(2,1)], E(Steal(1)));
-        add(1, 'ИНКАПСУЛЯЦИЯ',       0, [G(0,1),G(1,0),G(1,1),G(1,2)], E(Dig(1)));
+        add(1, 'ОБРАТНАЯ СВЯЗЬ',     0, [G(1,2),W(2,1)], E(Draw(1)), null, null, [4,4]);
+        add(1, 'УЯЗВИМОСТЬ',         0, [W(1,1),G(1,2),G(2,1)], E(Steal(1)), null, null, [4,4]);
+        add(1, 'ИНКАПСУЛЯЦИЯ',       0, [G(1,2),W(2,1),G(2,3),G(3,2)], E(Dig(1)), null, null, [4,4]);
         add(1, 'ШИФРОВАНИЕ',         0, [W(0,1),G(1,0),G(1,2),W(2,1)], E(Supply(+1,Target.Self)));
-        add(1, 'БУФЕРИЗАЦИЯ',        0, [W(0,1),G(1,0),G(1,2),W(2,1)], null, null, E(Place(1)));
-        add(1, 'БЭКДОР',             0, [G(0,1),W(2,0),W(2,2)], E(Supply(-1,Target.Opp)));
-        add(1, 'ПЕРЕХВАТ ПОТОКА',    0, [W(1,0),G(0,2)], E(Reveal(1,Target.Opp)), E(Reveal(1,Target.Self)));
-        add(1, 'ТЕРНАРНЫЙ ОПЕРАТОР', 0, [W(0,1),W(1,0),W(1,2),W(2,1)], E(Discard(3,Target.Opp)), E(Discard(2,Target.Self)));
+        add(1, 'БУФЕРИЗАЦИЯ',        0, [G(1,0),W(1,1),G(1,2)], null, null, E(Place(1)));
+        add(1, 'БЭКДОР',             0, [G(0,1),W(1,0),W(1,1),G(2,1)], E(Supply(-1,Target.Opp)));
+        add(1, 'ПЕРЕХВАТ ПОТОКА',    0, [G(0,2),W(1,0)], E(Reveal(1,Target.Opp)), E(Reveal(1,Target.Self)));
+        add(1, 'ТЕРНАРНЫЙ ОПЕРАТОР', 0, [W(0,1),G(0,2),W(1,1),G(1,2)], E(Discard(3,Target.Opp)), E(Discard(2,Target.Self)));
 
         // ── СТОИМОСТЬ 1 ──
         add(2, 'БИТ',                1, [W(1,1)], null, E(Place(1)));
-        add(1, 'ДУБЛИРОВАНИЕ',       1, [W(1,0),W(1,2)], E(Place(1)));
-        add(1, 'БРУТФОРС',           1, [G(0,2),W(2,0),W(2,1),W(2,2)], E(Reveal(1,Target.Opp),Draw(2)));
-        add(1, 'НАПРАВЛЕННЫЙ ПОТОК', 1, [W(2,0),W(1,1),W(0,2)], E(Reveal(3,Target.Opp)), E(Reveal(1,Target.Self)));
-        add(1, 'БИНАРНЫЙ ОПЕРАТОР',  1, [W(0,2),W(1,0),W(1,2),W(2,1)], E(Supply(+1,Target.Self)));
-        add(1, 'СОРТИРОВКА',         1, [W(0,0),W(1,1),W(2,1),W(2,2)], E(Dig(2),Supply(+1,Target.Self)));
-        add(1, 'ОБНОВЛЕНИЕ',         1, [W(0,2),W(1,1),W(2,0)], E(SetSup(4,Target.Self)));
-        add(1, 'СИНХРОНИЗАЦИЯ',      1, [G(0,1),W(1,0),W(1,2),G(2,1)], E(CopySup()));
-        add(1, 'ИНЪЕКЦИЯ КОДА',      1, [W(0,0),W(1,1),G(2,2)], E(Reveal(1,Target.Opp),Steal(1)));
-        add(1, 'ПРОКСИ',             1, [W(0,0),G(0,1),G(1,1),W(1,2)], E(Place(1),Reveal(1,Target.Self),Discard(1,Target.Opp)));
-        add(1, 'ЗАМЫКАНИЕ',          1, [W(1,0),W(1,1),W(1,2),W(2,2)], E(Supply(-1,Target.Opp)));
-        add(1, 'РЕКУРСИЯ',           1, [G(1,0),G(1,1),G(1,2),W(2,0),W(2,2)], E(Steal(1)));
+        add(1, 'ДУБЛИРОВАНИЕ',       1, [W(1,1),W(1,2)], E(Place(1)), null, null, [4,4]);
+        add(1, 'БРУТФОРС',           1, [W(1,1),G(1,2),W(2,1),W(2,2)], E(Reveal(1,Target.Opp),Draw(2)), null, null, [3,4]);
+        add(1, 'НАПРАВЛЕННЫЙ ПОТОК', 1, [W(1,3),W(2,2),W(3,1)], E(Reveal(3,Target.Opp)), E(Reveal(1,Target.Self)), null, [4,4]);
+        add(1, 'БИНАРНЫЙ ОПЕРАТОР',  1, [W(0,1),W(1,0),W(1,2)], E(Supply(+1,Target.Self)));
+        add(1, 'СОРТИРОВКА',         1, [W(0,3),W(1,2),W(2,1),W(3,1)], E(Dig(2),Supply(+1,Target.Self)), null, null, [4,4]);
+        add(1, 'ОБНОВЛЕНИЕ',         1, [W(0,2),W(1,3),W(2,1)], E(SetSup(4,Target.Self)), null, null, [4,4]);
+        add(1, 'СИНХРОНИЗАЦИЯ',      1, [W(1,0),G(1,1),W(1,2),G(1,3)], E(CopySup()), null, null, [4,4]);
+        add(1, 'ИНЪЕКЦИЯ КОДА',      1, [W(0,0),G(1,2),G(2,1),W(3,3)], E(Reveal(1,Target.Opp),Steal(1)), null, null, [4,4]);
+        add(1, 'ПРОКСИ',             1, [W(1,0),G(1,1),G(2,2),W(2,3)], E(Place(1),Reveal(1,Target.Self),Discard(1,Target.Opp)), null, null, [4,4]);
+        add(1, 'ЗАМЫКАНИЕ',          1, [W(2,1),W(2,2),G(2,3),W(2,4)], E(Supply(-1,Target.Opp)), null, null, [5,4]);
+        add(1, 'РЕКУРСИЯ',           1, [W(1,1),G(1,2),W(2,1),G(2,2)], E(Steal(1)), null, null, [4,4]);
 
         // ── СТОИМОСТЬ 2 ──
         add(2, 'ЗАЦИКЛИВАНИЕ',       2, [W(1,1)], E(Discard(1,Target.Self)));
-        add(1, 'БИНАРНЫЕ ПОТОКИ',    2, [W(0,1),W(1,2)]);
-        add(1, 'ПЕРЕЗАГРУЗКА',       2, [W(0,1),W(2,0),W(2,2)], E(Reset(),Place(1)));
-        add(1, 'СИНЕРГИЯ',           2, [G(0,0),W(0,2),W(2,0),G(2,2)], E(Supply(+1,Target.Opp),Supply(+1,Target.Self)));
-        add(1, 'ЛОЖНЫЕ ДАННЫЕ',      2, [W(0,0),W(2,0),G(1,2)], E(Reveal(2,Target.Self),Draw(2)));
-        add(1, 'БРАНДМАУЭР',         2, [W(0,1),W(1,1),W(2,2)], E(Place(2)));
+        add(1, 'БИНАРНЫЕ ПОТОКИ',    2, [W(1,1),W(2,2)], null, null, null, [4,4]);
+        add(1, 'ПЕРЕЗАГРУЗКА',       2, [W(1,2),W(2,1),W(2,2)], E(Reset(),Place(1)), null, null, [4,4]);
+        add(1, 'СИНЕРГИЯ',           2, [G(1,1),W(1,2),W(2,1),G(2,2)], E(Supply(+1,Target.Opp),Supply(+1,Target.Self)), null, null, [4,4]);
+        add(1, 'ЛОЖНЫЕ ДАННЫЕ',      2, [W(1,1),G(1,2),W(2,1)], E(Reveal(2,Target.Self),Draw(2)), null, null, [4,3]);
+        add(1, 'БРАНДМАУЭР',         2, [W(0,1),W(1,1),G(1,2),W(2,1)], E(Place(2)));
         add(1, 'ИТЕРАЦИЯ',           2, [W(0,1),W(1,0),W(1,2),W(2,1)], E(Place(4)));
-        add(1, 'АСИНХРОННОСТЬ',      2, [G(0,0),W(0,2),W(2,0),G(2,2)], E(Reveal(2,Target.Opp),Reveal(2,Target.Self)));
-        add(1, 'ФОРК',               2, [W(0,0),W(0,2),W(2,0),W(2,2)], E(Place(2),Draw(2)));
-        add(1, 'ИНТЕРФЕЙС',          2, [W(0,2),W(1,0),W(1,1),W(1,2),W(2,1)], E(Reveal(2,Target.Self),Place(4),Discard(1,Target.Opp)));
+        add(1, 'АСИНХРОННОСТЬ',      2, [G(1,1),G(1,2),W(2,2),W(2,3)], E(Reveal(2,Target.Opp),Reveal(2,Target.Self)), null, null, [4,4]);
+        add(1, 'ФОРК',               2, [W(1,1),W(1,3),W(2,2),W(3,2)], E(Place(2),Draw(2)), null, null, [4,4]);
+        add(1, 'ИНТЕРФЕЙС',          2, [W(1,2),W(2,1),W(2,2),W(3,2)], E(Reveal(2,Target.Self),Place(4),Discard(1,Target.Opp)), null, null, [4,4]);
 
         // ── СТОИМОСТЬ 3 ──
-        add(1, 'ПЕРЕГРУЗКА',         3, [W(0,0),W(0,2),W(2,0),W(2,2)], E(Draw(3)));
-        add(1, 'РЕЗЕРВ',             3, [W(0,1),W(1,0),W(1,1),W(1,2),W(2,1)], E(Discard(1,Target.Opp)), E(Discard(2,Target.Self),Draw(2)));
+        add(1, 'ПЕРЕГРУЗКА',         3, [W(1,1),W(1,2),W(2,1),W(2,2)], E(Draw(3)), null, null, [4,4]);
+        add(1, 'РЕЗЕРВ',             3, [W(1,1),W(1,2),W(2,2)], E(Discard(1,Target.Opp)), E(Discard(2,Target.Self),Draw(2)), null, [4,4]);
+        add(1, 'УСИЛЕНИЕ ЯДРА',      3, [W(1,2),W(2,1),W(2,2),W(2,3),W(3,2)], E(Supply(+2,Target.Self)), null, null, [4,4]);
         add(1, 'РЕФАКТОРИНГ',        3, [W(0,0),W(0,2),W(1,1),W(2,0),W(2,2)], E(Steal(2),Place(3)), E(Reveal(1,Target.Self)));
-        add(1, 'СОКЕТ',              3, [W(0,1),W(0,2),W(1,0),W(1,1)], E(Draw(3)));
-        add(1, 'ФРАГМЕНТАЦИЯ',       3, [W(0,0),G(0,2),W(1,1),W(2,0)], E(Dig(1)));
-        add(1, 'ЧЕРВЬ СЕТИ',         3, [W(0,0),W(1,0),W(2,0),W(2,1)], E(DiscardAll(Target.Opp)), E(DiscardAll(Target.Self)));
+        add(1, 'СОКЕТ',              3, [W(1,1),W(1,2),W(2,2),W(3,2)], E(Draw(3)), null, null, [4,4]);
+        add(1, 'ФРАГМЕНТАЦИЯ',       3, [W(0,0),G(0,2),W(2,0),W(2,2)], E(Dig(1)), null, null, [4,4]);
+        add(1, 'ЧЕРВЬ СЕТИ',         3, [W(0,0),W(1,0),W(2,1),W(3,1)], E(DiscardAll(Target.Opp)), E(DiscardAll(Target.Self)), null, [4,4]);
 
         // ── СТОИМОСТЬ 4 ──
         add(1, 'ПАРАЛЛЕЛЬНЫЕ ПОТОКИ',4, [W(0,0),W(0,2),W(2,0),W(2,2)], E(Reveal(2,Target.Self),Draw(2)));
-        add(1, 'КЭШИРОВАНИЕ',        4, [W(0,0),W(0,2),W(1,0),W(1,1),W(1,2)], E(Draw(3),Discard(1,Target.Opp)));
-        add(1, 'РЕПЛИКАЦИЯ',         4, [W(0,0),W(0,2),W(2,0),W(2,2)], E(Draw(3),RevealAll(Target.Self)));
-        add(1, 'ДЕФРАГМЕНТАЦИЯ',     4, [W(0,0),W(0,2),W(2,0),W(2,2)], E(DiscardAll(Target.Self),Draw(4)));
-        add(1, 'ЭНТРОПИЯ',           4, [W(0,2),G(1,0),G(1,2),W(2,0)], E(Supply(-1,Target.Self)));
-        add(1, 'ТУННЕЛИРОВАНИЕ',     4, [W(0,0),W(0,1),W(1,0),W(2,0)], null, null, E(Supply(+1,Target.Self)));
+        add(1, 'КЭШИРОВАНИЕ',        4, [W(1,1),W(1,2),W(2,1),W(2,2),W(3,1)], E(Draw(3),Discard(1,Target.Opp)), null, null, [4,4]);
+        add(1, 'РЕПЛИКАЦИЯ',         4, [W(1,3),W(2,1),W(2,3),W(3,1)], E(Draw(3),RevealAll(Target.Self)), null, null, [5,5]);
+        add(1, 'ДЕФРАГМЕНТАЦИЯ',     4, [W(0,0),W(0,3),W(3,0),W(3,3)], E(DiscardAll(Target.Self),Draw(4)), null, null, [4,4]);
+        add(1, 'ЭНТРОПИЯ',           4, [W(0,3),G(1,2),G(2,1),W(3,0)], E(Supply(-1,Target.Self)), null, null, [4,4]);
+        add(1, 'ТУННЕЛИРОВАНИЕ',     4, [W(0,1),W(1,1),W(2,1),W(3,1)], null, null, E(Supply(+1,Target.Self)), [4,4]);
 
         // ── СТОИМОСТЬ -1 ──
-        add(1, 'ПЕРЕНАПРАВЛЕНИЕ',   -1, [G(0,0),G(0,2),W(2,0),W(2,2)], null, E(Place(1)));
-        add(1, 'КЛЮЧ БЕЗОПАСНОСТИ', -1, [W(0,1),G(2,1)], E(Reveal(1,Target.Opp)), null, E(Reset()));
-        add(1, 'ПРЕРЫВАНИЕ',        -1, [G(1,0),G(1,1),G(1,2)], null, null, E(Supply(-1,Target.Opp)));
+        add(1, 'ПЕРЕНАПРАВЛЕНИЕ',   -1, [G(1,2),G(2,1)], null, E(Place(1)), null, [4,4]);
+        add(1, 'КЛЮЧ БЕЗОПАСНОСТИ', -1, [W(0,1),G(1,1)], E(Reveal(1,Target.Opp)), null, E(Reset()));
+        add(1, 'ПРЕРЫВАНИЕ',        -1, [G(2,1),G(2,2),W(2,3)], null, null, E(Supply(-1,Target.Opp)), [4,4]);
 
         return cards;
     }

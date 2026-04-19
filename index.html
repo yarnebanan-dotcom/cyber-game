@@ -46,7 +46,7 @@
     --p1-glow: rgba(63, 208, 230, 0.45);
     --p2-glow: rgba(255, 106, 43, 0.45);
     --p3-glow: rgba(183, 108, 255, 0.45);
-    --enemy-neutral: #4a5560;
+    --enemy-neutral: #8a95a2;
 
     /* FIX-08: z-index stack — иерархия модалок сверху вниз */
     --z-overlay-base: 100;   /* handoff, game-over, menu-screen */
@@ -195,8 +195,9 @@ html, body {
     /* minmax(0,1fr) — критично: разрешает grid-col сжиматься ниже min-content,
        иначе action-bar с nowrap-кнопками раздвигает сетку за viewport */
     grid-template-columns: minmax(0, 1fr);
-    /* 9 rows: hud / hint / revealed / desc-top / board(1fr) / desc-bot / hand / synth / action */
-    grid-template-rows: auto auto auto auto 1fr auto auto auto auto;
+    /* UI-10: новый порядок — hud / hint / revealed / board(1fr) / hand / desc-bot / synth / action.
+       desc-top legacy — всегда hidden, ряд 4 зарезервирован, высота 0. */
+    grid-template-rows: auto auto auto 0 1fr auto auto auto auto;
     height: 100dvh;
     max-width: 480px;
     margin: 0 auto;
@@ -205,14 +206,14 @@ html, body {
     overflow: hidden;
     position: relative;
 }
-/* Явные grid-row: при display:none child пропадает, но track сохраняется (1fr остаётся у доски) */
+/* UI-10: desc-bot переехал ПОСЛЕ руки (row 6) */
 #app > #hud              { grid-row: 1; }
 #app > #phase-hint       { grid-row: 2; }
 #app > #revealed-wrap    { grid-row: 3; }
-#app > #card-desc-top    { grid-row: 4; }
+#app > #card-desc-top    { grid-row: 4; display: none; }
 #app > #board-wrap       { grid-row: 5; min-height: 0; }
-#app > #card-desc-bot    { grid-row: 6; }
-#app > #hand-wrap        { grid-row: 7; }
+#app > #hand-wrap        { grid-row: 6; }
+#app > #card-desc-bot    { grid-row: 7; margin: 0 -6px; padding-left: 6px; padding-right: 6px; border-bottom: 1px solid var(--line-ghost); box-sizing: border-box; }
 #app > #synth-order-panel{ grid-row: 8; }
 #app > #action-bar       { grid-row: 9; }
 
@@ -220,11 +221,14 @@ html, body {
 #hud {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    padding: 4px 4px 6px;
+    gap: 0;
+    padding: 0 6px;
+    margin: 0 -6px;
     flex-shrink: 0;
-    border-bottom: 1px solid var(--line-dim);
+    border-bottom: 1px solid var(--line-ghost);
     background: transparent;
+    height: 40px;
+    box-sizing: border-box;
 }
 /* FIX-04: двухэтажный HUD */
 /* Tier 1 — крупный: диамант цвета активного игрока + имя + счёт + меню */
@@ -232,11 +236,12 @@ html, body {
     display: flex;
     align-items: center;
     gap: 10px;
-    padding: 2px 4px 4px;
-    min-height: 34px;
+    padding: 2px 4px;
+    height: 40px;
+    box-sizing: border-box;
 }
 .hud-diamond {
-    width: 18px; height: 18px;
+    width: 11px; height: 11px;
     transform: rotate(45deg);
     background: var(--accent);
     box-shadow: 0 0 10px var(--accent);
@@ -249,16 +254,33 @@ html, body {
 
 .hud-player-name {
     font-family: var(--display);
-    font-size: 15px;
+    font-size: 16px;
     font-weight: 700;
     letter-spacing: 0.1em;
     text-transform: uppercase;
-    color: var(--accent);
+    color: var(--text);
     flex-shrink: 0;
 }
-#hud[data-player="p1"] .hud-player-name { color: var(--p1); }
-#hud[data-player="p2"] .hud-player-name { color: var(--p2); }
-#hud[data-player="p3"] .hud-player-name { color: var(--p3); }
+/* UI-10: inline-мета T01 · КОЛОДА 54 между именем и счётом */
+.hud-meta-inline {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.14em;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+}
+.hud-meta-inline .hud-turn-tag { font-size: 10px; color: var(--text); }
+.hud-meta-inline .hud-deck-meta strong { color: var(--text); font-weight: 500; }
+#hud[data-player="p1"] .hud-player-name,
+#hud[data-player="p2"] .hud-player-name,
+#hud[data-player="p3"] .hud-player-name { color: #fff; }
 
 /* Tier 2 — мелкий: ход, фаза-счётчик, opp-badges, колода/сброс */
 .hud-tier-2 {
@@ -290,17 +312,6 @@ html, body {
     text-transform: uppercase;
     flex-shrink: 0;
 }
-.hud-meta-inline {
-    font-size: 8px;
-    letter-spacing: 0.15em;
-    color: var(--text-dim);
-    flex-shrink: 1;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.hud-meta-inline strong { color: var(--text); font-weight: 500; }
-
 .hud-opp-scores {
     display: flex;
     gap: 3px;
@@ -331,21 +342,25 @@ html, body {
 
 .hud-score {
     font-family: var(--display);
-    font-size: 20px;
+    font-size: 24px;
     font-weight: 700;
-    color: var(--text);
-    letter-spacing: 0.04em;
+    color: var(--accent);
+    letter-spacing: 0.02em;
     font-variant-numeric: tabular-nums;
     flex-shrink: 0;
     line-height: 1;
+    display: inline-flex;
+    align-items: baseline;
+    gap: 2px;
 }
+.hud-score #cur-score { font-size: 16px; color: #fff; }
 .hud-score-max {
     font-family: var(--mono);
-    font-size: 11px;
-    color: var(--text-dim);
-    letter-spacing: 0.1em;
+    font-size: 16px;
+    color: var(--accent);
+    letter-spacing: 0.04em;
     margin-left: 2px;
-    font-weight: 500;
+    font-weight: 700;
 }
 
 .hud-menu-btn {
@@ -406,122 +421,132 @@ html, body {
     margin-right: 2px;
 }
 
-/* ── Phase hint bar (KIT Phase 3 — dashed accent) ──────────── */
+/* ── Phase hint bar (UI-10 — solid fill + left accent-bar, 2 строки) ──────────── */
 #phase-hint {
     flex-shrink: 0;
     display: flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 10px;
-    background: var(--bg-1);
-    border: 1px dashed var(--accent);
-    font-family: var(--mono);
-    font-size: 10px;
-    color: var(--accent);
-    letter-spacing: 0.1em;
-    /* UI-09e: фиксированная высота — подсказка может переноситься/сжиматься; фикс-высота стабилизирует layout */
-    height: 28px;
+    gap: 8px;
+    padding: 4px 10px;
+    background: transparent;
+    border: none;
+    font-family: var(--sans);
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 0.02em;
+    height: 32px;
     box-sizing: border-box;
     overflow: hidden;
-    transition: color 0.35s, border-color 0.35s, background 0.35s;
-    text-transform: uppercase;
+    transition: color 0.35s, background 0.35s;
+    text-transform: none;
+    line-height: 1.25;
 }
-#phase-hint .hint-arrow { opacity: 0.55; flex-shrink: 0; }
-#phase-hint .hint-text { flex: 1; letter-spacing: 0.08em; }
+#phase-hint .hint-arrow { color: var(--accent); opacity: 0.9; flex-shrink: 0; font-size: 10px; }
+#phase-hint .hint-text { flex: 1; letter-spacing: 0.02em; }
+#phase-hint .hint-text .hint-verb {
+    color: var(--accent);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    font-family: var(--mono);
+    font-size: 12px;
+    margin-right: 6px;
+}
 #phase-hint .hint-counter {
     color: var(--text-dim);
-    font-size: 9px;
+    font-size: 10px;
     flex-shrink: 0;
     letter-spacing: 0.15em;
-    padding: 1px 5px;
+    padding: 2px 6px;
     border: 1px solid var(--line-ghost);
+    font-family: var(--mono);
 }
-#phase-hint.tone-replenish { color: var(--text-dim); border-color: var(--line-dim); }
-#phase-hint.tone-action    { color: var(--accent); border-color: var(--accent); }
-#phase-hint.tone-task      { color: var(--line); border-color: var(--line); }
-#phase-hint.tone-synth     { color: var(--accent); border-color: var(--accent); }
-#phase-hint.tone-ok        { color: var(--ok); border-color: var(--ok); }
+#phase-hint .hint-verb { color: var(--accent); }
 
-/* ── Revealed zones — HUD lanes (FIX-21) ─────────────────── */
-/* UI-09e: фиксированная высота — зона не прыгает при появлении/снятии карт */
+/* ── Revealed zones — UI-10: бокс с вертикальным лейблом ─── */
 .revealed-wrap {
     flex-shrink: 0;
     overflow: hidden;
-    height: 72px;
+    height: 100px;
+    display: flex;
+    align-items: stretch;
+    gap: 6px;
+    padding: 2px 0;
+    margin: 0 -6px;
+    padding-left: 6px;
+    padding-right: 6px;
+    border-top: 0.5px solid var(--accent);
+    border-bottom: 1px solid var(--line-ghost);
 }
-.revealed-wrap .rev-lane { height: 100%; box-sizing: border-box; }
-/* Пустая зона остаётся видимой — слот «здесь появятся раскрытые карты» */
-.rev-lane.empty {
-    opacity: 0.55;
-}
-.rev-lane.empty .rev-lane-row {
-    min-height: 28px;
-    align-items: center;
-    justify-content: center;
-}
-.rev-lane-placeholder {
+/* Вертикальный лейбл «РАСКРЫТО» слева (violet) */
+.revealed-wrap::before {
+    content: 'РАСКРЫТО';
+    flex-shrink: 0;
+    writing-mode: vertical-rl;
+    transform: rotate(180deg);
     font-family: var(--mono);
     font-size: 9px;
-    letter-spacing: 0.2em;
-    color: var(--text-ghost);
-    text-transform: uppercase;
+    letter-spacing: 0.3em;
+    color: var(--p3);
+    padding: 6px 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+}
+.revealed-wrap .rev-lane { height: 100%; box-sizing: border-box; flex: 1; min-width: 0; }
+/* Пустая зона — видимый контейнер без плейсхолдера (как на эталоне) */
+.rev-lane.empty {
+    opacity: 0.5;
 }
 
 /* One lane per owner; stacked when multiple (3p top) */
 .rev-lane {
     position: relative;
-    padding: 12px 12px 3px;
-    background:
-        linear-gradient(180deg, var(--lane-tint, rgba(63,208,230,0.06)), transparent 80%),
-        var(--bg-1);
+    padding: 6px 8px;
+    background: transparent;
+    border: none;
 }
-.rev-lane + .rev-lane { border-top: 1px solid var(--line-ghost); }
-#revealed-wrap .rev-lane { border-top: 1px dashed var(--line-ghost); border-bottom: 1px dashed var(--line-ghost); }
+.rev-lane + .rev-lane { margin-top: 2px; }
 
-.rev-lane-label {
-    position: absolute; top: 3px; left: 12px;
-    font-family: var(--mono); font-size: 9px; letter-spacing: 0.2em;
-    color: var(--lane-color, var(--text-dim));
-    font-weight: 400;
-}
+/* Скрываем legacy-лейблы внутри (у нас теперь вертикальный лейбл снаружи) */
+.rev-lane-label { display: none; }
 .rev-lane-count {
-    position: absolute; top: 3px; right: 12px;
-    font-family: var(--mono); font-size: 9px; letter-spacing: 0.15em;
+    position: absolute; top: 2px; right: 6px;
+    font-family: var(--mono); font-size: 8px; letter-spacing: 0.15em;
     color: var(--text-dim);
 }
-.rev-lane-hint {
-    position: absolute; top: 3px; right: 80px;
-    font-family: var(--mono); font-size: 9px; letter-spacing: 0.15em;
-    color: var(--text-dim);
-}
+.rev-lane-hint { display: none; }
 .rev-lane-row {
     display: flex; gap: 6px; overflow-x: auto;
     scrollbar-width: none;
+    height: 100%;
+    align-items: center;
 }
 .rev-lane-row::-webkit-scrollbar { display: none; }
 
-/* Compact card in lane (те же компоненты что и на руке, просто мельче) */
+/* Карта в ленте — 74×84 */
 .rev-lane .card {
-    width: 52px;
-    height: 58px;
-    padding: 2px;
+    width: 64px;
+    height: 84px;
+    padding: 3px;
     border-radius: 3px;
     flex-shrink: 0;
 }
-.rev-lane .card-header { margin-bottom: 1px; }
+.rev-lane .card-header { margin-bottom: 2px; }
 .rev-lane .card-corner { display: none; }
 .rev-lane .card-name {
-    font-size: 6px;
+    font-size: 7px;
     letter-spacing: 0.04em;
     padding: 0;
     line-height: 1.1;
 }
 .rev-lane .card-cost {
-    width: 11px; height: 11px;
-    font-size: 7px;
+    width: 14px; height: 14px;
+    font-size: 8px;
 }
 .rev-lane .card-pattern { padding: 0; }
-.rev-lane .card-pattern-grid { width: 70%; }
+.rev-lane .card-pattern-grid { width: 88%; }
 .rev-lane .card-fx { display: none; }
 
 /* ▶ indicator on any card in the shared revealed zone that's playable now */
@@ -568,20 +593,19 @@ html, body {
     min-height: 0; min-width: 0;
     overflow: hidden;
     container-type: size;
+    margin: 0 -6px;
+    padding: 0 6px;
+    border-bottom: 1px solid var(--line-ghost);
+    box-sizing: border-box;
 }
 #board {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     grid-template-rows: repeat(4, 1fr);
     gap: 0;
-    padding: 14px;
-    background: var(--bg-1);
-    border: 1px solid var(--line-dim);
-    clip-path: polygon(
-        14px 0, calc(100% - 14px) 0, 100% 14px,
-        100% calc(100% - 14px), calc(100% - 14px) 100%, 14px 100%,
-        0 calc(100% - 14px), 0 14px
-    );
+    padding: 4px;
+    background: transparent;
+    border: none;
     width: min(100cqi, 100cqb);
     height: min(100cqi, 100cqb);
     aspect-ratio: 1;
@@ -591,12 +615,8 @@ html, body {
     grid-template-columns: repeat(5, 1fr);
     grid-template-rows: repeat(5, 1fr);
 }
-#board-lines {
-    position: absolute;
-    left: 14px; top: 14px; right: 14px; bottom: 14px;
-    pointer-events: none;
-    z-index: 0;
-}
+/* UI-10: пунктирные соединительные линии отключены — поле без декора */
+#board-lines { display: none; }
 .node { z-index: 1; }
 .node {
     cursor: pointer;
@@ -608,30 +628,34 @@ html, body {
 .node::before {
     content: '';
     display: block;
-    width: 60%; height: 60%;
+    width: 78%; height: 78%;
     clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
     transition: background 0.2s, box-shadow 0.2s, width 0.2s, height 0.2s;
 }
+/* UI-10: пустой узел — мелкий статичный ромбик */
 .node.empty::before {
-    width: 20%; height: 20%;
-    background: transparent;
-    border: 1px solid var(--line-ghost);
-    clip-path: none;
-    transform: rotate(45deg);
+    width: 8%; height: 8%;
+    background: var(--line-dim);
+    border: none;
+    clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
+    transform: none;
+    box-shadow: none;
+    opacity: 0.7;
 }
+/* UI-10: фишки игроков — крупные яркие ромбы с мощным glow */
 .node.p1::before {
     background: var(--p1);
-    box-shadow: 0 0 14px rgba(63,208,230,0.66), 0 0 4px rgba(26,102,119,0.9);
+    box-shadow: 0 0 18px rgba(63,208,230,0.85), 0 0 6px rgba(111,228,245,0.9), inset 0 1px 0 rgba(255,255,255,0.3);
     animation: node-p1-pulse 3s ease-in-out infinite;
 }
 .node.p2::before {
     background: var(--p2);
-    box-shadow: 0 0 14px rgba(255,106,43,0.66), 0 0 4px rgba(138,56,22,0.9);
+    box-shadow: 0 0 18px rgba(255,106,43,0.85), 0 0 6px rgba(255,139,85,0.9), inset 0 1px 0 rgba(255,255,255,0.25);
     animation: node-p2-pulse 3s ease-in-out infinite;
 }
 .node.p3::before {
     background: var(--p3);
-    box-shadow: 0 0 14px rgba(183,108,255,0.66), 0 0 4px rgba(90,40,150,0.9);
+    box-shadow: 0 0 18px rgba(183,108,255,0.85), 0 0 6px rgba(200,140,255,0.9), inset 0 1px 0 rgba(255,255,255,0.25);
     animation: node-p3-pulse 3s ease-in-out infinite;
 }
 @keyframes node-p3-pulse {
@@ -705,15 +729,15 @@ html, body {
 
 /* ── Action Buttons (KIT Phase 1) ──────────────────────────── */
 /* UI-09: max-height + nowrap предотвращает 2-строчный wrap в hardMode (3 кнопки) */
-#action-bar { display: flex; gap: 6px; flex-shrink: 0; max-height: 48px; }
+#action-bar { display: flex; gap: 8px; flex-shrink: 0; height: 52px; align-items: stretch; }
 .btn {
     flex: 1;
     min-width: 0;
     position: relative;
-    padding: 11px 6px;
+    padding: 14px 8px;
     background: transparent;
-    border: 1px solid var(--line);
-    color: var(--text);
+    border: 1px solid var(--line-dim);
+    color: var(--text-dim);
     font-family: var(--mono);
     font-size: 11px;
     font-weight: 500;
@@ -729,27 +753,32 @@ html, body {
     );
     transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
 }
-.btn:hover:not(:disabled) { background: var(--bg-3); border-color: #6fe4f5; color: #fff; }
+.btn:hover:not(:disabled) { background: var(--bg-2); border-color: var(--line); color: var(--text); }
 .btn:active:not(:disabled) { transform: scale(0.96); }
 .btn:disabled { opacity: 0.4; cursor: default; }
 
 /* Semantic variants — kit palette */
 .btn-action  { /* cyan default already set in .btn */ }
 .btn-utilize {
-    border-color: var(--accent);
-    color: var(--accent);
+    border-color: var(--line-dim);
+    color: var(--text-dim);
 }
-.btn-utilize:hover:not(:disabled) { background: rgba(255,106,43,0.14); color: #ff8b55; border-color: #ff8b55; }
+.btn-utilize:hover:not(:disabled) { background: var(--bg-2); color: var(--text); border-color: var(--line); }
 .btn-draw-three {
     border-color: var(--line);
     color: var(--line);
 }
 .btn-draw-three:hover:not(:disabled) { background: rgba(63,208,230,0.14); color: #6fe4f5; border-color: #6fe4f5; }
 .btn-skip    {
-    border-color: var(--line-dim);
-    color: var(--text-dim);
+    flex: 2;
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--bg-0);
+    font-weight: 700;
+    box-shadow: 0 0 18px rgba(255,106,43,0.45);
 }
-.btn-skip:hover:not(:disabled) { background: var(--bg-2); color: var(--text); border-color: var(--line); }
+.btn-skip:hover:not(:disabled) { background: #ff8b55; border-color: #ff8b55; color: var(--bg-0); box-shadow: 0 0 24px rgba(255,106,43,0.6); }
+.btn-skip:disabled { background: var(--bg-2); border-color: var(--line-dim); color: var(--text-ghost); box-shadow: none; }
 
 /* Dynamic primary = hot (orange filled) ; ghost = muted outline */
 .btn.btn-primary {
@@ -821,23 +850,36 @@ html, body {
 /* UI-09: в grid-раскладке hand-wrap — auto-row. card-desc вынесен в overlay. */
 #hand-wrap {
     overflow: visible;
-    border-top: 1px solid rgba(80,110,180,0.15);
     padding-top: 2px;
     min-width: 0;
-    /* UI-09e: фиксированная высота руки — доска не дёргается при выборе карты (translateY) */
-    height: 110px;
+    height: 108px;
     box-sizing: border-box;
+    margin: 0 -6px;
+    padding-left: 6px;
+    padding-right: 6px;
+    border-bottom: 1px solid var(--line-ghost);
 }
 #hand-label {
     font-family: var(--mono);
     font-size: 10px;
-    letter-spacing: 0.12em;
+    letter-spacing: 0.14em;
     color: var(--text-dim);
-    padding: 2px 4px 0;
+    padding: 2px 4px 2px;
     line-height: 1.1;
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+    text-transform: uppercase;
+}
+#hand-label .hand-hint {
+    margin-left: auto;
+    color: var(--text-ghost);
+    font-size: 9px;
+    letter-spacing: 0.18em;
 }
 #hand-cards {
-    display: flex; gap: 6px; overflow-x: auto; padding: 3px 2px 2px; scrollbar-width: none;
+    display: flex; gap: 8px; overflow-x: auto; padding: 4px 2px 2px; scrollbar-width: none;
+    justify-content: center;
 }
 #hand-cards::-webkit-scrollbar { display: none; }
 
@@ -848,35 +890,33 @@ html, body {
 .card-desc {
     font-family: var(--mono);
     font-size: 10px;
-    line-height: 1.35;
+    line-height: 1.3;
     color: var(--text);
-    border: 1px solid var(--line);
-    background: linear-gradient(180deg, rgba(26,102,119,0.10), rgba(0,0,0,0)), var(--bg-1);
-    padding: 5px 8px;
-    /* UI-09e: фиксированная высота — слот не сдвигает доску при появлении/снятии выбора */
-    height: 72px;
+    border: none;
+    background: var(--bg-1);
+    padding: 6px 10px;
+    height: 52px;
     box-sizing: border-box;
     overflow-y: auto;
-    clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
     scrollbar-width: none;
 }
 .card-desc::-webkit-scrollbar { display: none; }
 /* Верхний слот .empty скрыт (top больше не используется — всё в bot) */
 .card-desc.empty { display: none; }
-/* Плейсхолдер занимает ровно то же фиксированное место, только визуально мягче */
+/* Плейсхолдер занимает то же место, только визуально мягче */
 .card-desc.placeholder {
-    padding: 8px 10px;
     color: var(--text-ghost);
     font-family: var(--mono);
-    font-size: 9px;
-    letter-spacing: 0.2em;
+    font-size: 10px;
+    letter-spacing: 0.18em;
     text-align: center;
     text-transform: uppercase;
-    opacity: 0.55;
-    border-style: dashed;
+    opacity: 0.5;
+    border: none;
     display: flex;
     align-items: center;
     justify-content: center;
+    background: transparent;
 }
 .card-desc .cd-head {
     display: flex; align-items: baseline; gap: 8px;
@@ -1059,11 +1099,11 @@ html, body {
 /* ── Card (KIT Phase 2 — strict kit layout) ───────────────── */
 .card {
     flex-shrink: 0;
-    width: 82px;
-    height: 88px;
+    width: 60px;
+    height: 76px;
     background: var(--bg-1);
     border: 1px solid var(--line-dim);
-    padding: 4px;
+    padding: 5px;
     cursor: pointer;
     transition: transform 0.18s cubic-bezier(0.34,1.4,0.64,1), border-color 0.2s, box-shadow 0.2s, background 0.2s;
     position: relative;
@@ -1097,33 +1137,29 @@ html, body {
     align-items: flex-start;
 }
 .card-cost {
-    width: 16px; height: 16px;
+    min-width: 14px; height: 16px;
     font-family: var(--display);
-    font-size: 9px; font-weight: 700;
+    font-size: 13px; font-weight: 700;
     display: flex; align-items: center; justify-content: center;
-    color: var(--text);
+    color: var(--accent);
     background: transparent;
-    border: 1px solid var(--line);
-    clip-path: polygon(
-        4px 0, 100% 0,
-        100% calc(100% - 4px), calc(100% - 4px) 100%,
-        0 100%, 0 4px
-    );
+    border: none;
+    padding: 0;
 }
 .card.selected .card-cost {
-    background: var(--accent);
-    border-color: var(--accent);
-    color: var(--bg-0);
+    color: var(--accent);
 }
 .card-corner {
     font-family: var(--mono);
-    font-size: 6px;
+    font-size: 14px;
     color: var(--text-ghost);
-    letter-spacing: 0.2em;
+    letter-spacing: 0;
     line-height: 1;
-    padding-top: 2px;
+    padding-top: 1px;
+    cursor: pointer;
+    opacity: 0.55;
 }
-.card-corner.rot { color: var(--line); font-size: 8px; letter-spacing: 0.05em; }
+.card-corner.rot { color: var(--accent); font-size: 10px; letter-spacing: 0.05em; opacity: 1; }
 
 /* Pattern (3x3 inline grid) */
 .card-pattern {
@@ -1138,13 +1174,15 @@ html, body {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
     gap: 1px;
-    width: 62%;
+    width: 88%;
     aspect-ratio: 1 / 1;
+    padding: 1px;
+    background: var(--bg-0);
     transition: transform 0.22s cubic-bezier(0.34, 1.2, 0.64, 1);
 }
 .card-pattern-cell {
     aspect-ratio: 1 / 1;
-    border: 0.5px solid transparent;
+    background: var(--bg-0);
 }
 /* FIX-02: W = цвет владельца карты, G = нейтральный серый */
 .card-pattern-cell.w { background: var(--accent); }
@@ -1158,22 +1196,20 @@ html, body {
 [data-player="p2"] .player-title, [data-player="p2"] .hl-player { color: var(--p2); }
 [data-player="p3"] .player-title, [data-player="p3"] .hl-player { color: var(--p3); }
 .card-pattern-cell.empty {
-    background: transparent;
-    border-color: var(--line-ghost);
-    opacity: 0.6;
+    background: var(--bg-1);
 }
 
 /* Name (between pattern and effects block) */
 .card-name {
     font-family: var(--display);
-    font-size: 8px; font-weight: 700;
+    font-size: 7px; font-weight: 700;
     color: var(--text); line-height: 1.15;
-    letter-spacing: 0.1em;
+    letter-spacing: 0.06em;
     text-transform: uppercase;
     text-align: center;
-    padding: 1px 0;
-    border-top: 1px solid var(--line-ghost);
-    border-bottom: 1px solid var(--line-ghost);
+    padding: 2px 0 1px;
+    border-top: none;
+    border-bottom: none;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     flex: 0 0 auto;
 }
@@ -2094,6 +2130,53 @@ html, body {
 .rules-pane { display: none; }
 .rules-pane.active { display: block; }
 
+.rules-deck-list {
+    display: flex; flex-direction: column; gap: 6px;
+}
+.rules-deck-row {
+    display: grid;
+    grid-template-columns: 22px 52px 1fr;
+    gap: 8px; align-items: center;
+    padding: 6px 8px;
+    background: var(--bg-2);
+    border-left: 2px solid var(--line-dim);
+}
+.rules-deck-row .rd-cost {
+    font-family: var(--display);
+    font-size: 16px; font-weight: 700;
+    color: var(--accent);
+    text-align: center;
+}
+.rules-deck-row .rd-pattern {
+    display: flex; align-items: center; justify-content: center;
+    width: 52px; height: 52px;
+    background: var(--bg-0);
+    padding: 2px;
+    box-sizing: border-box;
+}
+.rules-deck-row .rd-body {
+    min-width: 0;
+}
+.rules-deck-row .rd-name {
+    font-family: var(--mono); font-weight: 700;
+    font-size: 10px; letter-spacing: 0.15em;
+    color: var(--text);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+}
+.rules-deck-row .rd-fx {
+    font-family: var(--mono);
+    font-size: 10px; line-height: 1.5;
+    letter-spacing: 0.05em;
+    color: var(--text-dim);
+    text-transform: none;
+}
+.rules-deck-row .rd-fx .fx-play  { color: #7dd86c; }
+.rules-deck-row .rd-fx .fx-util  { color: #ffa64d; }
+.rules-deck-row .rd-fx .fx-synth { color: #b46eff; }
+.rules-deck-row .rd-fx .fx-none  { color: var(--text-ghost); }
+.rules-deck-row .rd-fx > span { display: block; }
+
 .rules-frame {
     position: relative;
     padding: 14px;
@@ -2218,30 +2301,23 @@ html, body {
 <body>
 <div id="app">
 
-    <!-- HUD: tier-1 (big) + tier-2 (meta) + phase stepper · FIX-04 -->
+    <!-- HUD: компактный одноэтажный — имя / T · КОЛОДА / счёт / меню -->
     <div id="hud" data-player="p1">
-        <!-- Tier 1: active player chip + name + own score + menu -->
         <div class="hud-tier-1">
             <div class="hud-diamond" id="hud-diamond"></div>
             <div class="hud-player-name" id="player-tag">ИГРОК 1</div>
+            <span class="hud-meta-inline" style="display:none">
+                <span class="hud-deck-meta">КОЛОДА <strong id="deck-count">54</strong></span>
+            </span>
             <div class="hud-spacer"></div>
+            <div class="hud-opp-scores" id="opp-scores"></div>
             <div class="hud-score"><span id="cur-score">0</span><span class="hud-score-max" id="cur-score-max">/15</span></div>
             <button class="hud-menu-btn" id="btn-ingame-menu" aria-label="Меню">≡</button>
         </div>
-        <!-- Tier 2: turn + phase counter + opp badges + deck/discard -->
-        <div class="hud-tier-2">
-            <span class="t2-label">ХОД</span><span class="hud-turn-tag" id="turn-tag">T01</span>
-            <span class="t2-dot">·</span>
-            <span class="t2-label">ФАЗА</span><span class="hud-phase-info" id="hud-phase-info">—</span>
-            <div class="hud-spacer"></div>
-            <div class="hud-opp-scores" id="opp-scores"></div>
-            <span class="t2-dot">·</span>
-            <span class="hud-meta-inline">КОЛОДА <strong id="deck-count">54</strong> / СБРОС <strong id="discard-count">0</strong></span>
-        </div>
-        <div class="phase-stepper" id="phase-stepper">
-            <div class="ps-cell" data-phase="0">01·ВОСПОЛН</div>
-            <div class="ps-cell" data-phase="1">02·ХОД</div>
-            <div class="ps-cell" data-phase="2">03·КОНЕЦ</div>
+        <!-- legacy — скрыт, но может использоваться логикой -->
+        <div class="hud-tier-2 hidden" style="display:none">
+            <span class="hud-phase-info" id="hud-phase-info">—</span>
+            <span id="discard-count" style="display:none">0</span>
         </div>
     </div>
 
@@ -2249,9 +2325,9 @@ html, body {
     <div id="phase-hint"></div>
 
     <!-- Shared revealed cards zone — общая зона раскрытых (любой играет как свою) -->
-    <div id="revealed-wrap" class="revealed-wrap collapsed"></div>
+    <div id="revealed-wrap" class="revealed-wrap"></div>
 
-    <!-- Описание выбранной РАСКРЫТОЙ карты — сразу под зоной раскрытых -->
+    <!-- Описание выбранной РАСКРЫТОЙ карты — legacy, скрыт -->
     <div id="card-desc-top" class="card-desc empty"></div>
 
     <!-- Board -->
@@ -2259,14 +2335,14 @@ html, body {
         <div id="board"></div>
     </div>
 
-    <!-- Описание выбранной карты из РУКИ — сразу под полем, над рукой -->
-    <div id="card-desc-bot" class="card-desc empty"></div>
-
     <!-- Hand -->
     <div id="hand-wrap">
         <div class="zone-label" id="hand-label">◦ РУКА · Игрок 1 <span style="color:var(--text-ghost)">··· 0/5</span></div>
         <div id="hand-cards"></div>
     </div>
+
+    <!-- Описание выбранной карты — ПОСЛЕ руки, перед action-bar (UI-10: новый порядок) -->
+    <div id="card-desc-bot" class="card-desc empty"></div>
 
     <!-- Synth order panel -->
     <div id="synth-order-panel" class="hidden">
@@ -2527,6 +2603,7 @@ html, body {
         <button class="rules-tab" data-pane="1">ХОД</button>
         <button class="rules-tab" data-pane="2">КАРТЫ</button>
         <button class="rules-tab" data-pane="3">СИНТЕЗ</button>
+        <button class="rules-tab" data-pane="4">КОЛОДА</button>
     </div>
 
     <div id="rules-body">
@@ -2618,6 +2695,14 @@ html, body {
                     • <b>любой</b> игрок может разыграть чужую раскрытую карту<br>
                     • только владелец может утилизировать свою
                 </div>
+            </div>
+        </div>
+
+        <!-- Pane 4: КОЛОДА (динамически заполняется в ui.js) -->
+        <div class="rules-pane" data-pane="4">
+            <div class="rules-frame bracket">
+                <div class="rules-frame-label">&gt; ВСЕ КАРТЫ · 54 ШТ</div>
+                <div id="rules-deck-list" class="rules-deck-list"></div>
             </div>
         </div>
 
