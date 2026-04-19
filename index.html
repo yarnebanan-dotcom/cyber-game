@@ -645,13 +645,7 @@ html, body {
 .node:nth-child(4n+2)::before { animation-delay: 0.35s; }
 .node:nth-child(4n+3)::before { animation-delay: 0.70s; }
 .node:nth-child(4n+4)::before { animation-delay: 1.05s; }
-/* Статичная dashed-рамка на валидных узлах node pick (без мигания) */
-.node.highlighted {
-    background: rgba(255,106,43,0.12);
-    outline: 1.5px dashed rgba(255,106,43,0.75);
-    outline-offset: -3px;
-}
-.node.highlighted::before { animation: none; }
+/* Подсветка валидных узлов отключена намеренно — слишком шумно */
 /* FIX-26: крест-accent на уже тапнутых фишках паттерна (V3) */
 .node.tapped {
     outline: 1.5px solid var(--accent);

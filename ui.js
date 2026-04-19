@@ -675,23 +675,14 @@ class GameUI {
             let cn = 'node ' + baseClass;
             if (tappedSet.has(key)) cn += ' tapped';
             if (consumed && consumed.has(key)) cn += ' consumed';
-            if (allowedSet.has(key)) cn += ' highlighted';
             if (selectedSet.has(key)) cn += ' selected-node';
             cell.className = cn;
         });
     }
 
-    _highlightNodes(positions) {
-        this._clearHighlights();
-        for (const [r, c] of positions) {
-            const cell = this.boardEl.querySelector(`[data-r="${r}"][data-c="${c}"]`);
-            if (cell) cell.classList.add('highlighted');
-        }
-    }
+    _highlightNodes(_positions) { /* no-op: подсветка валидных узлов отключена */ }
 
-    _clearHighlights() {
-        this.boardEl.querySelectorAll('.node').forEach(n => n.classList.remove('highlighted'));
-    }
+    _clearHighlights() { /* no-op */ }
 
     // FIX-26: .tapped — крест-accent на тапнутых фишках паттерна (V3 focus-mode)
     _applyTapped(positions) {
