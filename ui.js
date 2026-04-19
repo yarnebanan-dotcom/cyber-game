@@ -506,9 +506,7 @@ class GameUI {
             : `Игрок ${st.currentPI + 1}`;
         // UI-10: мета-строка с подсказкой справа
         const supply = st.players[this.netMode ? viewPI : st.currentPI].supply;
-        this.handLabelEl.innerHTML =
-            `<span>РУКА · ${playerTag.toUpperCase()} · <span style="color:var(--text)">${handSize}/${supply}</span></span>` +
-            `<span class="hand-hint">ТАП = ВЫБОР</span>`;
+        this.handLabelEl.textContent = `РУКА · ${handSize}/${supply}`;
         this.handLabelEl.style.color = playerColor;
 
         // Phase hint
