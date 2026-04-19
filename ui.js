@@ -679,11 +679,15 @@ class GameUI {
         const top = this.cardDescTopEl;
         const bot = this.cardDescBotEl;
         if (!top || !bot) return;
-        const clear = (el) => { el.classList.add('empty'); el.innerHTML = ''; };
+        const clear = (el) => { el.classList.remove('placeholder'); el.classList.add('empty'); el.innerHTML = ''; };
+        const placeholderBot = () => {
+            bot.classList.remove('empty');
+            bot.classList.add('placeholder');
+            bot.innerHTML = '— выбери карту · описание эффекта —';
+        };
         clear(top);
-        clear(bot);
         const card = this._descCard;
-        if (!card) return;
+        if (!card) { placeholderBot(); return; }
 
         // Определяем источник: раскрытая карта (у любого игрока) → верхний слот;
         // иначе (в руке текущего вида) → нижний слот над рукой.
@@ -694,8 +698,11 @@ class GameUI {
             }
         }
         const el = fromRevealed ? top : bot;
+        // Другой слот чистим в правильное состояние
+        if (fromRevealed) placeholderBot(); else clear(top);
 
         el.classList.remove('empty');
+        el.classList.remove('placeholder');
         const rows = [];
         if (card.playEffect && card.playEffect.hasEffects) {
             rows.push(`<span class="cd-row fx-play"><span class="cd-kind">▶ Розыгрыш</span><span class="cd-text">${this._fxLongText(card.playEffect)}</span></span>`);

@@ -842,6 +842,19 @@ html, body {
 }
 .card-desc::-webkit-scrollbar { display: none; }
 .card-desc.empty { display: none; }
+/* Нижний слот всегда виден даже без выбранной карты — показывает плейсхолдер */
+.card-desc.placeholder {
+    max-height: none;
+    padding: 8px 10px;
+    color: var(--text-ghost);
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-align: center;
+    text-transform: uppercase;
+    opacity: 0.55;
+    border-style: dashed;
+}
 .card-desc .cd-head {
     display: flex; align-items: baseline; gap: 8px;
     font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
@@ -1023,11 +1036,11 @@ html, body {
 /* ── Card (KIT Phase 2 — strict kit layout) ───────────────── */
 .card {
     flex-shrink: 0;
-    width: 108px;
-    height: 112px;
+    width: 88px;
+    height: 96px;
     background: var(--bg-1);
     border: 1px solid var(--line-dim);
-    padding: 6px;
+    padding: 5px;
     cursor: pointer;
     transition: transform 0.18s cubic-bezier(0.34,1.4,0.64,1), border-color 0.2s, box-shadow 0.2s, background 0.2s;
     position: relative;
@@ -1061,9 +1074,9 @@ html, body {
     align-items: flex-start;
 }
 .card-cost {
-    width: 18px; height: 18px;
+    width: 16px; height: 16px;
     font-family: var(--display);
-    font-size: 10px; font-weight: 700;
+    font-size: 9px; font-weight: 700;
     display: flex; align-items: center; justify-content: center;
     color: var(--text);
     background: transparent;
@@ -1130,12 +1143,12 @@ html, body {
 /* Name (between pattern and effects block) */
 .card-name {
     font-family: var(--display);
-    font-size: 9px; font-weight: 700;
-    color: var(--text); line-height: 1.2;
-    letter-spacing: 0.12em;
+    font-size: 8px; font-weight: 700;
+    color: var(--text); line-height: 1.15;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
     text-align: center;
-    padding: 2px 0;
+    padding: 1px 0;
     border-top: 1px solid var(--line-ghost);
     border-bottom: 1px solid var(--line-ghost);
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
