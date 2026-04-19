@@ -712,27 +712,27 @@ html, body {
 
 /* ── Action Buttons (KIT Phase 1) ──────────────────────────── */
 /* UI-09: max-height + nowrap предотвращает 2-строчный wrap в hardMode (3 кнопки) */
-#action-bar { display: flex; gap: 8px; flex-shrink: 0; height: 52px; align-items: stretch; }
+#action-bar { display: flex; gap: 6px; flex-shrink: 0; height: 38px; align-items: stretch; }
 .btn {
     flex: 1;
     min-width: 0;
     position: relative;
-    padding: 14px 8px;
+    padding: 8px 6px;
     background: transparent;
     border: 1px solid var(--line-dim);
     color: var(--text-dim);
     font-family: var(--mono);
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 500;
-    letter-spacing: 0.14em;
+    letter-spacing: 0.12em;
     text-transform: uppercase;
     cursor: pointer;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
     clip-path: polygon(
-        0 0, calc(100% - 8px) 0, 100% 8px,
-        100% 100%, 8px 100%, 0 calc(100% - 8px)
+        0 0, calc(100% - 6px) 0, 100% 6px,
+        100% 100%, 6px 100%, 0 calc(100% - 6px)
     );
     transition: background 0.15s, color 0.15s, border-color 0.15s, transform 0.1s;
 }
