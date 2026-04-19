@@ -388,6 +388,13 @@ class GameUI {
 
         this._buildBoard(boardSize);
         this._updateNetTurnIndicator();
+        // Стартовая раздача: каждый игрок должен начать с полной рукой (supply),
+        // иначе неактивные игроки до своего первого хода сидят с пустой рукой —
+        // ни увидеть свои карты, ни прочитать описание не могут.
+        for (const pl of this.state.players) {
+            const need = Math.max(0, pl.supply - pl.hand.length);
+            if (need > 0) pl.hand.push(...this.state.deck.draw(need));
+        }
         this.tm.replenish();
     }
 
