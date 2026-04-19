@@ -62,6 +62,9 @@
     --mono: 'JetBrains Mono', 'Share Tech Mono', ui-monospace, monospace;
     --sans: 'Rajdhani', 'Barlow Condensed', sans-serif;
     --display: 'Orbitron', 'Rajdhani', sans-serif;
+
+    /* Card zones — единая высота для руки и раскрытых */
+    --card-zone-height: 108px;
 }
 
 /* Typography utilities */
@@ -467,7 +470,7 @@ html, body {
 .revealed-wrap {
     flex-shrink: 0;
     overflow: hidden;
-    height: 100px;
+    height: var(--card-zone-height);
     display: flex;
     align-items: stretch;
     gap: 6px;
@@ -831,7 +834,7 @@ html, body {
 #hand-wrap {
     overflow: visible;
     min-width: 0;
-    height: 108px;
+    height: var(--card-zone-height);
     box-sizing: border-box;
     margin: 0 -6px;
     padding: 2px 6px;
