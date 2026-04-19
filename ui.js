@@ -663,14 +663,20 @@ class GameUI {
         // Переживание подсветки (node pick) через ре-рендер
         const allowedSet = new Set((this.nodePickAllowed || []).map(([r, c]) => `${r},${c}`));
         const selectedSet = new Set((this.nodePickResult || []).map(([r, c]) => `${r},${c}`));
+        // Превью фишки текущего игрока на выбранных клетках (до финализации эффекта)
+        const curChipClass = occClass[st.currentPI + 1] || '';
         cells.forEach(cell => {
             const r = parseInt(cell.dataset.r), c = parseInt(cell.dataset.c);
             const occ = st.board.nodes[r][c];
-            let cn = 'node ' + (occClass[occ] ?? 'empty');
-            if (tappedSet.has(`${r},${c}`)) cn += ' tapped';
-            if (consumed && consumed.has(`${r},${c}`)) cn += ' consumed';
-            if (allowedSet.has(`${r},${c}`)) cn += ' highlighted';
-            if (selectedSet.has(`${r},${c}`)) cn += ' selected-node';
+            const key = `${r},${c}`;
+            // На выбранных клетках (превью) подменяем empty на класс текущего игрока,
+            // чтобы ::before отрисовался крупным ромбом цвета фишки
+            const baseClass = (selectedSet.has(key) && occ === 0) ? curChipClass : (occClass[occ] ?? 'empty');
+            let cn = 'node ' + baseClass;
+            if (tappedSet.has(key)) cn += ' tapped';
+            if (consumed && consumed.has(key)) cn += ' consumed';
+            if (allowedSet.has(key)) cn += ' highlighted';
+            if (selectedSet.has(key)) cn += ' selected-node';
             cell.className = cn;
         });
     }
@@ -1595,8 +1601,8 @@ class GameUI {
         this.nodePickAllowed.splice(idx, 1);
         this.nodePickRemaining--;
 
-        const cell = this.boardEl.querySelector(`[data-r="${r}"][data-c="${c}"]`);
-        if (cell) cell.classList.add('selected-node');
+        // Ре-рендер покажет превью фишки текущего игрока на selected-клетке (opacity 0.45)
+        this._renderBoard();
 
         if (this.nodePickRemaining <= 0 || this.nodePickAllowed.length === 0) {
             const done = this.nodePickDone;
