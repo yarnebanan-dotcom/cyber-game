@@ -880,12 +880,15 @@ html, body {
     border: none;
     background: var(--bg-1);
     padding: 6px 10px;
-    height: 52px;
+    height: 80px;
     box-sizing: border-box;
     overflow-y: auto;
-    scrollbar-width: none;
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-dim) transparent;
 }
-.card-desc::-webkit-scrollbar { display: none; }
+.card-desc::-webkit-scrollbar { width: 4px; }
+.card-desc::-webkit-scrollbar-track { background: transparent; }
+.card-desc::-webkit-scrollbar-thumb { background: var(--line-dim); border-radius: 2px; }
 /* Верхний слот .empty скрыт (top больше не используется — всё в bot) */
 .card-desc.empty { display: none; }
 /* Плейсхолдер занимает то же место, только визуально мягче */
