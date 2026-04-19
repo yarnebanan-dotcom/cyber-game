@@ -187,15 +187,16 @@ html, body {
 }
 
 /* ── Layout ──────────────────────────────────────────────── */
-/* UI-09: grid-rows жёстко закрепляют вертикальный бюджет; доска (1fr) всегда получает остаток
-   после авто-строк HUD/hint/revealed/hand/synth/action-bar. #card-desc вынесен в overlay
-   (см. .card-desc ниже), поэтому его появление не ворует место у доски. */
+/* UI-09: grid-rows жёстко закрепляют вертикальный бюджет; доска (1fr) всегда получает остаток.
+   Два слота описания карт (#card-desc-top под раскрытыми, #card-desc-bot над рукой) появляются
+   только при выбранной карте — пока .empty у них display:none, и доска занимает максимум. */
 #app {
     display: grid;
     /* minmax(0,1fr) — критично: разрешает grid-col сжиматься ниже min-content,
        иначе action-bar с nowrap-кнопками раздвигает сетку за viewport */
     grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: auto auto auto 1fr auto auto auto;
+    /* 9 rows: hud / hint / revealed / desc-top / board(1fr) / desc-bot / hand / synth / action */
+    grid-template-rows: auto auto auto auto 1fr auto auto auto auto;
     height: 100dvh;
     max-width: 480px;
     margin: 0 auto;
@@ -208,10 +209,12 @@ html, body {
 #app > #hud              { grid-row: 1; }
 #app > #phase-hint       { grid-row: 2; }
 #app > #revealed-wrap    { grid-row: 3; }
-#app > #board-wrap       { grid-row: 4; min-height: 0; }
-#app > #hand-wrap        { grid-row: 5; }
-#app > #synth-order-panel{ grid-row: 6; }
-#app > #action-bar       { grid-row: 7; }
+#app > #card-desc-top    { grid-row: 4; }
+#app > #board-wrap       { grid-row: 5; min-height: 0; }
+#app > #card-desc-bot    { grid-row: 6; }
+#app > #hand-wrap        { grid-row: 7; }
+#app > #synth-order-panel{ grid-row: 8; }
+#app > #action-bar       { grid-row: 9; }
 
 /* ── HUD (KIT Phase 3 — compact header + phase stepper) ──── */
 #hud {
@@ -804,28 +807,22 @@ html, body {
 }
 #hand-cards::-webkit-scrollbar { display: none; }
 
-/* Описание выбранной карты — overlay над рукой, над action-bar (UI-09).
-   Причина: раньше card-desc лежал внутри #hand-wrap и при появлении увеличивал руку
-   на ~65px, воруя место у доски через flex-chain shrink. Теперь position:absolute,
-   якорится над action-bar через --action-h. Доска больше не деформируется. */
+/* Описание выбранной карты — два inline-слота:
+   - #card-desc-top: сразу под #revealed-wrap (для раскрытых карт)
+   - #card-desc-bot: сразу под доской, над рукой (для карт в руке)
+   Каждый занимает собственный grid-row. Когда .empty → display:none → track сохраняется за счёт explicit grid-row. */
 .card-desc {
-    position: absolute;
-    left: 8px;
-    right: 8px;
-    bottom: calc(var(--action-h, 52px) + env(safe-area-inset-bottom, 0px) + 10px);
-    z-index: 5;
     font-family: var(--mono);
     font-size: 10px;
     line-height: 1.4;
     color: var(--text);
     border: 1px solid var(--line);
-    background: linear-gradient(180deg, rgba(26,102,119,0.12), rgba(0,0,0,0)), var(--bg-1);
-    padding: 6px 8px;
-    max-height: 104px;
+    background: linear-gradient(180deg, rgba(26,102,119,0.10), rgba(0,0,0,0)), var(--bg-1);
+    padding: 5px 8px;
+    max-height: 92px;
     overflow-y: auto;
     clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
     scrollbar-width: none;
-    box-shadow: 0 -8px 24px rgba(0,0,0,0.6);
 }
 .card-desc::-webkit-scrollbar { display: none; }
 .card-desc.empty { display: none; }
@@ -2202,19 +2199,22 @@ html, body {
     <!-- Shared revealed cards zone — общая зона раскрытых (любой играет как свою) -->
     <div id="revealed-wrap" class="revealed-wrap collapsed"></div>
 
+    <!-- Описание выбранной РАСКРЫТОЙ карты — сразу под зоной раскрытых -->
+    <div id="card-desc-top" class="card-desc empty"></div>
+
     <!-- Board -->
     <div id="board-wrap">
         <div id="board"></div>
     </div>
+
+    <!-- Описание выбранной карты из РУКИ — сразу под полем, над рукой -->
+    <div id="card-desc-bot" class="card-desc empty"></div>
 
     <!-- Hand -->
     <div id="hand-wrap">
         <div class="zone-label" id="hand-label">◦ РУКА · Игрок 1 <span style="color:var(--text-ghost)">··· 0/5</span></div>
         <div id="hand-cards"></div>
     </div>
-
-    <!-- Card description overlay (UI-09) — положение управляется CSS, не зависит от потока -->
-    <div id="card-desc" class="card-desc empty"></div>
 
     <!-- Synth order panel -->
     <div id="synth-order-panel" class="hidden">

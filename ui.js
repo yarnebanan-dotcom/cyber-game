@@ -45,22 +45,6 @@ class GameUI {
 
         this._bindElements();
         this._initAudio();
-        this._initLayoutObserver();
-    }
-
-    // UI-09: пробрасываем высоту action-bar в CSS var, чтобы #card-desc overlay
-    // всегда стоял над кнопками, вне зависимости от hardMode / safe-area / языка.
-    _initLayoutObserver() {
-        const app = document.getElementById('app');
-        const bar = document.getElementById('action-bar');
-        if (!app || !bar) return;
-        const sync = () => app.style.setProperty('--action-h', bar.offsetHeight + 'px');
-        sync();
-        if (typeof ResizeObserver !== 'undefined') {
-            new ResizeObserver(sync).observe(bar);
-        }
-        window.addEventListener('resize', sync);
-        window.addEventListener('orientationchange', sync);
     }
 
     _bindElements() {
@@ -78,7 +62,8 @@ class GameUI {
         this.handEl = document.getElementById('hand-cards');
         this.handLabelEl = document.getElementById('hand-label');
         this.revealedWrap = document.getElementById('revealed-wrap');
-        this.cardDescEl = document.getElementById('card-desc');
+        this.cardDescTopEl = document.getElementById('card-desc-top');
+        this.cardDescBotEl = document.getElementById('card-desc-bot');
 
         // Buttons
         document.getElementById('btn-utilize').onclick = () => this._onUtilize();
@@ -691,14 +676,25 @@ class GameUI {
     }
 
     _renderCardDesc() {
-        const el = this.cardDescEl;
-        if (!el) return;
+        const top = this.cardDescTopEl;
+        const bot = this.cardDescBotEl;
+        if (!top || !bot) return;
+        const clear = (el) => { el.classList.add('empty'); el.innerHTML = ''; };
+        clear(top);
+        clear(bot);
         const card = this._descCard;
-        if (!card) {
-            el.classList.add('empty');
-            el.innerHTML = '';
-            return;
+        if (!card) return;
+
+        // Определяем источник: раскрытая карта (у любого игрока) → верхний слот;
+        // иначе (в руке текущего вида) → нижний слот над рукой.
+        let fromRevealed = false;
+        if (this.state?.players) {
+            for (const p of this.state.players) {
+                if (p.revealed && p.revealed.includes(card)) { fromRevealed = true; break; }
+            }
         }
+        const el = fromRevealed ? top : bot;
+
         el.classList.remove('empty');
         const rows = [];
         if (card.playEffect && card.playEffect.hasEffects) {

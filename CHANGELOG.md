@@ -6,6 +6,35 @@
 
 ---
 
+## 2026-04-19 — UI-09b · Два in-flow слота описания карт (вместо overlay)
+
+По запросу пользователя overlay-подход заменён на два выделенных слота в grid-раскладке: описание раскрытой карты появляется **сразу под зоной раскрытых**, описание карты в руке — **между доской и рукой**. Теперь при выборе карты виден её эффект, но доска немного уменьшается (~92px). Tradeoff принят сознательно — overlay перекрывал руку и путал читаемость.
+
+**Изменено в `Web/index.html`:**
+- `#app` — grid расширен с 7 до 9 rows: `auto auto auto auto 1fr auto auto auto auto`. Добавлены `#card-desc-top` (row 4, после `#revealed-wrap`) и `#card-desc-bot` (row 6, между board и hand).
+- `.card-desc` — `position: absolute` overlay → `position: static` in-flow. Убраны `left/right/bottom/z-index/box-shadow` (больше не нужны). `max-height: 104px → 92px`, `padding: 6px 8px → 5px 8px`.
+- `.card-desc.empty { display: none }` — пустой слот полностью сворачивается, track не отбирает у доски.
+- HTML — `<div id="card-desc">` один заменён на `<div id="card-desc-top">` (после revealed-wrap) и `<div id="card-desc-bot">` (после board-wrap, перед hand-wrap).
+
+**Изменено в `Web/ui.js`:**
+- `_bindElements` — `this.cardDescEl` → `this.cardDescTopEl` + `this.cardDescBotEl`.
+- `_renderCardDesc` — определяет источник выбранной карты: если находится в `players[*].revealed` → рендерит в верхний слот, иначе (рука / прочее) → в нижний. Второй слот всегда чистится/прячется.
+- `_initLayoutObserver` и его вызов из конструктора **удалены** — overlay больше нет, `--action-h` не нужен.
+
+**Проверено в preview:**
+
+| Сценарий | Viewport | Слот с описанием | Доска |
+|---|---|---|---|
+| 2p без выбора | 375×667 | оба пустые | 363×363 |
+| 2p · тап карты в руке | 375×667 | `#card-desc-bot` 77px | 247×247 |
+| 2p · тап раскрытой карты | 375×667 | `#card-desc-top` 77px | 159×159 |
+| 3p HARD · тап карты в руке | 360×640 | `#card-desc-bot` 92px | 205×205 (41px/cell) |
+| 3p HARD без выбора | 360×640 | оба пустые | 295×295 (59px/cell) |
+
+Console errors: 0.
+
+---
+
 ## 2026-04-19 — UI-09 · Viewport-aware layout system (P0-1 + P0-3 + P0-4)
 
 Радикальная переделка корневой раскладки после глобального аудита ([DESIGN-AUDIT.md](DESIGN-AUDIT.md)). Точечные фиксы UI-05…UI-08 меняли размеры карт, но не решали настоящую причину оверлапа: flex-shrink-chain в `#app` + `aspect-ratio` на доске + рост `#card-desc` внутри `#hand-wrap`. Этот коммит устраняет все три P0 разом.
