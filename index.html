@@ -201,7 +201,7 @@ html, body {
     max-width: 480px;
     margin: 0 auto;
     padding: 0 6px env(safe-area-inset-bottom, 0px);
-    gap: 5px;
+    gap: 3px;
     overflow: hidden;
     position: relative;
 }
@@ -419,7 +419,10 @@ html, body {
     font-size: 10px;
     color: var(--accent);
     letter-spacing: 0.1em;
-    min-height: unset;
+    /* UI-09e: фиксированная высота — подсказка может переноситься/сжиматься; фикс-высота стабилизирует layout */
+    height: 28px;
+    box-sizing: border-box;
+    overflow: hidden;
     transition: color 0.35s, border-color 0.35s, background 0.35s;
     text-transform: uppercase;
 }
@@ -440,10 +443,15 @@ html, body {
 #phase-hint.tone-ok        { color: var(--ok); border-color: var(--ok); }
 
 /* ── Revealed zones — HUD lanes (FIX-21) ─────────────────── */
-.revealed-wrap { flex-shrink: 0; overflow: visible; }
+/* UI-09e: фиксированная высота — зона не прыгает при появлении/снятии карт */
+.revealed-wrap {
+    flex-shrink: 0;
+    overflow: hidden;
+    height: 72px;
+}
+.revealed-wrap .rev-lane { height: 100%; box-sizing: border-box; }
 /* Пустая зона остаётся видимой — слот «здесь появятся раскрытые карты» */
 .rev-lane.empty {
-    padding: 14px 12px 6px;
     opacity: 0.55;
 }
 .rev-lane.empty .rev-lane-row {
@@ -462,7 +470,7 @@ html, body {
 /* One lane per owner; stacked when multiple (3p top) */
 .rev-lane {
     position: relative;
-    padding: 14px 12px 6px;
+    padding: 12px 12px 3px;
     background:
         linear-gradient(180deg, var(--lane-tint, rgba(63,208,230,0.06)), transparent 80%),
         var(--bg-1);
@@ -494,9 +502,9 @@ html, body {
 
 /* Compact card in lane (те же компоненты что и на руке, просто мельче) */
 .rev-lane .card {
-    width: 58px;
-    height: 66px;
-    padding: 3px;
+    width: 52px;
+    height: 58px;
+    padding: 2px;
     border-radius: 3px;
     flex-shrink: 0;
 }
@@ -814,37 +822,49 @@ html, body {
 #hand-wrap {
     overflow: visible;
     border-top: 1px solid rgba(80,110,180,0.15);
-    padding-top: 3px;
-    margin-top: 2px;
+    padding-top: 2px;
     min-width: 0;
+    /* UI-09e: фиксированная высота руки — доска не дёргается при выборе карты (translateY) */
+    height: 110px;
+    box-sizing: border-box;
+}
+#hand-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    color: var(--text-dim);
+    padding: 2px 4px 0;
+    line-height: 1.1;
 }
 #hand-cards {
-    display: flex; gap: 6px; overflow-x: auto; padding: 4px 2px; scrollbar-width: none;
+    display: flex; gap: 6px; overflow-x: auto; padding: 3px 2px 2px; scrollbar-width: none;
 }
 #hand-cards::-webkit-scrollbar { display: none; }
 
-/* Описание выбранной карты — два inline-слота:
-   - #card-desc-top: сразу под #revealed-wrap (для раскрытых карт)
-   - #card-desc-bot: сразу под доской, над рукой (для карт в руке)
-   Каждый занимает собственный grid-row. Когда .empty → display:none → track сохраняется за счёт explicit grid-row. */
+/* Описание выбранной карты — единственный фиксированный слот #card-desc-bot между доской и рукой.
+   Верхний слот #card-desc-top зарезервирован в разметке но сейчас всегда hidden (legacy).
+   Фиксированная высота 80px: плейсхолдер или описание занимают ровно одно и то же место,
+   доска никогда не сдвигается при выборе/снятии выбора карты. */
 .card-desc {
     font-family: var(--mono);
     font-size: 10px;
-    line-height: 1.4;
+    line-height: 1.35;
     color: var(--text);
     border: 1px solid var(--line);
     background: linear-gradient(180deg, rgba(26,102,119,0.10), rgba(0,0,0,0)), var(--bg-1);
     padding: 5px 8px;
-    max-height: 92px;
+    /* UI-09e: фиксированная высота — слот не сдвигает доску при появлении/снятии выбора */
+    height: 72px;
+    box-sizing: border-box;
     overflow-y: auto;
     clip-path: polygon(0 0, calc(100% - 6px) 0, 100% 6px, 100% 100%, 6px 100%, 0 calc(100% - 6px));
     scrollbar-width: none;
 }
 .card-desc::-webkit-scrollbar { display: none; }
+/* Верхний слот .empty скрыт (top больше не используется — всё в bot) */
 .card-desc.empty { display: none; }
-/* Нижний слот всегда виден даже без выбранной карты — показывает плейсхолдер */
+/* Плейсхолдер занимает ровно то же фиксированное место, только визуально мягче */
 .card-desc.placeholder {
-    max-height: none;
     padding: 8px 10px;
     color: var(--text-ghost);
     font-family: var(--mono);
@@ -854,6 +874,9 @@ html, body {
     text-transform: uppercase;
     opacity: 0.55;
     border-style: dashed;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 .card-desc .cd-head {
     display: flex; align-items: baseline; gap: 8px;
@@ -1036,11 +1059,11 @@ html, body {
 /* ── Card (KIT Phase 2 — strict kit layout) ───────────────── */
 .card {
     flex-shrink: 0;
-    width: 88px;
-    height: 96px;
+    width: 82px;
+    height: 88px;
     background: var(--bg-1);
     border: 1px solid var(--line-dim);
-    padding: 5px;
+    padding: 4px;
     cursor: pointer;
     transition: transform 0.18s cubic-bezier(0.34,1.4,0.64,1), border-color 0.2s, box-shadow 0.2s, background 0.2s;
     position: relative;

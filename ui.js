@@ -679,28 +679,18 @@ class GameUI {
         const top = this.cardDescTopEl;
         const bot = this.cardDescBotEl;
         if (!top || !bot) return;
-        const clear = (el) => { el.classList.remove('placeholder'); el.classList.add('empty'); el.innerHTML = ''; };
-        const placeholderBot = () => {
+        // Top slot больше не используется — всё описание идёт в нижний фиксированный слот.
+        top.classList.remove('placeholder');
+        top.classList.add('empty');
+        top.innerHTML = '';
+        const card = this._descCard;
+        if (!card) {
             bot.classList.remove('empty');
             bot.classList.add('placeholder');
             bot.innerHTML = '— выбери карту · описание эффекта —';
-        };
-        clear(top);
-        const card = this._descCard;
-        if (!card) { placeholderBot(); return; }
-
-        // Определяем источник: раскрытая карта (у любого игрока) → верхний слот;
-        // иначе (в руке текущего вида) → нижний слот над рукой.
-        let fromRevealed = false;
-        if (this.state?.players) {
-            for (const p of this.state.players) {
-                if (p.revealed && p.revealed.includes(card)) { fromRevealed = true; break; }
-            }
+            return;
         }
-        const el = fromRevealed ? top : bot;
-        // Другой слот чистим в правильное состояние
-        if (fromRevealed) placeholderBot(); else clear(top);
-
+        const el = bot;
         el.classList.remove('empty');
         el.classList.remove('placeholder');
         const rows = [];
