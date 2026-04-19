@@ -205,9 +205,12 @@ class DiscardCardsEffect {
     execute(st, ap, inp, done) {
         const ti = this.target === Target.Self ? ap : (ap + 1) % st.players.length;
         const tp = st.players[ti];
-        // Исключаем источник (сейчас разыгрываемую/утилизируемую карту) из пула self
+        // Исключаем источник (сейчас разыгрываемую/утилизируемую карту) из пула всегда —
+        // source попадёт в сброс в конце playCard/utilizeCard. Без этого фильтра при
+        // target=Opp и source в revealed противника (играется чужая раскрытая карта)
+        // эффект сам сбрасывал source, а затем playCard пушил её в discard повторно.
         const src = inp.sourceCard;
-        const all = (this.target === Target.Self && src)
+        const all = src
             ? [...tp.hand.filter(c => c !== src), ...tp.revealed.filter(c => c !== src)]
             : [...tp.hand, ...tp.revealed];
         const toDiscard = this.n === Infinity ? all.length : Math.min(this.n, all.length);
