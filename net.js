@@ -36,6 +36,8 @@ class Net {
         this._reqCounter = 0;
         this._lastPingTs = 0;
         this._pingInterval = null;
+        this._reconnectTimer = null;
+        this._reconnectAttempts = 0;
     }
 
     static _genCode() {
@@ -136,13 +138,38 @@ class Net {
     }
 
     // ── Переподключение от гостя (тот же код) ──────────────────
-    async reconnectGuest() {
-        if (this.role !== 'guest' || !this.code) return;
+    reconnectGuest() {
+        if (this.role !== 'guest' || !this.code || !this.peer) return;
         try { this.conn?.close(); } catch (_) {}
         const targetPeerId = Net._peerIdFor(this.code);
         const conn = this.peer.connect(targetPeerId, { reliable: true });
         this._bindConn(conn, true);
         conn.on('open', () => conn.send({ type: 'hello', role: 'guest', reconnect: true }));
+    }
+
+    // Запускает цикл попыток реконнекта у гостя.
+    // maxAttempts=20, интервал=3с → ~1 минута. onGiveUp вызывается если все попытки провалились.
+    startReconnectLoop(onAttempt, onGiveUp, maxAttempts = 20) {
+        if (this.role !== 'guest') return;
+        this._stopReconnectLoop();
+        this._reconnectAttempts = 0;
+        const tick = () => {
+            if (this.connected) { this._stopReconnectLoop(); return; }
+            this._reconnectAttempts++;
+            onAttempt?.(this._reconnectAttempts, maxAttempts);
+            if (this._reconnectAttempts > maxAttempts) {
+                this._stopReconnectLoop();
+                onGiveUp?.();
+                return;
+            }
+            try { this.reconnectGuest(); } catch (_) {}
+        };
+        tick();
+        this._reconnectTimer = setInterval(tick, 3000);
+    }
+    _stopReconnectLoop() {
+        if (this._reconnectTimer) { clearInterval(this._reconnectTimer); this._reconnectTimer = null; }
+        this._reconnectAttempts = 0;
     }
 
     // ── Общие ───────────────────────────────────────────────────
@@ -185,6 +212,10 @@ class Net {
         this._pingInterval = setInterval(() => {
             if (!this.conn?.open) return;
             try { this.conn.send({ type: 'ping' }); } catch (_) {}
+            // Watchdog: нет pong дольше 15с → считаем conn мёртвым, закрываем
+            if (Date.now() - this._lastPingTs > 15000) {
+                try { this.conn.close(); } catch (_) {}
+            }
         }, 5000);
     }
     _stopKeepalive() {
@@ -218,6 +249,7 @@ class Net {
     // ── Завершение ──────────────────────────────────────────────
     disconnect() {
         this._stopKeepalive();
+        this._stopReconnectLoop();
         this._pendingRequests.clear();
         try { this.conn?.close(); } catch (_) {}
         try { this.peer?.destroy(); } catch (_) {}

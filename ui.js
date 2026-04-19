@@ -2271,8 +2271,22 @@ class GameUI {
         net.onDisconnect = () => {
             const overlay = document.getElementById('net-overlay');
             document.getElementById('net-overlay-title').textContent = 'Связь потеряна';
-            document.getElementById('net-overlay-text').textContent = 'Пытаемся переподключиться...';
+            document.getElementById('net-overlay-text').textContent = 'Пытаемся переподключиться…';
             overlay.classList.remove('hidden');
+            if (net.role === 'guest') {
+                net.startReconnectLoop(
+                    (n, max) => {
+                        document.getElementById('net-overlay-text').textContent =
+                            `Пытаемся переподключиться… (${n}/${max})`;
+                    },
+                    () => {
+                        document.getElementById('net-overlay-title').textContent = 'Не удалось переподключиться';
+                        document.getElementById('net-overlay-text').textContent =
+                            'Хост не отвечает. Вернись в меню и попробуй снова.';
+                    }
+                );
+            }
+            // host ждёт пока гость сам постучит на его peerId (on('connection'))
         };
 
         net.onError = (e) => {
