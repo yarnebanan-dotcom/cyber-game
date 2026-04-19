@@ -50,32 +50,84 @@ class Net {
 
     static _peerIdFor(code) { return 'cyber-game-' + code.toLowerCase(); }
 
+    // Список серверов для fallback — если один cloud лёг, переключаемся на другой
+    static get _servers() {
+        return [
+            null,  // default 0.peerjs.com (встроенный в PeerJS)
+            { host: '0.peerjs.com',          port: 443, path: '/',        secure: true },
+            { host: 'peerjs-server.herokuapp.com', port: 443, path: '/',  secure: true },
+        ];
+    }
+
+    static _peerOpts(serverIdx) {
+        const srv = Net._servers[serverIdx];
+        const base = {
+            debug: 2,
+            config: {
+                iceServers: [
+                    { urls: 'stun:stun.l.google.com:19302' },
+                    { urls: 'stun:stun1.l.google.com:19302' },
+                    { urls: 'stun:global.stun.twilio.com:3478' },
+                ],
+            },
+        };
+        return srv ? { ...srv, ...base } : base;
+    }
+
     // ── Host ────────────────────────────────────────────────────
-    async hostGame(retry = 0) {
+    async hostGame(retry = 0, serverIdx = 0) {
         if (retry > 8) throw new Error('Не удалось создать игру — попробуй ещё раз');
+        if (serverIdx >= Net._servers.length) throw new Error('Сетевые серверы недоступны. Проверь интернет.');
         this.role = 'host';
         this.code = Net._genCode();
         const peerId = Net._peerIdFor(this.code);
 
         return new Promise((resolve, reject) => {
-            this.peer = new Peer(peerId, { debug: 1 });
+            console.log('[NET host] serverIdx=%d, peerId=%s', serverIdx, peerId);
+            this.peer = new Peer(peerId, Net._peerOpts(serverIdx));
+            let settled = false;
 
-            this.peer.on('open', () => resolve(this.code));
+            const openTimer = setTimeout(() => {
+                if (settled) return;
+                settled = true;
+                console.warn('[NET host] таймаут open на серверe idx=%d, пробуем следующий', serverIdx);
+                try { this.peer.destroy(); } catch (_) {}
+                this.peer = null;
+                this.hostGame(0, serverIdx + 1).then(resolve, reject);
+            }, 15000);
+
+            this.peer.on('open', () => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(openTimer);
+                console.log('[NET host] открыт, code=%s', this.code);
+                resolve(this.code);
+            });
 
             this.peer.on('error', (e) => {
-                if (e.type === 'unavailable-id' || e.type === 'network') {
-                    // Код занят — пробуем другой
+                console.warn('[NET host] error type=%s, msg=%s', e.type, e.message);
+                if (settled) { this.onError?.(e); return; }
+                if (e.type === 'unavailable-id') {
+                    settled = true;
+                    clearTimeout(openTimer);
                     try { this.peer.destroy(); } catch (_) {}
                     this.peer = null;
-                    this.hostGame(retry + 1).then(resolve, reject);
+                    this.hostGame(retry + 1, serverIdx).then(resolve, reject);
+                } else if (e.type === 'network' || e.type === 'server-error' || e.type === 'socket-error' || e.type === 'socket-closed') {
+                    settled = true;
+                    clearTimeout(openTimer);
+                    try { this.peer.destroy(); } catch (_) {}
+                    this.peer = null;
+                    this.hostGame(0, serverIdx + 1).then(resolve, reject);
                 } else {
+                    settled = true;
+                    clearTimeout(openTimer);
                     this.onError?.(e);
-                    reject(e);
+                    reject(new Error(`Ошибка сервера (${e.type || 'unknown'})`));
                 }
             });
 
             this.peer.on('connection', (conn) => {
-                // Только одно активное соединение; предыдущий гость может переподключаться
                 if (this.conn) {
                     try { this.conn.close(); } catch (_) {}
                 }
@@ -83,49 +135,71 @@ class Net {
             });
 
             this.peer.on('disconnected', () => {
-                // Потеряли связь с сигнальным сервером — попробуем реконнект
                 try { this.peer.reconnect(); } catch (_) {}
             });
         });
     }
 
     // ── Guest ───────────────────────────────────────────────────
-    async joinGame(code) {
+    async joinGame(code, serverIdx = 0) {
+        if (serverIdx >= Net._servers.length) throw new Error('Сетевые серверы недоступны. Проверь интернет.');
         this.role = 'guest';
         this.code = code.trim().toUpperCase();
         const targetPeerId = Net._peerIdFor(this.code);
 
         return new Promise((resolve, reject) => {
-            this.peer = new Peer({ debug: 1 });
+            console.log('[NET guest] serverIdx=%d, target=%s', serverIdx, targetPeerId);
+            this.peer = new Peer(Net._peerOpts(serverIdx));
             let resolved = false;
+            let peerUnavailable = false;
 
             this.peer.on('open', () => {
+                console.log('[NET guest] peer open, connecting...');
                 const conn = this.peer.connect(targetPeerId, { reliable: true });
                 this._bindConn(conn, false);
 
                 conn.on('open', () => {
-                    if (!resolved) { resolved = true; resolve(); }
+                    if (resolved) return;
+                    resolved = true;
+                    console.log('[NET guest] conn open');
                     conn.send({ type: 'hello', role: 'guest' });
+                    resolve();
                 });
 
-                // Таймаут на подключение
                 setTimeout(() => {
-                    if (!resolved) {
-                        resolved = true;
-                        try { this.peer.destroy(); } catch (_) {}
-                        reject(new Error('Хост не найден. Проверь код.'));
+                    if (resolved) return;
+                    resolved = true;
+                    console.warn('[NET guest] таймаут подключения (idx=%d)', serverIdx);
+                    try { this.peer.destroy(); } catch (_) {}
+                    // Если явно peer-unavailable — код неверный, не пробуем другой сервер
+                    if (peerUnavailable) {
+                        reject(new Error('Хост не найден. Проверь код или попроси создать игру заново.'));
+                    } else {
+                        // Иначе fallback на следующий сервер
+                        this.joinGame(code, serverIdx + 1).then(resolve, reject);
                     }
-                }, 12000);
+                }, 20000);
             });
 
             this.peer.on('error', (e) => {
+                console.warn('[NET guest] error type=%s, msg=%s', e.type, e.message);
+                if (e.type === 'peer-unavailable') {
+                    peerUnavailable = true;
+                    if (!resolved) {
+                        resolved = true;
+                        try { this.peer.destroy(); } catch (_) {}
+                        reject(new Error('Хост не найден. Проверь код или попроси создать игру заново.'));
+                    }
+                    return;
+                }
                 if (!resolved) {
                     resolved = true;
-                    reject(new Error(
-                        e.type === 'peer-unavailable' ? 'Хост не найден. Проверь код.' :
-                        e.type === 'network' ? 'Нет сети' :
-                        `Ошибка: ${e.type || e.message}`
-                    ));
+                    try { this.peer.destroy(); } catch (_) {}
+                    if (e.type === 'network' || e.type === 'server-error' || e.type === 'socket-error' || e.type === 'socket-closed') {
+                        this.joinGame(code, serverIdx + 1).then(resolve, reject);
+                    } else {
+                        reject(new Error(`Ошибка: ${e.type || e.message || 'неизвестно'}`));
+                    }
                 } else {
                     this.onError?.(e);
                 }
