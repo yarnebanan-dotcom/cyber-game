@@ -171,10 +171,15 @@ class RevealCardsEffect {
     execute(st, ap, inp, done) {
         const ti = this.target === Target.Self ? ap : (ap + 1) % st.players.length;
         const tp = st.players[ti];
-        const toReveal = this.n === Infinity ? tp.hand.length : Math.min(this.n, tp.hand.length);
+        // Исключаем источник (сейчас разыгрываемую/утилизируемую карту) из пула self
+        const src = inp.sourceCard;
+        const pool = (this.target === Target.Self && src)
+            ? tp.hand.filter(c => c !== src)
+            : [...tp.hand];
+        const toReveal = this.n === Infinity ? pool.length : Math.min(this.n, pool.length);
         if (toReveal <= 0) { done?.(); return; }
         // EXPERIMENTAL: отложенный выбор противника — см. PlayerState.pendingActions
-        if (this.target === Target.Opp && toReveal < tp.hand.length) {
+        if (this.target === Target.Opp && toReveal < pool.length) {
             tp.pendingActions.push({
                 kind: 'reveal', count: toReveal,
                 sourceCardName: inp.sourceCard?.name ?? '',
@@ -184,7 +189,7 @@ class RevealCardsEffect {
             return;
         }
         inp.actionKind = 'reveal'; inp.actionCount = this.n; inp.actionTargetSelf = (this.target === Target.Self);
-        inp.chooseCards(ti, [...tp.hand], toReveal, chosen => {
+        inp.chooseCards(ti, pool, toReveal, chosen => {
             chosen.forEach(c => {
                 const i = tp.hand.indexOf(c);
                 if (i >= 0) tp.hand.splice(i, 1);
@@ -200,7 +205,11 @@ class DiscardCardsEffect {
     execute(st, ap, inp, done) {
         const ti = this.target === Target.Self ? ap : (ap + 1) % st.players.length;
         const tp = st.players[ti];
-        const all = [...tp.hand, ...tp.revealed];
+        // Исключаем источник (сейчас разыгрываемую/утилизируемую карту) из пула self
+        const src = inp.sourceCard;
+        const all = (this.target === Target.Self && src)
+            ? [...tp.hand.filter(c => c !== src), ...tp.revealed.filter(c => c !== src)]
+            : [...tp.hand, ...tp.revealed];
         const toDiscard = this.n === Infinity ? all.length : Math.min(this.n, all.length);
         if (toDiscard <= 0) { done?.(); return; }
         // EXPERIMENTAL: отложенный выбор противника — см. PlayerState.pendingActions
