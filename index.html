@@ -2029,7 +2029,7 @@ html, body {
 
 /* Indicator who's turn — compact strip under hand when waiting opponent */
 #net-turn-indicator {
-    position: fixed; bottom: 6px; left: 50%; transform: translateX(-50%);
+    position: fixed; bottom: 52px; left: 50%; transform: translateX(-50%);
     padding: 5px 14px;
     background: rgba(14, 22, 48, 0.9);
     border: 1px solid rgba(70,100,180,0.35);
@@ -2037,6 +2037,11 @@ html, body {
     font-size: 11px; color: #8899bb; letter-spacing: 0.05em;
     z-index: 90; pointer-events: none;
     backdrop-filter: blur(10px);
+    white-space: nowrap;
+    max-width: calc(100vw - 16px);
+}
+@media (max-width: 360px) {
+    #net-turn-indicator { font-size: 10px; padding: 4px 10px; bottom: 50px; }
 }
 #net-turn-indicator.hidden { display: none; }
 .btn-mode-label { display: flex; align-items: center; gap: 10px; }

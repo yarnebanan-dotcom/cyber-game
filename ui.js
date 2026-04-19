@@ -2437,7 +2437,7 @@ class GameUI {
         if (myTurn) {
             ind.classList.add('hidden');
         } else {
-            const phaseNames = { Replenish: 'восполнение', Action: 'действия', Task: 'задача' };
+            const phaseNames = { Replenish: 'восполнение', Turn: 'ход', Action: 'действия', Task: 'задача' };
             const phase = phaseNames[this.state.phase] || this.state.phase;
             ind.textContent = `⏳ Ход соперника · ${phase}`;
             ind.classList.remove('hidden');
