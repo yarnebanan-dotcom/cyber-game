@@ -2383,7 +2383,20 @@ class GameUI {
             // в будущем могут происходить в чужой ход, но сейчас — строго.
             if (this.state.currentPI !== allowedPI) return;
         }
-        const cardsById = this.cardsById;
+        // Ищем карту по id внутри РЕАЛЬНОГО state хоста (рука/раскрытые/сброс/колода).
+        // Нельзя брать из cardsById — там отдельные объекты, и pl.hand.includes() вернёт false.
+        const findCard = (id) => {
+            const st = this.state;
+            for (const p of st.players) {
+                const inHand = p.hand.find(c => c.id === id);
+                if (inHand) return inHand;
+                const inRev = p.revealed.find(c => c.id === id);
+                if (inRev) return inRev;
+            }
+            const inDisc = st.discard.find(c => c.id === id);
+            if (inDisc) return inDisc;
+            return st.deck?.cards?.find(c => c.id === id) || null;
+        };
         try {
             switch (name) {
                 case 'placeChip':   this.tm.placeChip(args[0], args[1]); break;
@@ -2396,18 +2409,18 @@ class GameUI {
                 case 'drawThree':   this.tm.drawThree(); break;
                 case 'replenish':   this.tm.replenish(); break;
                 case 'playCard': {
-                    const card = cardsById.get(args[0]);
+                    const card = findCard(args[0]);
                     if (card) this.tm.playCard(card, { chipPositions: args[1] });
                     break;
                 }
                 case 'utilizeCard': {
-                    const card = cardsById.get(args[0]);
+                    const card = findCard(args[0]);
                     if (card) this.tm.utilizeCard(card);
                     break;
                 }
                 case 'synthesis': {
-                    const cardA = cardsById.get(args[0]);
-                    const cardB = cardsById.get(args[1]);
+                    const cardA = findCard(args[0]);
+                    const cardB = findCard(args[1]);
                     if (cardA && cardB) {
                         this.tm.synthesis(cardA, cardB,
                             { chipPositions: args[2] },
