@@ -1111,10 +1111,6 @@ html, body {
 .card.unplayable {}
 .card.selected {
     border-color: var(--accent);
-    transform: translateY(-8px);
-    box-shadow: 0 0 14px rgba(255,106,43,0.35), 0 8px 24px rgba(0,0,0,0.55);
-    background: linear-gradient(180deg, rgba(255,106,43,0.08), var(--bg-2));
-    animation: none;
 }
 .card:active { transform: scale(0.94); }
 
@@ -1201,7 +1197,6 @@ html, body {
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     flex: 0 0 auto;
 }
-.card.selected .card-name { color: var(--accent); }
 
 /* Effect text — used only in long-press popup (kit compact card has no fx) */
 .card-fx {

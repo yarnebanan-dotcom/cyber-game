@@ -737,43 +737,14 @@ class GameUI {
         this._syncFocusMode();
     }
 
-    // FIX-26: V3 focus-mode — если pendingCard в руке, прячем остальные карты,
-    // лейбл руки, ряды раскрытых карт; добавляем focus-info блок с паттерном.
+    // Focus-mode отключён — при выборе карты меняется только цвет рамки.
     _syncFocusMode() {
-        const pc = this.pendingCard;
-        const vpi = this._viewPI();
-        const inHand = pc && this.state.players[vpi].hand.includes(pc);
-        const placeBSynth = this.synth?.step === 'placeB' && pc;
-        // FIX-26: focus-mode активен только если карта имеет валидные позиции
-        // (иначе нет смысла искать паттерн — игрок только утилизирует)
-        const hasPlacements = pc && this.tm.getValidPlacements(pc).length > 0;
-        const active = !!((inHand || placeBSynth) && this.state.phase === Phase.Turn && hasPlacements);
-
-        if (!active) {
-            this.handEl.classList.remove('focus-mode');
-            this.handEl.querySelectorAll('.card.hiding').forEach(el => el.classList.remove('hiding'));
-            const fi = this.handEl.querySelector('.focus-info');
-            if (fi) fi.remove();
-            this.handLabelEl.classList.remove('focus-hidden');
-            this.revealedWrap.classList.remove('focus-hidden');
-            return;
-        }
-
-        this.handEl.classList.add('focus-mode');
-        this.handEl.querySelectorAll('.card').forEach(el => {
-            if (!el.classList.contains('selected')) el.classList.add('hiding');
-            else el.classList.remove('hiding');
-        });
-        this.handLabelEl.classList.add('focus-hidden');
-        this.revealedWrap.classList.add('focus-hidden');
-
-        let fi = this.handEl.querySelector('.focus-info');
-        if (!fi) {
-            fi = document.createElement('div');
-            fi.className = 'focus-info';
-            this.handEl.appendChild(fi);
-        }
-        this._fillFocusInfo(fi);
+        this.handEl.classList.remove('focus-mode');
+        this.handEl.querySelectorAll('.card.hiding').forEach(el => el.classList.remove('hiding'));
+        const fi = this.handEl.querySelector('.focus-info');
+        if (fi) fi.remove();
+        this.handLabelEl.classList.remove('focus-hidden');
+        this.revealedWrap.classList.remove('focus-hidden');
     }
 
     _fillFocusInfo(fi) {
