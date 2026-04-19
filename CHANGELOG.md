@@ -6,6 +6,25 @@
 
 ---
 
+## 2026-04-19 — Targeted-сценарии (reshuffle / synth / hard-mode)
+
+- `_test-scenarios.js` — 11 hand-crafted тестов через vm-контекст `game.js`, без браузера, ~150ms на прогон. Покрывают узкие места, которые fuzz случайно не добивает:
+    - **Reshuffle** (3 теста): выкачиваем колоду в сброс → draw(1) провоцирует reshuffle, сумма карт = 54; draw при пустой колоде+сброс возвращает меньше; 10 циклов reshuffle подряд не теряют карты.
+    - **Синтез** (3 теста, hard mode): hand-crafted БАЙТ+БИТ с общей фишкой в (1,1) — оба cost в score, обе карты в сбросе, фишка снята один раз; synthesis без общей фишки → `invalidAction`; synthesis в easy mode → `invalidAction`.
+    - **Hard-mode drawThree** (5 тестов): `drawThree` в easy → `invalidAction`; в hard добавляет 3 карты, обнуляет `chipsAllowed`, блокирует placeChip и повторный drawThree; endTurn без фишек без drawThree → `bonusChipsNextTurn=1` → на следующий ход `chipsAllowed=3`; endTurn с drawThree или с фишкой бонуса НЕ даёт.
+- Итог: **11 pass, 0 fail** с первого прогона.
+
+---
+
+## 2026-04-19 — E2E full-game тест host+guest через Playwright
+
+- `_test-e2e-full.js` — полный e2e-матч через настоящий UI двух браузерных контекстов (host + guest на http://localhost:8765). Агент ставит фишки, ищет playable карты, кликает паттерн, обрабатывает все RPC-модалы: card-pick, steal-pick, node-pick (PlaceChipsEffect), synth-order, handoff. Параллельный `otherDrainer` закрывает чужие модалы (когда эффект требует ввода у противника через input-req). Fallback: если розыгрыш не удался — попытка утилизации через `#btn-utilize`; в hard-mode `drawThree` вместо размещения когда ход не содержит никаких действий.
+- `waitQuiescent(host, guest, 1500)` + `stateEqRetry(6×120ms)` — вместо моментальной сверки ждём «тишины» (нет открытых модалов и pending-очереди у обоих), потом до 6 попыток сравнить `currentPI/phase/deck/discard/scores/supply/chipsOnBoard/revealed`. Покрывает задержку доставки WebRTC-снапшотов после хода.
+- **Bugfix теста, не движка**: `drainModals` искал `.card` в `#card-pick-list`, хотя в реальной разметке `_showCardPick` кладёт `.pick-item`. Из-за этого card-pick-модал на HOST никогда не закрывался — `playCard` висел в ожидании `chooseCards` callback, на HOST мутировал `pl.score += cost` (строка 490 `game.js`), снапшот гостю НЕ отправлялся (нет `_notify`). Тест ошибочно интерпретировал это как рассинхрон движка. Также исправлено `#synth-order-modal` → `#synth-order-panel` (реальный id в `index.html`).
+- Финальный прогон: **37 ходов до game-over, 2p, winner=0, scores=[15,0], 0 desync, 0 crash, gameOverOverlay=true** (321с). Полный живой матч host+guest через WebRTC, от коннекта до победного экрана, без единой рассинхронизации.
+
+---
+
 ## 2026-04-19 — Fuzz-тест + фикс дубликата карты при Discard(Opp)
 
 - `_test-fuzz.js` — headless fuzz без браузера: загружает `game.js` через `vm`, сидированный Mulberry32 RNG, случайный валидный агент, инварианты после каждого хода (supply∈[2,6], chipsOnBoard сверка с доской, уникальность карт по ссылке, размер колоды). Прогоняет 1000 матчей за ~1.5с (646 игр/сек 2p). Режимы: 2p / 2ph / 3p / 3ph. Резолвит `pendingActions` перед replenish как это делает UI.
