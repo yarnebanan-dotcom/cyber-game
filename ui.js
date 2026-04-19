@@ -22,6 +22,10 @@ class GameUI {
         this.nodePickResult = [];
         this.nodePickDone = null;
 
+        // Позиции только что разыгранной комбинации — скрываем визуально
+        // пока идёт эффект (поставить фишки и т.п.), хотя в state они ещё есть.
+        this._consumedPattern = null;  // Set<"r,c"> | null
+
         // Last turn summary for handoff screen
         this._lastTurnSummary = null;
 
@@ -555,7 +559,11 @@ class GameUI {
 
         if (this.nodePickDone) {
             const n = this.nodePickRemaining;
-            text = `Выбери ${n} узел${n === 1 ? '' : n < 5 ? 'а' : 'ов'} на доске`;
+            if (this._consumedPattern) {
+                text = `Поставь ${n} фишк${n === 1 ? 'у' : n < 5 ? 'и' : 'ек'} на доске`;
+            } else {
+                text = `Выбери ${n} узел${n === 1 ? '' : n < 5 ? 'а' : 'ов'} на доске`;
+            }
             tone = 'action';
         } else if (this.synth) {
             tone = 'synth';
@@ -629,11 +637,18 @@ class GameUI {
         const cells = this.boardEl.querySelectorAll('.node');
         // FIX-26: сохраняем .tapped из pendingNodes, чтобы крест-accent переживал ре-рендер
         const tappedSet = new Set((this.pendingNodes || []).map(([r, c]) => `${r},${c}`));
+        const consumed = this._consumedPattern;
+        // Переживание подсветки (node pick) через ре-рендер
+        const allowedSet = new Set((this.nodePickAllowed || []).map(([r, c]) => `${r},${c}`));
+        const selectedSet = new Set((this.nodePickResult || []).map(([r, c]) => `${r},${c}`));
         cells.forEach(cell => {
             const r = parseInt(cell.dataset.r), c = parseInt(cell.dataset.c);
             const occ = st.board.nodes[r][c];
             let cn = 'node ' + (occClass[occ] ?? 'empty');
             if (tappedSet.has(`${r},${c}`)) cn += ' tapped';
+            if (consumed && consumed.has(`${r},${c}`)) cn += ' consumed';
+            if (allowedSet.has(`${r},${c}`)) cn += ' highlighted';
+            if (selectedSet.has(`${r},${c}`)) cn += ' selected-node';
             cell.className = cn;
         });
     }
@@ -1483,8 +1498,11 @@ class GameUI {
         const card = this.pendingCard;
         this.pendingCard = null;
         this._syncFocusMode();
+        // Визуально «гасим» только что разыгранную комбинацию на время эффекта
+        this._consumedPattern = new Set(match.chipPositions.map(([r, c]) => `${r},${c}`));
         this.tm.playCard(card, match, result => {
             if (!result) { this._haptic(26); this._playSound('play'); }
+            this._consumedPattern = null;
             this._render();
             if (result === 'limitReached') this._showMessage('Лимит задач (2) исчерпан');
         });

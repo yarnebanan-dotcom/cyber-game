@@ -606,6 +606,12 @@ html, body {
     clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%);
     transition: background 0.2s, box-shadow 0.2s, width 0.2s, height 0.2s;
 }
+/* Погашенная фишка — только что сыгранная комбинация, пока идёт эффект */
+.node.consumed::before {
+    opacity: 0;
+    animation: none;
+    transition: opacity 0.3s ease-out;
+}
 /* UI-10: пустой узел — мелкий статичный ромбик */
 .node.empty::before {
     width: 8%; height: 8%;
