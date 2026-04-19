@@ -525,28 +525,8 @@ html, body {
 }
 .rev-lane-row::-webkit-scrollbar { display: none; }
 
-/* Карта в ленте — 74×84 */
-.rev-lane .card {
-    width: 64px;
-    height: 84px;
-    padding: 3px;
-    border-radius: 3px;
-    flex-shrink: 0;
-}
-.rev-lane .card-header { margin-bottom: 2px; }
-.rev-lane .card-corner { display: none; }
-.rev-lane .card-name {
-    font-size: 7px;
-    letter-spacing: 0.04em;
-    padding: 0;
-    line-height: 1.1;
-}
-.rev-lane .card-cost {
-    width: 14px; height: 14px;
-    font-size: 8px;
-}
-.rev-lane .card-pattern { padding: 0; }
-.rev-lane .card-pattern-grid { width: 88%; }
+/* Карта в ленте раскрытых — идентична карте в руке, без override */
+.rev-lane .card { flex-shrink: 0; }
 .rev-lane .card-fx { display: none; }
 
 /* ▶ indicator on any card in the shared revealed zone that's playable now */
