@@ -133,11 +133,9 @@ class GameUI {
         btn3p.onclick = () => setMenuMode(3);
         const btnHard = document.getElementById('btn-hard-mode');
         if (btnHard) {
-            const checkEl = btnHard.querySelector('.hm-check');
             btnHard.onclick = () => {
                 this._menuHard = !this._menuHard;
                 btnHard.classList.toggle('active', this._menuHard);
-                if (checkEl) checkEl.textContent = this._menuHard ? '[x]' : '[ ]';
             };
         }
         document.getElementById('btn-initiate').onclick = () => this._startGame(this._menuMode, null, this._menuHard);

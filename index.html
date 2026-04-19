@@ -1853,8 +1853,8 @@ html, body {
     background: var(--accent);
     box-shadow: 0 0 8px var(--accent);
 }
-.menu-hard .hm-check { display: inline-block; width: 14px; margin-right: 8px; opacity: 0.5; }
-.menu-hard.active .hm-check { opacity: 1; }
+.menu-hard { text-align: center; }
+.menu-hard .hm-title { display: block; }
 .menu-hard .hm-desc { display: block; font-size: 9px; color: var(--text-ghost); margin-top: 4px; letter-spacing: 0.1em; }
 .btn-mode {
     position: relative;
@@ -2487,7 +2487,7 @@ html, body {
                 <span class="menu-chip p1"></span>
                 <span class="menu-chip p2"></span>
             </div>
-            <span>2 ИГРОКА · 4×4</span>
+            <span>2 ИГРОКА</span>
         </button>
         <button class="btn-mode" id="btn-mode-3p" data-mode="3">
             <div class="btn-mode-chips">
@@ -2495,17 +2495,17 @@ html, body {
                 <span class="menu-chip p2"></span>
                 <span class="menu-chip p3"></span>
             </div>
-            <span>3 ИГРОКА · 5×5</span>
+            <span>3 ИГРОКА</span>
         </button>
     </div>
     <button class="menu-hard" id="btn-hard-mode" type="button">
-        <span class="hm-check">[ ]</span>HARD MODE · СИНТЕЗ + АЛЬТЕРНАТИВЫ
-        <span class="hm-desc">РАСШИРЕННЫЕ ПРАВИЛА · ПРОПУСК ХОДА · +3 КАРТЫ</span>
+        <span class="hm-title">HARD MODE</span>
+        <span class="hm-desc">РАСШИРЕННЫЕ ПРАВИЛА</span>
     </button>
     <button class="btn-initiate" id="btn-initiate">▶ INITIATE</button>
     <button class="btn-online-link" id="btn-mode-online">◉ ОНЛАЙН · ДУЭЛЬ · P2P</button>
     <div class="menu-foot">
-        <button class="btn-ghost-sm" id="btn-show-rules">▤ RULES</button>
+        <button class="btn-ghost-sm" id="btn-show-rules">▤ ПРАВИЛА</button>
         <button class="btn-ghost-sm" id="btn-show-cfg">⚙ CFG</button>
     </div>
 </div>
@@ -2582,7 +2582,7 @@ html, body {
         <button class="rules-tab active" data-pane="0">ЦЕЛЬ</button>
         <button class="rules-tab" data-pane="1">ХОД</button>
         <button class="rules-tab" data-pane="2">КАРТЫ</button>
-        <button class="rules-tab" data-pane="3">СИНТЕЗ</button>
+        <button class="rules-tab" data-pane="5">ХАРД</button>
         <button class="rules-tab" data-pane="4">КОЛОДА</button>
     </div>
 
@@ -2686,8 +2686,26 @@ html, body {
             </div>
         </div>
 
-        <!-- Pane 3: СИНТЕЗ -->
-        <div class="rules-pane" data-pane="3">
+        <!-- Pane 5: РАСШИРЕННЫЕ ПРАВИЛА (Хард мод) -->
+        <div class="rules-pane" data-pane="5">
+            <div class="rules-frame bracket">
+                <div class="rules-frame-label">&gt; ХАРД МОД</div>
+                <div class="rules-p" style="font-size:12px; line-height:1.6;">
+                    Включается в главном меню. Добавляет к стандартным правилам <span class="accent">Синтез</span> и две альтернативы размещению фишек на ходу.
+                </div>
+            </div>
+            <div class="rules-frame">
+                <div class="rules-frame-label">&gt; АЛЬТ. 1 · ПРОПУСК</div>
+                <div class="rules-p" style="font-size:12px; line-height:1.6;">
+                    Если ты завершаешь ход, <b>не поставив ни одной фишки</b> и не взяв +3 Добор — на <b>следующий</b> ход лимит размещения <span class="accent">+1 фишка</span>. Бонус одноразовый.
+                </div>
+            </div>
+            <div class="rules-frame">
+                <div class="rules-frame-label">&gt; АЛЬТ. 2 · ＋3 ДОБОР</div>
+                <div class="rules-p" style="font-size:12px; line-height:1.6;">
+                    Вместо размещения фишек можно взять <span class="accent">3 карты</span> из колоды. Кнопка «＋3 Добор» в action-bar. В этом ходу размещение пропадает.
+                </div>
+            </div>
             <div class="rules-frame bracket">
                 <div class="rules-frame-label">&gt; СИНТЕЗ</div>
                 <div class="rules-synth-cards">
