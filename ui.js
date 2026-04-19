@@ -520,7 +520,8 @@ class GameUI {
         const skipBtn = document.getElementById('btn-skip');
         if (endActionBtn) endActionBtn.style.display = 'none';  // удалён, алиас на всякий случай
         document.getElementById('btn-utilize').style.display = (inTurn && !inSynth && !inNodePick) ? '' : 'none';
-        skipBtn.style.display = (inTurn && !inSynth && !inNodePick) ? '' : 'none';
+        // Завершить ход — видна всю фазу хода; при активном sub-flow клик даст предупреждение
+        skipBtn.style.display = inTurn ? '' : 'none';
 
         // Hard-mode: кнопка "＋3 Добор" — только если в этом ходу ещё не ставили фишки
         // и не использовали альтернативу, в колоде+сбросе есть хотя бы 1 карта.
@@ -1341,7 +1342,8 @@ class GameUI {
     }
 
     _onEndTurn() {
-        if (this.nodePickDone) return;
+        if (this.nodePickDone) { this._showMessage('Сначала заверши текущее действие'); return; }
+        if (this.synth) { this._showMessage('Сначала заверши синтез'); return; }
         if (this.netMode && this.state.currentPI !== this.localPI) return;
         const st = this.state;
         // FIX-11: полный снимок итога хода
