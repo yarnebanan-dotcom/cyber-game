@@ -364,6 +364,119 @@ function scenarioHardMode() {
     });
 }
 
+// ── Сценарий 4: PlaceChips после снятия фишек паттерна ──────
+// playCard должен снимать фишки паттерна ДО выполнения эффекта,
+// чтобы эффект PlaceChipsEffect мог ставить фишки на клетки паттерна.
+function scenarioPlaceAfterPatternRemoval() {
+    console.log('── Сценарий 4: PlaceChips видит клетки паттерна как пустые ──');
+
+    test('playCard с PlaceChips может ставить на клетки только что снятого паттерна', () => {
+        const st = new GameState(4, 15, 2, false);
+        const tm = new TurnManager(st, makeInput());
+        const db = CardDatabase.create();
+
+        // МИГРАЦИЯ: pattern W(1,1), playEffect=Place(1) — идеальный тест
+        const migr = Object.values(db).find(c => c.name === 'МИГРАЦИЯ');
+        assert(!!migr, 'МИГРАЦИЯ должна быть в базе');
+
+        const pl = st.players[0];
+        pl.hand = [migr];
+        pl.reserve = 6;
+
+        // Ставим единственную фишку игрока 0 в (1,1) — это и паттерн МИГРАЦИИ, и единственное место.
+        st.board.nodes[1][1] = Occ.P1;
+        pl.chipsOnBoard = 1;
+        // Блокируем остальные клетки фишкой противника, кроме (1,1).
+        for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
+            if (r === 1 && c === 1) continue;
+            st.board.nodes[r][c] = Occ.P2;
+        }
+        st.players[1].chipsOnBoard = 15;
+
+        // input.chooseNodes выберет первую доступную — ожидаем (1,1) после снятия паттерна
+        let chosenEmpty = null;
+        tm.input.chooseNodes = (pi, empty, n, done) => {
+            chosenEmpty = empty.map(([r, c]) => `${r},${c}`);
+            done(empty.slice(0, n));
+        };
+
+        // Подготавливаем Turn-фазу и запускаем playCard
+        st.phase = Phase.Turn;
+        st.chipsPlaced = 2; // размещение уже выполнено
+        st.tasksThisTurn = 0;
+        st.placedThisTurn = [];
+
+        const matches = PatternMatcher.findMatches(migr, st.board, 0);
+        assert(matches.length > 0, `должен быть хотя бы 1 матч, got ${matches.length}`);
+
+        let result = null;
+        tm.playCard(migr, matches[0], r => { result = r; });
+        assert(result === 'ok', `playCard вернул "${result}", ожидаем "ok"`);
+        assert(chosenEmpty && chosenEmpty.includes('1,1'),
+            `empty должен содержать "1,1" (освобождённая клетка паттерна), got: ${JSON.stringify(chosenEmpty)}`);
+        // И поставлена фишка в (1,1)
+        assert(st.board.nodes[1][1] === Occ.P1,
+            `в (1,1) должна быть фишка P1 после Place, got: ${st.board.nodes[1][1]}`);
+    });
+
+    test('synthesis снимает фишки обеих карт до эффектов', () => {
+        const st = new GameState(4, 20, 2, true);
+        const tm = new TurnManager(st, makeInput());
+        const db = CardDatabase.create();
+
+        // Две карты с общей фишкой и PlaceChips в playEffect:
+        //  МИГРАЦИЯ (W(1,1), Place(1)) и ДУБЛИРОВАНИЕ (W(1,0), W(1,2), Place(1))
+        const migr = Object.values(db).find(c => c.name === 'МИГРАЦИЯ');
+        const dup  = Object.values(db).find(c => c.name === 'ДУБЛИРОВАНИЕ');
+
+        const pl = st.players[0];
+        pl.hand = [migr, dup];
+        pl.reserve = 6;
+
+        // Ставим фишки так, чтобы оба паттерна матчились с общей фишкой в (1,1):
+        //  МИГРАЦИЯ: (1,1). ДУБЛИРОВАНИЕ: (1,0), (1,2). Общей клетки в паттернах нет — придётся match с offset.
+        // Проще: сместим — МИГРАЦИЯ матчится в (1,1), ДУБЛИРОВАНИЕ найдёт свой (1,0)+(1,2) rotate может дать (0,1)+(2,1).
+        // Альтернатива: MIGR use (1,1), и BUFFER (id=8 БУФЕРИЗАЦИЯ) с синтезом. Но тут нужен overlap.
+        // Простейший надёжный оверлэп: сами себе. Только один способ — использовать одинаковые ячейки.
+        // Берём МИГРАЦИЯ × МИГРАЦИЯ невозможно (cardA===cardB запрещено).
+        // Используем МИГРАЦИЯ + БИТ — оба pattern = W(1,1). Тогда overlap = (1,1).
+        const bit = Object.values(db).find(c => c.name === 'БИТ');
+        pl.hand = [migr, bit];
+
+        st.board.nodes[1][1] = Occ.P1;
+        pl.chipsOnBoard = 1;
+        for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) {
+            if (r === 1 && c === 1) continue;
+            st.board.nodes[r][c] = Occ.P2;
+        }
+        st.players[1].chipsOnBoard = 15;
+
+        const seenEmpty = [];
+        tm.input.chooseNodes = (pi, empty, n, done) => {
+            seenEmpty.push(empty.map(([r, c]) => `${r},${c}`));
+            done(empty.slice(0, n));
+        };
+
+        st.phase = Phase.Turn;
+        st.chipsPlaced = 2;
+        st.tasksThisTurn = 0;
+
+        const mA = PatternMatcher.findMatches(migr, st.board, 0)[0];
+        const mB = PatternMatcher.findMatches(bit,  st.board, 0)[0];
+        assert(mA && mB, 'матчи обеих карт должны найтись');
+
+        let result = null;
+        tm.synthesis(migr, bit, mA, mB, true, r => { result = r; });
+        assert(result === 'ok', `synthesis вернул "${result}"`);
+        // МИГРАЦИЯ.playEffect = Place(1), БИТ.playEffect = [] → единственный chooseNodes — от МИГРАЦИИ
+        // Если фишки сняты ДО эффекта — (1,1) должен быть в empty.
+        assert(seenEmpty.length >= 1, `ожидаем минимум 1 вызов chooseNodes, got ${seenEmpty.length}`);
+        const union = seenEmpty.flat();
+        assert(union.includes('1,1'),
+            `empty должен содержать "1,1" после снятия паттерна, got: ${JSON.stringify(seenEmpty)}`);
+    });
+}
+
 // ── MAIN ─────────────────────────────────────────────────────
 console.log('═══ КИБЕР TARGETED SCENARIOS ═══\n');
 scenarioReshuffle();
@@ -371,6 +484,8 @@ console.log('');
 scenarioSynth();
 console.log('');
 scenarioHardMode();
+console.log('');
+scenarioPlaceAfterPatternRemoval();
 console.log('');
 console.log(`── Итоги: ${passCount} pass, ${failCount} fail ──`);
 process.exit(failCount > 0 ? 1 : 0);

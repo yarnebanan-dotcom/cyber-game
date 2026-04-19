@@ -484,18 +484,19 @@ class TurnManager {
         const validPlacements = PatternMatcher.findMatches(card, st.board, st.currentPI);
         if (!this._isPlacementValid(placement, validPlacements)) { onDone?.('invalidAction'); return; }
 
-        // Правила: +очки → эффект → фишки снимаются → карта в сброс
+        // Правила: +очки → фишки паттерна снимаются → эффект → карта в сброс
+        // (клетки паттерна свободны для размещения внутри эффекта PlaceChips)
         pl.score += card.cost;
+
+        for (const [r, c] of placement.chipPositions) {
+            const occ = st.board.nodes[r][c];
+            if (occ !== Occ.Empty) st.players[occ - 1].chipsOnBoard--;
+            st.board.nodes[r][c] = Occ.Empty;
+        }
 
         this.input.sourceCard = card;
         this.input.sourceMode = 'play';
         card.playEffect.execute(st, st.currentPI, this.input, () => {
-            // Снимаем фишки после выполнения эффекта
-            for (const [r, c] of placement.chipPositions) {
-                const occ = st.board.nodes[r][c];
-                if (occ !== Occ.Empty) st.players[occ - 1].chipsOnBoard--;
-                st.board.nodes[r][c] = Occ.Empty;
-            }
             this._removeCardFromOwner(card);
             st.discard.push(card);
             st.tasksThisTurn++;
@@ -561,17 +562,19 @@ class TurnManager {
         const fxFirst  = new CardEffect([...first.playEffect.effects, ...first.synthesisEffect.effects]);
         const fxSecond = new CardEffect([...second.playEffect.effects, ...second.synthesisEffect.effects]);
 
+        // Снимаем объединение фишек паттернов ДО эффектов —
+        // клетки доступны для размещения внутри эффектов обеих карт.
+        const seen = new Set();
+        for (const [r, c] of [...matchA.chipPositions, ...matchB.chipPositions]) {
+            const key = `${r},${c}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            const occ = st.board.nodes[r][c];
+            if (occ !== Occ.Empty) st.players[occ - 1].chipsOnBoard--;
+            st.board.nodes[r][c] = Occ.Empty;
+        }
+
         const finalize = () => {
-            // Снимаем объединение фишек в конце
-            const seen = new Set();
-            for (const [r, c] of [...matchA.chipPositions, ...matchB.chipPositions]) {
-                const key = `${r},${c}`;
-                if (seen.has(key)) continue;
-                seen.add(key);
-                const occ = st.board.nodes[r][c];
-                if (occ !== Occ.Empty) st.players[occ - 1].chipsOnBoard--;
-                st.board.nodes[r][c] = Occ.Empty;
-            }
             this._removeCardFromOwner(cardA);
             this._removeCardFromOwner(cardB);
             st.discard.push(cardA, cardB);
