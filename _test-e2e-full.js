@@ -248,6 +248,14 @@ async function agentMove(page, turnLabel) {
     // 1. Если modal открыт (pending с прошлого хода / replenish input) — закрыть
     await drainModals(page);
 
+    // 1b. Replenish → Turn (для PI=0 при старте партии не вызывается автоматически)
+    for (let i = 0; i < 5; i++) {
+        const s = await readState(page);
+        if (!s || s.phase !== 'Replenish') break;
+        await page.evaluate(() => window.ui?.tm?.replenish?.()).catch(() => {});
+        await sleep(250);
+    }
+
     // 2. Поставить фишки (до chipsAllowed)
     let guard = 8;
     while (guard-- > 0) {
