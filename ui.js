@@ -855,7 +855,8 @@ class GameUI {
         }
 
         this.revealedWrap.innerHTML = '';
-        this.revealedWrap.classList.remove('collapsed');
+        // Коллапс зоны пока никто не раскрыл карту — освобождает 88px для доски
+        this.revealedWrap.classList.toggle('collapsed', allRevealed.length === 0);
         const lane = this._makeRevealedLane(allRevealed, playable);
         this.revealedWrap.appendChild(lane);
     }
@@ -1898,6 +1899,11 @@ class GameUI {
                 <span class="gs-val">${r.val}</span>
             </div>
         `).join('');
+
+        // Онлайн-режим: «Снова» не умеет синхронно рестартовать обе стороны —
+        // скрываем, игрок идёт в меню и переподключается
+        const playAgainBtn = document.getElementById('btn-play-again');
+        if (playAgainBtn) playAgainBtn.style.display = this.netMode ? 'none' : '';
 
         this.gameOverScreen.classList.remove('hidden');
     }

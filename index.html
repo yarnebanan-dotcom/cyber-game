@@ -484,6 +484,8 @@ html, body {
     border-top: 0.5px solid var(--accent);
     border-bottom: 1px solid var(--line-ghost);
 }
+/* Коллапс пустой зоны раскрытых — освобождает 88px для доски на узком viewport */
+.revealed-wrap.collapsed { display: none; }
 /* Вертикальный лейбл «РАСКРЫТО» слева (violet) */
 .revealed-wrap::before {
     content: 'РАСКРЫТО';
@@ -880,21 +882,8 @@ html, body {
 .card-desc::-webkit-scrollbar-thumb { background: var(--line-dim); border-radius: 2px; }
 /* Верхний слот .empty скрыт (top больше не используется — всё в bot) */
 .card-desc.empty { display: none; }
-/* Плейсхолдер занимает то же место, только визуально мягче */
-.card-desc.placeholder {
-    color: var(--text-ghost);
-    font-family: var(--mono);
-    font-size: 10px;
-    letter-spacing: 0.18em;
-    text-align: center;
-    text-transform: uppercase;
-    opacity: 0.5;
-    border: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: transparent;
-}
+/* Плейсхолдер схлопнут — высвобождает 80px для доски, до выбора карты */
+.card-desc.placeholder { display: none; }
 .card-desc .cd-head {
     display: flex; align-items: baseline; gap: 8px;
     font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
@@ -2808,8 +2797,8 @@ html, body {
 <div id="toast" class="hidden"></div>
 
 <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
-<script src="game.js?v=20260420d"></script>
-<script src="net.js?v=20260420d"></script>
-<script src="ui.js?v=20260420d"></script>
+<script src="game.js?v=20260420e"></script>
+<script src="net.js?v=20260420e"></script>
+<script src="ui.js?v=20260420e"></script>
 </body>
 </html>
