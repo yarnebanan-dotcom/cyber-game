@@ -6,6 +6,36 @@
 
 ---
 
+## 2026-04-20 — Code review fixes: robustness, a11y, touch
+
+Пачка правок по результатам внутреннего код-ревью (`CODE_REVIEW.md`). Все изменения минимальные, без рефакторинга игровой логики.
+
+- **game.js**:
+  - `_isPlacementValid` теперь сравнивает позиции фишек как множество (sort+join), а не по индексу массива. Раньше различный порядок `chipPositions` между UI и движком мог давать false при корректной позиции.
+  - На `get opp()` и всех эффектах `Target.Opp` (Reveal/Discard/ModifySupply/SetSupply/CopyOpponentSupply) добавлен комментарий что в 3p «противник» = следующий игрок — это правило физической настолки.
+- **net.js**:
+  - `request()` получил таймаут 60с. Если гость завис/отключился до ответа на input-req, промис резолвится `null` и хост не висит.
+  - `disconnect()` теперь резолвит все pending промисы `null` перед `clear()` — иначе они оставались неразрешёнными навсегда.
+- **ui.js**:
+  - `_resetUiState` чистит все мутабельные поля (`_consumedPattern`, `_descCard`, `nodePickAllowed/Remaining/Result`, `_detailRotation`, `_turnStartScores/Snapshot`, `_netPendingInputs`) и скрывает все модалы перед стартом новой партии. Раньше при «Снова» или рестарте через меню могли утекать данные прошлой игры.
+  - `_hostHandleAction` валидирует форму сообщения: `name` должен быть строкой из whitelist (`placeChip | undoChip | endTurn | drawThree | replenish | playCard | utilizeCard | synthesis`), `args` — массив. Мусорные/неизвестные действия логируются и игнорируются.
+  - Упрощён phase-name map в `_updateNetTurnIndicator` (в `Phase` enum только `Replenish` и `Turn`; `Action`/`Task` — алиасы `Turn`).
+- **index.html**:
+  - На модалы (`handoff-screen`, `gameover-screen`, `card-pick-modal`, `steal-pick-modal`, `card-detail`, `rules-screen`, `ingame-menu`) добавлены `role="dialog"`, `aria-modal="true"` и `aria-label`/`aria-labelledby`.
+  - Glyph-кнопки (rotate-cw/ccw, rules-close) получили `aria-label`.
+  - Добавлен глобальный стиль `:focus-visible` с видимым outline — клавиатурный фокус теперь виден (раньше был перекрыт `outline: none` на hover/focus).
+  - Touch: `-webkit-tap-highlight-color: transparent` и `touch-action: manipulation` на html/body и игровых элементах — убирает синий highlight на iOS и задержку 300ms от double-tap-zoom.
+  - Удалена мёртвая кнопка `btn-show-cfg` из главного меню (handler был пустым стабом).
+- **Чистка исторических тегов** `FIX-NN` и `KIT Phase N` из комментариев в `ui.js` и `index.html`.
+- **Финальный проход (round 2)**:
+  - `net.js request()` — early-return `null` если нет активного соединения (раньше пытался отправить через `send()` всегда; guard добавлен до `send()`).
+  - `net.js applySnapshotTo()` — минимальная shape-валидация снимка: boardSize 3..6, nodes — квадратная матрица NxN, players 2..3, currentPI в границах, значения nodes ∈ [0..playerCount]. Битый/враждебный snapshot отклоняется с `console.warn`.
+  - `net.js joinGame()` — setTimeout 20с теперь очищается при успешном connect (раньше висел до срабатывания).
+  - `net.js peer.on('disconnected')` — throttle 2с через `_lastReconnectTs` на обе роли, защита от бесконечного reconnect-цикла при флапающей сети.
+- **README.md** — добавлен обзор для ревьюера: как запустить, архитектура, файловая структура, ключевые решения, тесты, деплой. Пояснительный текст оставлен — убраны только tag-префиксы, ссылающиеся на прошлые задачи (они уже в истории CHANGELOG). В самом CHANGELOG теги сохранены как часть истории.
+
+---
+
 ## 2026-04-20 — Layout фикс: обрезанное поле у гостя на узком viewport
 
 - Баг: у гостя на iPhone после reload поле обрезано, нижний ряд 4×4 за viewport. У хоста ок (другое устройство / URL-бар скрыт). Также «Снова» в онлайне ломал связь — стартовал локальный hot-seat без второго игрока.

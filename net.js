@@ -135,6 +135,10 @@ class Net {
             });
 
             this.peer.on('disconnected', () => {
+                // Throttle 2с — не зацикливаемся на флапающей сети
+                const now = Date.now();
+                if (this._lastReconnectTs && now - this._lastReconnectTs < 2000) return;
+                this._lastReconnectTs = now;
                 try { this.peer.reconnect(); } catch (_) {}
             });
         });
@@ -172,7 +176,9 @@ class Net {
                 const conn = this.peer.connect(targetPeerId, { reliable: true });
                 this._bindConn(conn, false);
 
+                let joinTimer = null;
                 conn.on('open', () => {
+                    if (joinTimer) { clearTimeout(joinTimer); joinTimer = null; }
                     if (resolved) return;
                     resolved = true;
                     this._log(`guest: соединение установлено ✓`);
@@ -180,7 +186,8 @@ class Net {
                     resolve();
                 });
 
-                setTimeout(() => {
+                joinTimer = setTimeout(() => {
+                    joinTimer = null;
                     if (resolved) return;
                     this._log(`guest: таймаут 20с на подключение`, 'warn');
                     retryOrFail('Хост не найден. Проверь код или попроси создать игру заново.', 2000);
@@ -207,6 +214,10 @@ class Net {
             });
 
             this.peer.on('disconnected', () => {
+                // Throttle 2с — не зацикливаемся на флапающей сети
+                const now = Date.now();
+                if (this._lastReconnectTs && now - this._lastReconnectTs < 2000) return;
+                this._lastReconnectTs = now;
                 try { this.peer.reconnect(); } catch (_) {}
             });
         });
@@ -304,13 +315,23 @@ class Net {
     }
 
     // RPC: host → guest input request. Возвращает Promise<выбранные id>
-    request(kind, pi, ctx, payload) {
+    // Таймаут 60с — если гость не ответил (вылет/фриз), не вешаем хоста.
+    request(kind, pi, ctx, payload, timeoutMs = 60000) {
         return new Promise((resolve) => {
+            // Нет подключения — resolve(null) сразу, не дёргаем send.
+            if (!this.connected || !this.conn?.open) { resolve(null); return; }
             const reqId = ++this._reqCounter;
-            this._pendingRequests.set(reqId, resolve);
+            const timer = setTimeout(() => {
+                if (this._pendingRequests.delete(reqId)) resolve(null);
+            }, timeoutMs);
+            this._pendingRequests.set(reqId, (chosen) => {
+                clearTimeout(timer);
+                resolve(chosen);
+            });
             const ok = this.send({ type: 'input-req', reqId, kind, pi, ctx, payload });
             if (!ok) {
                 // Нет соединения — не вешаемся, вернём пусто (хост сам решит что делать)
+                clearTimeout(timer);
                 this._pendingRequests.delete(reqId);
                 resolve(null);
             }
@@ -325,6 +346,10 @@ class Net {
     disconnect() {
         this._stopKeepalive();
         this._stopReconnectLoop();
+        // Резолвим всех ожидающих null, чтобы промисы не висели вечно
+        for (const resolve of this._pendingRequests.values()) {
+            try { resolve(null); } catch (_) {}
+        }
         this._pendingRequests.clear();
         try { this.conn?.close(); } catch (_) {}
         try { this.peer?.destroy(); } catch (_) {}
@@ -385,6 +410,31 @@ function buildShadowStateFromSnapshot(snap, cardsById) {
 }
 
 function applySnapshotTo(st, snap, cardsById) {
+    // Минимальная валидация формы snapshot — защита от битого/враждебного хоста.
+    // Проверяем ключевые инварианты; если что-то не так — логируем и не применяем.
+    if (!snap || typeof snap !== 'object') { console.warn('[net] bad snapshot: not an object'); return; }
+    const N = snap.boardSize | 0;
+    if (N < 3 || N > 6) { console.warn('[net] bad snapshot: boardSize', snap.boardSize); return; }
+    if (!Array.isArray(snap.nodes) || snap.nodes.length !== N ||
+        !snap.nodes.every(row => Array.isArray(row) && row.length === N)) {
+        console.warn('[net] bad snapshot: nodes shape'); return;
+    }
+    if (!Array.isArray(snap.players) || snap.players.length < 2 || snap.players.length > 3) {
+        console.warn('[net] bad snapshot: players shape'); return;
+    }
+    const pc = snap.players.length;
+    if (typeof snap.currentPI !== 'number' || snap.currentPI < 0 || snap.currentPI >= pc) {
+        console.warn('[net] bad snapshot: currentPI', snap.currentPI); return;
+    }
+    // nodes[r][c] должно быть 0..pc (0 = empty, 1..pc = фишка игрока)
+    for (const row of snap.nodes) {
+        for (const v of row) {
+            if (typeof v !== 'number' || v < 0 || v > pc) {
+                console.warn('[net] bad snapshot: node value', v); return;
+            }
+        }
+    }
+
     // Доска
     st.board.size = snap.boardSize;
     st.board.nodes = snap.nodes.map(row => [...row]);

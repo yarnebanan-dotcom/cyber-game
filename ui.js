@@ -53,7 +53,7 @@ class GameUI {
 
     _bindElements() {
         this.boardEl = document.getElementById('board');
-        // KIT Phase 3 — compact HUD elements
+        // compact HUD elements
         this.turnTagEl = document.getElementById('turn-tag');
         this.playerTagEl = document.getElementById('player-tag');
         this.oppScoresEl = document.getElementById('opp-scores');
@@ -82,7 +82,7 @@ class GameUI {
         // Handoff screen
         this.handoffScreen = document.getElementById('handoff-screen');
         document.getElementById('btn-handoff-ok').onclick = () => this._onHandoffOk();
-        // FIX-16: skip glitch animation on any tap — reveal next player instantly
+        // skip glitch animation on any tap — reveal next player instantly
         this.handoffScreen.addEventListener('pointerdown', () => {
             const nextEl = document.getElementById('handoff-next');
             if (nextEl && nextEl.classList.contains('glitch')) {
@@ -140,8 +140,6 @@ class GameUI {
         }
         document.getElementById('btn-initiate').onclick = () => this._startGame(this._menuMode, null, this._menuHard);
         document.getElementById('btn-mode-online').onclick = () => this._showOnlineMenu();
-        const cfgBtn = document.getElementById('btn-show-cfg');
-        if (cfgBtn) cfgBtn.onclick = () => {};
 
         // Generate radar tick marks (24 marks, every 6th bolder)
         const radarSvg = document.getElementById('menu-radar-svg');
@@ -416,21 +414,41 @@ class GameUI {
     }
 
     _resetUiState() {
+        // Счётчики/снимки раунда
         this._prevScores = [0, 0, 0];
         this._turnNumber = 1;
         this._matchStartTime = Date.now();
         this._lastRenderCurrentPI = undefined;
+        this._turnStartScores = null;
+        this._turnStartSnapshot = null;
+        this._lastTurnSummary = null;
+        // Временное состояние руки/выбора
         this._cardRotations = new Map();
+        this._descCard = null;
+        this._consumedPattern = null;
+        this._detailRotation = 0;
         this.pendingCard = null;
         this.pendingNodes = [];
         this.currentPlacements = [];
+        this.nodePickAllowed = null;
+        this.nodePickRemaining = 0;
+        this.nodePickResult = [];
         this.nodePickDone = null;
         this.synth = null;
-        this._lastTurnSummary = null;
+        // Сетевое: локальные очереди ждущих модалов не должны утекать в новую партию
+        this._netGameOverShown = false;
+        if (this._netPendingInputs) this._netPendingInputs.clear();
+        // Прячем все оверлеи/модалы (в онлайне нельзя: перезапуск партии идёт через меню)
         this.handoffScreen.classList.add('hidden');
         this.gameOverScreen.classList.add('hidden');
         this.cardPickModal.classList.add('hidden');
         this.synthOrderPanel.classList.add('hidden');
+        if (this.stealPickModal) this.stealPickModal.classList.add('hidden');
+        if (this.cardDetail) this.cardDetail.classList.add('hidden');
+        const ingameMenu = document.getElementById('ingame-menu');
+        if (ingameMenu) ingameMenu.classList.add('hidden');
+        const rulesScreen = document.getElementById('rules-screen');
+        if (rulesScreen) rulesScreen.classList.add('hidden');
     }
 
     _viewPI() {
@@ -447,7 +465,7 @@ class GameUI {
         const st = this.state;
         const win = st.winScore;
 
-        // KIT Phase 3 — Turn counter (total turns taken across all players)
+        // Turn counter (total turns taken across all players)
         if (this._lastRenderCurrentPI !== st.currentPI) {
             if (this._lastRenderCurrentPI !== undefined) this._turnNumber = (this._turnNumber || 1) + 1;
             else this._turnNumber = this._turnNumber || 1;
@@ -456,7 +474,7 @@ class GameUI {
             this._descCard = null;
             // Snapshot all players' scores at turn start (for END summary gain calc)
             this._turnStartScores = st.players.map(p => p.score);
-            // FIX-11: полный снимок для отчёта в end-turn
+            // полный снимок для отчёта в end-turn
             this._turnStartSnapshot = {
                 pi: st.currentPI,
                 handSize: st.players[st.currentPI].hand.length,
@@ -471,11 +489,11 @@ class GameUI {
         // Compact header — turn tag + player tag + opp scores + current score
         if (this.turnTagEl) this.turnTagEl.textContent = 'T' + String(this._turnNumber).padStart(2, '0');
         const activePI = st.currentPI;
-        // FIX-04: HUD data-player красит tier-1 через CSS
+        // HUD data-player красит tier-1 через CSS
         const hudEl = document.getElementById('hud');
         if (hudEl) hudEl.dataset.player = `p${activePI + 1}`;
         if (this.playerTagEl) {
-            // FIX-04: «ИГРОК N» вместо «P-0N»
+            // «ИГРОК N» вместо «P-0N»
             this.playerTagEl.textContent = `ИГРОК ${activePI + 1}`;
         }
         // Tier-2: три независимых счётчика действий в фазе Ход
@@ -565,7 +583,7 @@ class GameUI {
         skipBtn.classList.add('btn-primary');
         skipBtn.classList.remove('btn-ghost');
 
-        // Labels now rendered per-lane in _renderRevealed (FIX-21)
+        // Labels now rendered per-lane in _renderRevealed
         this._renderBoard();
         this._renderHand();
         this._renderRevealed();
@@ -657,7 +675,7 @@ class GameUI {
         const st = this.state;
         const occClass = ['empty', 'p1', 'p2', 'p3'];
         const cells = this.boardEl.querySelectorAll('.node');
-        // FIX-26: сохраняем .tapped из pendingNodes, чтобы крест-accent переживал ре-рендер
+        // сохраняем .tapped из pendingNodes, чтобы крест-accent переживал ре-рендер
         const tappedSet = new Set((this.pendingNodes || []).map(([r, c]) => `${r},${c}`));
         const consumed = this._consumedPattern;
         // Переживание подсветки (node pick) через ре-рендер
@@ -684,7 +702,7 @@ class GameUI {
 
     _clearHighlights() { /* no-op */ }
 
-    // FIX-26: .tapped — крест-accent на тапнутых фишках паттерна (V3 focus-mode)
+    // .tapped — крест-accent на тапнутых фишках паттерна (V3 focus-mode)
     _applyTapped(positions) {
         this._clearTapped();
         for (const [r, c] of positions) {
@@ -1426,7 +1444,7 @@ class GameUI {
         if (this.synth) { this._showMessage('Сначала заверши синтез'); return; }
         if (this.netMode && this.state.currentPI !== this.localPI) return;
         const st = this.state;
-        // FIX-11: полный снимок итога хода
+        // полный снимок итога хода
         const snap = this._turnStartSnapshot;
         const p = st.cp;
         const summary = {
@@ -1494,7 +1512,7 @@ class GameUI {
         else if (this.pendingCard)              patternLen = this.pendingCard.pattern.length;
         if (!patternLen) return;
 
-        // FIX-07: тап по пустому узлу в режиме паттерна — невалидно, явная обратная связь
+        // тап по пустому узлу в режиме паттерна — невалидно, явная обратная связь
         if (this.state.board.nodes[r][c] === Occ.Empty) {
             this._feedbackInvalidTap(r, c, 'Тапни фишку из паттерна');
             return;
@@ -1508,7 +1526,7 @@ class GameUI {
             this.pendingNodes.push([r, c]);
         }
 
-        // FIX-26: крест-accent на тапнутых фишках (вместо dashed-рамки), обновить счётчик в focus-info
+        // крест-accent на тапнутых фишках (вместо dashed-рамки), обновить счётчик в focus-info
         this._applyTapped(this.pendingNodes);
         this._updateFocusCount(this.pendingNodes.length, patternLen);
 
@@ -1523,7 +1541,7 @@ class GameUI {
         });
 
         const reset = () => { this.pendingNodes = []; this._clearTapped(); this._updateFocusCount(0, patternLen); };
-        // FIX-07: вместо тихого сброса — откат последнего тапа + shake + toast
+        // вместо тихого сброса — откат последнего тапа + shake + toast
         const rollbackLast = () => {
             const last = this.pendingNodes.pop();
             this._applyTapped(this.pendingNodes);
@@ -1621,7 +1639,7 @@ class GameUI {
         const prev = s.prevScore ?? s.score;
         const gain = Math.max(0, s.score - prev);
 
-        // FIX-09: data-player на корне — раскрашивает .hl-player
+        // data-player на корне — раскрашивает .hl-player
         this.handoffScreen.dataset.player = `p${s.playerIdx + 1}`;
 
         // Режим end-of-turn: показать end-panel/stats, скрыть summary
@@ -1648,7 +1666,7 @@ class GameUI {
         utilsRow.querySelector('.hsr-val').textContent = s.utilizes || 0;
         utilsRow.classList.toggle('zero', !s.utilizes);
 
-        // FIX-11: расширенные метрики с дельтами
+        // расширенные метрики с дельтами
         const setStatRow = (id, val, isZero) => {
             const row = document.getElementById(id);
             if (!row) return;
@@ -1800,7 +1818,7 @@ class GameUI {
 
     // Показать экран передачи устройства игроку pi, затем вызвать callback
     _showHandoffForChoice(pi, callback, ctx) {
-        // FIX-09: data-player на корне — по целевому игроку
+        // data-player на корне — по целевому игроку
         this.handoffScreen.dataset.player = `p${pi + 1}`;
 
         // Режим choice: скрыть end-panel/stats, показать summary
@@ -1851,7 +1869,7 @@ class GameUI {
         const winScore = st.winScore;
         const winnerScore = st.players[winner].score;
 
-        // FIX-09: data-player на корне — цвет через CSS-переменные
+        // data-player на корне — цвет через CSS-переменные
         this.gameOverScreen.dataset.player = `p${winner + 1}`;
 
         // Title "ПОБЕДА" — цвет наследуется через .player-title внутри
@@ -1917,7 +1935,7 @@ class GameUI {
 
         // Заголовок: контекст источника + конкретная инструкция + последствие
         if (ctx) {
-            // FIX-09: data-player на модалке = цвет целевого игрока (.player-title)
+            // data-player на модалке = цвет целевого игрока (.player-title)
             this.cardPickModal.dataset.player = `p${pi + 1}`;
             const sourceLine = ctx.cardName
                 ? `<span data-player="p${ctx.actorPI + 1}" class="player-title" style="display:inline">ИГРОК ${ctx.actorPI + 1}</span> <span style="color:var(--text-dim)">${ctx.modeLabel}</span> <span style="color:var(--text);font-family:var(--display);letter-spacing:0.1em">«${ctx.cardName}»</span>`
@@ -1930,7 +1948,7 @@ class GameUI {
                 `<div class="player-title" style="font-family:var(--display);font-size:15px;font-weight:600;letter-spacing:0.1em">${ctx.instruction}</div>` +
                 consequenceLine;
         } else {
-            // FIX-09: data-player по целевому игроку
+            // data-player по целевому игроку
             this.cardPickModal.dataset.player = `p${pi + 1}`;
             this.cardPickTitle.innerHTML =
                 `<div style="font-family:var(--mono);font-size:9px;color:var(--accent);letter-spacing:0.2em;margin-bottom:4px">&gt; ВЫБОР КАРТ</div>` +
@@ -1966,7 +1984,7 @@ class GameUI {
 
         this.cardPickCount.textContent = `0 / ${count}`;
         this.cardPickConfirm.disabled = true;
-        // FIX-08: portal — перенести в body, чтобы не наследовать stacking context родителя
+        // portal — перенести в body, чтобы не наследовать stacking context родителя
         if (this.cardPickModal.parentElement !== document.body) {
             document.body.appendChild(this.cardPickModal);
         }
@@ -2079,7 +2097,7 @@ class GameUI {
             : `<div class="detail-fx-empty">◦ БЕЗ ЭФФЕКТОВ · ТОЛЬКО ОЧКИ ◦</div>`;
         document.getElementById('detail-effects').innerHTML = html;
 
-        // FIX-08: portal в body
+        // portal в body
         if (this.cardDetail.parentElement !== document.body) {
             document.body.appendChild(this.cardDetail);
         }
@@ -2093,11 +2111,11 @@ class GameUI {
         const turnEl = document.getElementById('pause-turn-tag');
         if (turnEl) turnEl.textContent = 'T' + String(this._turnNumber || 1).padStart(2, '0');
 
-        // FIX-09: data-player на корне паузы — для .player-title внутри
+        // data-player на корне паузы — для .player-title внутри
         const ingameEl = document.getElementById('ingame-menu');
         if (ingameEl && this.state) ingameEl.dataset.player = `p${this.state.currentPI + 1}`;
 
-        // FIX-10: снимок матча
+        // снимок матча
         if (this.state) {
             const st = this.state;
             const phaseName = st.phase === Phase.Replenish ? 'ВОСПОЛНЕНИЕ'
@@ -2164,7 +2182,7 @@ class GameUI {
         }, opts.error ? 2400 : 2000);
     }
 
-    // FIX-07: невалидный тап — красная вспышка на узле + shake доски + toast
+    // невалидный тап — красная вспышка на узле + shake доски + toast
     _feedbackInvalidTap(r, c, message) {
         const cell = this.boardEl?.querySelector?.(`.node[data-r="${r}"][data-c="${c}"]`);
         if (cell) {
@@ -2379,15 +2397,22 @@ class GameUI {
 
     _hostHandleAction(msg) {
         if (!this.tm) return;
-        const { name, args = [] } = msg;
+        // Валидация формы: name — строка из whitelist, args — массив
+        const ALLOWED_ACTIONS = ['placeChip', 'undoChip', 'endTurn', 'drawThree',
+            'replenish', 'playCard', 'utilizeCard', 'synthesis'];
+        if (!msg || typeof msg.name !== 'string' || !ALLOWED_ACTIONS.includes(msg.name)) {
+            console.warn('[Host] rejected action (bad shape):', msg?.name);
+            return;
+        }
+        const args = Array.isArray(msg.args) ? msg.args : [];
+        const name = msg.name;
         // В онлайне разрешаем действие только если currentPI совпадает с ролью отправителя.
         // Гость = pi 1. (Защита от мухлежа и рассинхрона.)
         const allowedPI = 1;
-        if (this.state.currentPI !== allowedPI &&
-            !['playCard', 'utilizeCard', 'synthesis'].includes(name)) {
-            // Разрешаем только если ход гостя. Карточные действия на открытых картах
-            // в будущем могут происходить в чужой ход, но сейчас — строго.
-            if (this.state.currentPI !== allowedPI) return;
+        if (this.state.currentPI !== allowedPI) {
+            // Карточные действия потенциально могут идти в чужой ход (раскрытые карты),
+            // но сейчас TurnManager всё равно валидирует; остальные — строго только в свой ход.
+            if (!['playCard', 'utilizeCard', 'synthesis'].includes(name)) return;
         }
         // Ищем карту по id внутри РЕАЛЬНОГО state хоста (рука/раскрытые/сброс/колода).
         // Нельзя брать из cardsById — там отдельные объекты, и pl.hand.includes() вернёт false.
@@ -2555,7 +2580,8 @@ class GameUI {
         if (myTurn) {
             ind.classList.add('hidden');
         } else {
-            const phaseNames = { Replenish: 'восполнение', Turn: 'ход', Action: 'действия', Task: 'задача' };
+            // Phase в game.js — только 'Replenish' и 'Turn' (Action/Task — алиасы 'Turn').
+            const phaseNames = { Replenish: 'восполнение', Turn: 'ход' };
             const phase = phaseNames[this.state.phase] || this.state.phase;
             ind.textContent = `⏳ Ход соперника · ${phase}`;
             ind.classList.remove('hidden');

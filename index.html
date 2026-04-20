@@ -14,6 +14,20 @@
 /* ── Reset & Base ────────────────────────────────────────── */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
+/* A11y: видимое кольцо фокуса с клавиатуры (мышь — как было, без outline) */
+button:focus-visible,
+[role="button"]:focus-visible,
+input:focus-visible,
+[tabindex]:focus-visible {
+    outline: 2px solid var(--accent, #ff6a2b);
+    outline-offset: 2px;
+}
+
+/* Touch polish: убираем синий highlight и жесты браузера на игровых элементах.
+   manipulation — разрешаем тап/скролл, но глушим double-tap-zoom (даёт 300ms задержку). */
+html, body { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+button, .hud-menu-btn, .card, .node, .btn-rotate { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+
 /* ════════════════════════════════════════════════════════════
    КИБЕР · HUD Kit tokens (Phase 1 · tokens + fonts + buttons)
    Source: Дизайн/_/hud.css
@@ -39,7 +53,7 @@
     --danger: #ff3355;
     --ok: #4dff9b;
 
-    /* Player palette — FIX-01 canon: P1 cyan, P2 orange, P3 violet */
+    /* Player palette — canon: P1 cyan, P2 orange, P3 violet */
     --p1: #3fd0e6;
     --p2: #ff6a2b;
     --p3: #b76cff;
@@ -51,7 +65,7 @@
     --p3-glow: rgba(183, 108, 255, 0.45);
     --enemy-neutral: #8a95a2;
 
-    /* FIX-08: z-index stack — иерархия модалок сверху вниз */
+    /* z-index stack — иерархия модалок сверху вниз */
     --z-overlay-base: 100;   /* handoff, game-over, menu-screen */
     --z-online: 200;         /* online-* экраны */
     --z-rules: 1000;         /* правила игры */
@@ -223,7 +237,7 @@ html, body {
 #app > #synth-order-panel{ grid-row: 8; }
 #app > #action-bar       { grid-row: 9; }
 
-/* ── HUD (KIT Phase 3 — compact header + phase stepper) ──── */
+/* ── HUD ──── */
 #hud {
     display: flex;
     flex-direction: column;
@@ -236,7 +250,7 @@ html, body {
     height: 40px;
     box-sizing: border-box;
 }
-/* FIX-04: двухэтажный HUD */
+/* двухэтажный HUD */
 /* Tier 1 — крупный: диамант цвета активного игрока + имя + счёт + меню */
 .hud-tier-1 {
     display: flex;
@@ -394,7 +408,7 @@ html, body {
     gap: 2px;
     padding: 0 2px;
 }
-/* FIX-05: три состояния фаз — future (ghost), current (inversion), past (✓ dim) */
+/* три состояния фаз — future (ghost), current (inversion), past (✓ dim) */
 .ps-cell {
     flex: 1;
     padding: 4px 0;
@@ -651,7 +665,7 @@ html, body {
 .node:nth-child(4n+3)::before { animation-delay: 0.70s; }
 .node:nth-child(4n+4)::before { animation-delay: 1.05s; }
 /* Подсветка валидных узлов отключена намеренно — слишком шумно */
-/* FIX-26: крест-accent на уже тапнутых фишках паттерна (V3) */
+/* крест-accent на уже тапнутых фишках паттерна (V3) */
 .node.tapped {
     outline: 1.5px solid var(--accent);
     outline-offset: -2px;
@@ -677,7 +691,7 @@ html, body {
 .node.selected-node { opacity: 0.45; }
 .node:active { transform: scale(0.88); }
 
-/* FIX-07: невалидный тап — красная вспышка на узле + shake поля */
+/* невалидный тап — красная вспышка на узле + shake поля */
 .node.invalid-tap {
     animation: node-invalid-flash 0.45s ease-out;
 }
@@ -701,7 +715,7 @@ html, body {
     background: rgba(255,51,85,0.12);
 }
 
-/* ── Action Buttons (KIT Phase 1) ──────────────────────────── */
+/* ── Action Buttons ──────────────────────────── */
 /* UI-09: max-height + nowrap предотвращает 2-строчный wrap в hardMode (3 кнопки) */
 #action-bar { display: flex; gap: 6px; flex-shrink: 0; height: 38px; align-items: stretch; }
 .btn {
@@ -911,7 +925,7 @@ html, body {
 .card-desc .cd-row .cd-text { color: var(--text-dim); }
 .card-desc .cd-empty { color: var(--text-ghost); font-style: italic; }
 
-/* ── FIX-26: V3 Focus-Card layout ──────────────────
+/* ── V3 Focus-Card layout ──────────────────
    Когда выбрана карта (pendingCard) рука переходит в focus-mode:
    остаётся только выбранная карта и info-блок с паттерном/счётчиком/кнопками.
    Лейбл руки и ряды раскрытых карт коллапсируются, чтобы доска была
@@ -1062,7 +1076,7 @@ html, body {
     transition: max-height 0.2s ease, opacity 0.15s ease, padding 0.2s ease, margin 0.2s ease;
 }
 
-/* ── Card (KIT Phase 2 — strict kit layout) ───────────────── */
+/* ── Card ───────────────── */
 .card {
     flex-shrink: 0;
     width: 60px;
@@ -1161,14 +1175,14 @@ html, body {
     aspect-ratio: 1 / 1;
     background: var(--bg-0);
 }
-/* FIX-02: W = цвет владельца карты, G = нейтральный серый */
+/* W = цвет владельца карты, G = нейтральный серый */
 .card-pattern-cell.w { background: var(--accent); }
 .card-pattern-cell.g { background: var(--enemy-neutral); }
 .card[data-player="p1"] .card-pattern-cell.w { background: var(--p1); }
 .card[data-player="p2"] .card-pattern-cell.w { background: var(--p2); }
 .card[data-player="p3"] .card-pattern-cell.w { background: var(--p3); }
 
-/* FIX-09: унифицированная раскраска заголовков игрока через data-player */
+/* унифицированная раскраска заголовков игрока через data-player */
 [data-player="p1"] .player-title, [data-player="p1"] .hl-player { color: var(--p1); }
 [data-player="p2"] .player-title, [data-player="p2"] .hl-player { color: var(--p2); }
 [data-player="p3"] .player-title, [data-player="p3"] .hl-player { color: var(--p3); }
@@ -1653,7 +1667,7 @@ html, body {
 }
 #card-detail-close:hover { background: var(--bg-3); color: #fff; border-color: #6fe4f5; }
 
-/* ── 3-player mode (KIT Phase 3 — no more panels) ───────── */
+/* ── 3-player mode ───────── */
 /* HUD is identical for 2p/3p; only opp-scores row differs */
 
 /* ── In-game menu (HUD Kit Pause) ────────────────────────── */
@@ -1735,7 +1749,7 @@ html, body {
     color: var(--text);
 }
 .hud-ring.active .ring-val { color: var(--accent); }
-/* FIX-10: snapshot блок — табличный layout */
+/* snapshot блок — табличный layout */
 .pause-snapshot {
     display: flex; flex-direction: column; gap: 4px;
     padding: 10px 2px 4px;
@@ -2376,7 +2390,7 @@ html, body {
 </div><!-- /app -->
 
 <!-- Handoff screen -->
-<div class="overlay hidden" id="handoff-screen">
+<div class="overlay hidden" id="handoff-screen" role="dialog" aria-modal="true" aria-label="Передача устройства">
     <div id="handoff-content">
         <div class="handoff-label" id="handoff-player"></div>
         <div class="handoff-summary" id="handoff-summary"></div>
@@ -2395,7 +2409,7 @@ html, body {
                 <span class="hsr-sep"></span>
                 <span class="hsr-val">0</span>
             </div>
-            <!-- FIX-11: расширенный отчёт -->
+            <!-- расширенный отчёт -->
             <div class="handoff-stat-row" id="handoff-stat-chips">
                 <span class="hsr-label">Фишек на поле</span>
                 <span class="hsr-sep"></span>
@@ -2423,7 +2437,7 @@ html, body {
 </div>
 
 <!-- Game over screen -->
-<div class="overlay hidden" id="gameover-screen">
+<div class="overlay hidden" id="gameover-screen" role="dialog" aria-modal="true" aria-label="Конец игры">
     <div class="gameover-top-label">◦ MATCH.COMPLETE ◦</div>
     <div class="gameover-ring-wrap" id="gameover-ring-wrap">
         <svg viewBox="0 0 240 240">
@@ -2448,7 +2462,7 @@ html, body {
 </div>
 
 <!-- Card pick modal -->
-<div class="overlay hidden" id="card-pick-modal">
+<div class="overlay hidden" id="card-pick-modal" role="dialog" aria-modal="true" aria-labelledby="card-pick-title">
     <div class="modal-box">
         <div id="card-pick-title">&gt; ВЫБОР КАРТ</div>
         <div id="card-pick-list"></div>
@@ -2458,7 +2472,7 @@ html, body {
 </div>
 
 <!-- Steal pick modal — кража: выбор конкретной раскрытой или случайной из руки -->
-<div class="overlay hidden" id="steal-pick-modal">
+<div class="overlay hidden" id="steal-pick-modal" role="dialog" aria-modal="true" aria-labelledby="steal-pick-title">
     <div class="modal-box">
         <div id="steal-pick-title"></div>
         <div class="sp-section">
@@ -2473,7 +2487,7 @@ html, body {
 </div>
 
 <!-- Card detail overlay -->
-<div class="overlay hidden" id="card-detail">
+<div class="overlay hidden" id="card-detail" role="dialog" aria-modal="true" aria-labelledby="detail-name">
     <div class="detail-box">
         <div class="detail-head">
             <span class="dh-tag">◆ КАРТА</span>
@@ -2482,9 +2496,9 @@ html, body {
         <div id="detail-name">БАЙТ</div>
         <div id="detail-pattern"></div>
         <div id="detail-rotate-row">
-            <button class="btn-rotate" id="btn-rotate-ccw">↺</button>
+            <button class="btn-rotate" id="btn-rotate-ccw" aria-label="Повернуть против часовой">↺</button>
             <span>ПОВОРОТ</span>
-            <button class="btn-rotate" id="btn-rotate-cw">↻</button>
+            <button class="btn-rotate" id="btn-rotate-cw" aria-label="Повернуть по часовой">↻</button>
         </div>
         <div id="detail-effects"></div>
         <button id="card-detail-close">✕ ЗАКРЫТЬ</button>
@@ -2541,7 +2555,6 @@ html, body {
     <button class="btn-online-link" id="btn-mode-online">◉ ОНЛАЙН · ДУЭЛЬ · P2P</button>
     <div class="menu-foot">
         <button class="btn-ghost-sm" id="btn-show-rules">▤ ПРАВИЛА</button>
-        <button class="btn-ghost-sm" id="btn-show-cfg">⚙ CFG</button>
     </div>
 </div>
 
@@ -2606,13 +2619,13 @@ html, body {
 <div id="net-turn-indicator" class="hidden"></div>
 
 <!-- Rules screen -->
-<div id="rules-screen" class="hidden">
+<div id="rules-screen" class="hidden" role="dialog" aria-modal="true" aria-label="Правила игры">
     <div id="rules-header">
         <div>
             <div class="rules-head-label">&gt; MANUAL.v1.2</div>
             <div id="rules-title">ПРАВИЛА</div>
         </div>
-        <button id="btn-rules-close">✕</button>
+        <button id="btn-rules-close" aria-label="Закрыть правила">✕</button>
     </div>
 
     <div id="rules-tabs">
@@ -2762,7 +2775,7 @@ html, body {
 </div>
 
 <!-- In-game menu -->
-<div id="ingame-menu" class="hidden">
+<div id="ingame-menu" class="hidden" role="dialog" aria-modal="true" aria-label="Пауза">
     <div class="ingame-menu-box">
         <div class="pause-top">
             <div class="pause-tag">SYS.HALT</div>
@@ -2776,7 +2789,7 @@ html, body {
             <div class="pause-state-label">STATE</div>
             <div class="pause-rings" id="pause-rings"></div>
         </div>
-        <!-- FIX-10: снимок матча -->
+        <!-- снимок матча -->
         <div class="pause-snapshot" id="pause-snapshot">
             <div class="pause-snap-row"><span class="ps-k">PHASE</span><span class="ps-sep"></span><span class="ps-v" id="ps-phase">—</span></div>
             <div class="pause-snap-row"><span class="ps-k">TURN</span><span class="ps-sep"></span><span class="ps-v" id="ps-turn">—</span></div>
@@ -2797,8 +2810,8 @@ html, body {
 <div id="toast" class="hidden"></div>
 
 <script src="https://unpkg.com/peerjs@1.5.5/dist/peerjs.min.js"></script>
-<script src="game.js?v=20260420e"></script>
-<script src="net.js?v=20260420e"></script>
-<script src="ui.js?v=20260420e"></script>
+<script src="game.js?v=20260420h"></script>
+<script src="net.js?v=20260420h"></script>
+<script src="ui.js?v=20260420h"></script>
 </body>
 </html>

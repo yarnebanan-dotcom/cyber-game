@@ -87,6 +87,9 @@ class GameState {
         this.deck = new Deck(cards, this.discard);
     }
     get cp() { return this.players[this.currentPI]; }
+    // В 3p «противник» для эффектов Target.Opp = следующий по очереди игрок
+    // (правило физической настолки). То же правило применяется в RevealCards,
+    // DiscardCards, ModifySupply, SetSupply, CopyOpponentSupply.
     get opp() { return this.players[(this.currentPI + 1) % this.playerCount]; }
 }
 
@@ -654,9 +657,12 @@ class TurnManager {
     }
     _isPlacementValid(target, valids) {
         if (!target || !valids) return false;
+        // Сравниваем позиции как множество: порядок фишек не важен.
+        const key = arr => arr.map(([r, c]) => `${r},${c}`).sort().join('|');
+        const tk = key(target.chipPositions);
         return valids.some(p =>
             p.chipPositions.length === target.chipPositions.length &&
-            p.chipPositions.every(([r, c], i) => r === target.chipPositions[i][0] && c === target.chipPositions[i][1])
+            key(p.chipPositions) === tk
         );
     }
 }
